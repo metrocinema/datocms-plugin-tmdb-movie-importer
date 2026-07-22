@@ -73,5 +73,10 @@ export function validateFieldMappings(params: PluginParameters, schema: DatoSche
     issues.push({ code: 'person_name_field_invalid', message: 'Person name field must be a string or text field.', severity: 'error' });
   }
 
+  const tmdbIdField = params.personTmdbIdFieldApiKey ? personModel?.fields[params.personTmdbIdFieldApiKey] : null;
+  if (params.personTmdbIdFieldApiKey && (!tmdbIdField || !['integer', 'float', 'string'].includes(tmdbIdField.fieldType))) {
+    issues.push({ code: 'person_tmdb_id_field_invalid', message: 'Person TMDB ID field must be an integer, float, or string field.', severity: 'error' });
+  }
+
   return issues;
 }
