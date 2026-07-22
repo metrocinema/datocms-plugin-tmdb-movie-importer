@@ -29,6 +29,13 @@ describe('compareMovieFields', () => {
     expect(title.selected).toBe(false);
   });
 
+  it('treats equivalent TMDB IDs as unchanged across string and number fields', () => {
+    const [tmdbId] = compareMovieFields({ tmdbId: '123' }, movie, ['tmdbId']);
+
+    expect(tmdbId.changed).toBe(false);
+    expect(tmdbId.selected).toBe(false);
+  });
+
   it('marks missing TMDB values as unavailable and never selected', () => {
     const [rating] = compareMovieFields({ mpaaRating: 'R' }, movie, ['mpaaRating']);
 

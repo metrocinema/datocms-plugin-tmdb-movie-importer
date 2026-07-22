@@ -25,6 +25,14 @@ function isEmpty(value: unknown): boolean {
   return value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
 }
 
+function valuesMatch(key: MovieFieldKey, currentValue: unknown, nextValue: unknown): boolean {
+  if (key === 'tmdbId') {
+    return String(currentValue ?? '') === String(nextValue ?? '');
+  }
+
+  return JSON.stringify(currentValue ?? null) === JSON.stringify(nextValue ?? null);
+}
+
 export function compareMovieFields(current: CurrentMovieValues, movie: NormalizedMovie, mappedFields: MovieFieldKey[]): FieldComparison[] {
   return mappedFields
     .filter((key) => SCALAR_KEYS.includes(key))
@@ -32,7 +40,7 @@ export function compareMovieFields(current: CurrentMovieValues, movie: Normalize
       const currentValue = current[key];
       const nextValue = proposedValue(movie, key);
       const available = !isEmpty(nextValue);
-      const changed = JSON.stringify(currentValue ?? null) !== JSON.stringify(nextValue ?? null);
+      const changed = !valuesMatch(key, currentValue, nextValue);
 
       return {
         key,
