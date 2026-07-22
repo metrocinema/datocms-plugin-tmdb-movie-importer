@@ -1,6 +1,48 @@
 import { createDatoGateway } from './datoGateway';
 
 describe('DatoGateway', () => {
+  it('finds configured people by name and maps their records', async () => {
+    const list = async (params: Record<string, unknown>) => {
+      expect(params).toEqual({
+        filter: {
+          type: 'person',
+          name: { in: ['Director Name', 'Actor Name'] },
+        },
+      });
+
+      return [
+        { id: 'person-1', name: 'Director Name', tmdb_id: '77' },
+        { id: 'person-2', name: 'Actor Name' },
+      ];
+    };
+    const gateway = createDatoGateway({ client: { items: { list } }, ctx: {} });
+
+    await expect(
+      gateway.findPeople({
+        modelApiKey: 'person',
+        nameFieldApiKey: 'name',
+        tmdbIdFieldApiKey: 'tmdb_id',
+        names: ['Director Name', 'Actor Name'],
+      }),
+    ).resolves.toEqual([
+      { id: 'person-1', name: 'Director Name', tmdbId: 77 },
+      { id: 'person-2', name: 'Actor Name', tmdbId: null },
+    ]);
+  });
+
+  it('throws when person lookup is unavailable', async () => {
+    const gateway = createDatoGateway({ client: { items: {} }, ctx: {} });
+
+    await expect(
+      gateway.findPeople({
+        modelApiKey: 'person',
+        nameFieldApiKey: 'name',
+        tmdbIdFieldApiKey: null,
+        names: ['Director Name'],
+      }),
+    ).rejects.toThrow('DatoCMS item list permission is unavailable.');
+  });
+
   it('creates draft people with name and optional TMDB id', async () => {
     const created: unknown[] = [];
     const gateway = createDatoGateway({

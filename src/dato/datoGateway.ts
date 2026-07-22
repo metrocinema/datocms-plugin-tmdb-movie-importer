@@ -1,8 +1,10 @@
 import type { NormalizedImageCandidate } from '../domain/movie';
+import type { ExistingPersonRecord } from '../domain/personMatching';
 
 export type GatewayClient = {
   items?: {
     create?: (payload: Record<string, unknown>) => Promise<{ id: string }>;
+    list?: (params: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
   };
   uploads?: {
     createFromUrl?: (payload: { url: string; default_field_metadata?: Record<string, unknown> }) => Promise<{ id: string }>;
@@ -15,9 +17,17 @@ export type GatewayContext = {
 };
 
 export type DatoGateway = {
+  findPeople(input: FindPeopleInput): Promise<ExistingPersonRecord[]>;
   createPersonDraft(input: CreatePersonDraftInput): Promise<{ id: string }>;
   uploadImage(image: NormalizedImageCandidate): Promise<{ id: string }>;
   applyFormValues(changes: Array<{ fieldPath: string; value: unknown }>): Promise<void>;
+};
+
+export type FindPeopleInput = {
+  modelApiKey: string;
+  nameFieldApiKey: string;
+  tmdbIdFieldApiKey: string | null;
+  names: string[];
 };
 
 export type CreatePersonDraftInput = {
@@ -35,6 +45,29 @@ type CreateDatoGatewayInput = {
 
 export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
   return {
+    async findPeople(person) {
+      if (!input.client.items?.list) {
+        throw new Error('DatoCMS item list permission is unavailable.');
+      }
+
+      const records = await input.client.items.list({
+        filter: {
+          type: person.modelApiKey,
+          [person.nameFieldApiKey]: { in: person.names },
+        },
+      });
+
+      return records.map((record) => {
+        const name = record[person.nameFieldApiKey];
+
+        return {
+          id: String(record.id),
+          name: typeof name === 'string' ? name : '',
+          tmdbId: person.tmdbIdFieldApiKey ? numericTmdbId(record[person.tmdbIdFieldApiKey]) : null,
+        };
+      });
+    },
+
     async createPersonDraft(person) {
       if (!input.client.items?.create) {
         throw new Error('DatoCMS item create permission is unavailable.');
@@ -78,4 +111,17 @@ export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
       }
     },
   };
+}
+
+function numericTmdbId(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+
+  return null;
 }
