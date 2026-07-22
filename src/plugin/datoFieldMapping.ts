@@ -80,3 +80,15 @@ export function validateFieldMappings(params: PluginParameters, schema: DatoSche
 
   return issues;
 }
+
+export function fieldPathForMovieField(fieldApiKey: string, localized: boolean, locale: 'en'): string {
+  return localized ? `${fieldApiKey}.${locale}` : fieldApiKey;
+}
+
+export function itemReference(id: string): { type: 'item'; id: string } {
+  return { type: 'item', id };
+}
+
+export function assetReference(id: string): { type: 'upload'; id: string } {
+  return { type: 'upload', id };
+}

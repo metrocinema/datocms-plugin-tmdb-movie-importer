@@ -1,4 +1,4 @@
-import { validateFieldMappings, type DatoSchemaSnapshot } from './datoFieldMapping';
+import { assetReference, fieldPathForMovieField, itemReference, validateFieldMappings, type DatoSchemaSnapshot } from './datoFieldMapping';
 import type { PluginParameters } from './parameters';
 
 const baseParams: PluginParameters = {
@@ -122,5 +122,20 @@ describe('validateFieldMappings', () => {
     };
 
     expect(validateFieldMappings(baseParams, schemaWithBadName).map((issue) => issue.code)).toContain('person_name_field_invalid');
+  });
+});
+
+describe('form value helpers', () => {
+  it('targets English for localized fields', () => {
+    expect(fieldPathForMovieField('title', true, 'en')).toBe('title.en');
+  });
+
+  it('targets raw field path for non-localized fields', () => {
+    expect(fieldPathForMovieField('runtime', false, 'en')).toBe('runtime');
+  });
+
+  it('builds Dato reference objects', () => {
+    expect(itemReference('person-1')).toEqual({ type: 'item', id: 'person-1' });
+    expect(assetReference('upload-1')).toEqual({ type: 'upload', id: 'upload-1' });
   });
 });
