@@ -79,6 +79,10 @@ export class TmdbClient {
       throw new TmdbError('TMDB request failed.', 'unknown');
     }
 
-    return response.json() as Promise<T>;
+    try {
+      return await response.json() as T;
+    } catch {
+      throw new TmdbError('TMDB response could not be parsed.', 'unknown');
+    }
   }
 }

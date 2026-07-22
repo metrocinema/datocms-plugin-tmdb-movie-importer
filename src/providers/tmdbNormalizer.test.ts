@@ -26,4 +26,26 @@ describe('normalizeTmdbMovie', () => {
     expect(movie.actors).toHaveLength(2);
     expect(movie.actors.map((actor) => actor.order)).toEqual([0, 1]);
   });
+
+  it('normalizes ranked poster and backdrop candidates', () => {
+    const movie = normalizeTmdbMovie(completeMovie, 10);
+    const poster = movie.images.find((image) => image.type === 'poster');
+    const backdrop = movie.images.find((image) => image.type === 'backdrop');
+
+    expect(poster).toMatchObject({
+      providerKey: 'tmdb',
+      providerImageId: completeMovie.images.posters[0].file_path,
+      originalUrl: `https://image.tmdb.org/t/p/original${completeMovie.images.posters[0].file_path}`,
+      language: 'en',
+      attribution: 'TMDB',
+    });
+    expect(backdrop).toMatchObject({
+      providerKey: 'tmdb',
+      providerImageId: completeMovie.images.backdrops[0].file_path,
+      originalUrl: `https://image.tmdb.org/t/p/original${completeMovie.images.backdrops[0].file_path}`,
+      language: null,
+      attribution: 'TMDB',
+    });
+    expect(movie.images.map((image) => image.rank)).toEqual([...movie.images.map((image) => image.rank)].sort((a, b) => a - b));
+  });
 });
