@@ -1,16 +1,32 @@
 import type { DatoGateway } from './datoGateway';
 import type { ImportPlan } from '../domain/importPlanning';
+import type { MovieFieldKey, NormalizedImageCandidate } from '../domain/movie';
 import type { PluginParameters } from '../plugin/parameters';
-import { assetReference, itemReference } from '../plugin/datoFieldMapping';
+import { assetReference, fieldPathForMovieField, itemReference } from '../plugin/datoFieldMapping';
 
 export type ImportResult =
   | { status: 'success'; createdPeople: string[]; uploadedAssets: string[]; appliedFields: string[] }
   | { status: 'dependency_failed'; message: string; createdPeople: string[]; uploadedAssets: string[] }
   | { status: 'form_failed'; message: string; createdPeople: string[]; uploadedAssets: string[]; appliedFields: string[] };
 
-export async function executeImportPlan(plan: ImportPlan, params: PluginParameters, gateway: DatoGateway): Promise<ImportResult> {
+export type ImportExecutorOptions = {
+  localizedMovieFields?: Partial<Record<MovieFieldKey, boolean>>;
+};
+
+type UploadedAsset = {
+  image: NormalizedImageCandidate;
+  id: string;
+};
+
+export async function executeImportPlan(
+  plan: ImportPlan,
+  params: PluginParameters,
+  gateway: DatoGateway,
+  options: ImportExecutorOptions = {},
+): Promise<ImportResult> {
   const createdPeople: string[] = [];
   const uploadedAssets: string[] = [];
+  const uploadedAssetsByImage: UploadedAsset[] = [];
   const personIdsByTmdb = new Map<number, string>();
 
   try {
@@ -33,6 +49,7 @@ export async function executeImportPlan(plan: ImportPlan, params: PluginParamete
     for (const image of plan.assetsToUpload) {
       const upload = await gateway.uploadImage(image);
       uploadedAssets.push(upload.id);
+      uploadedAssetsByImage.push({ image, id: upload.id });
     }
   } catch (error) {
     return {
@@ -46,21 +63,39 @@ export async function executeImportPlan(plan: ImportPlan, params: PluginParamete
   const changes = plan.fieldChanges
     .map((change) => {
       const fieldApiKey = params.movieFields[change.key];
-      return fieldApiKey ? { fieldPath: fieldApiKey, value: change.value } : null;
+      return fieldApiKey ? { fieldPath: movieFieldPath(change.key, fieldApiKey, params, options), value: change.value } : null;
     })
     .filter((change): change is { fieldPath: string; value: unknown } => change !== null);
 
   const directorField = params.movieFields.directors;
-  if (directorField) {
+  if (directorField && plan.directors.length > 0) {
     changes.push({
-      fieldPath: directorField,
+      fieldPath: movieFieldPath('directors', directorField, params, options),
       value: plan.directors.map((person) => personIdsByTmdb.get(person.tmdbId)).filter((id): id is string => Boolean(id)).map(itemReference),
     });
   }
 
+  const actorField = params.movieFields.actors;
+  if (actorField && plan.actors.length > 0) {
+    changes.push({
+      fieldPath: movieFieldPath('actors', actorField, params, options),
+      value: plan.actors.map((person) => personIdsByTmdb.get(person.tmdbId)).filter((id): id is string => Boolean(id)).map(itemReference),
+    });
+  }
+
   const posterField = params.movieFields.poster;
-  if (posterField && uploadedAssets[0]) {
-    changes.push({ fieldPath: posterField, value: assetReference(uploadedAssets[0]) });
+  const poster = uploadedAssetsByImage.find((asset) => asset.image.type === 'poster');
+  if (posterField && poster) {
+    changes.push({ fieldPath: movieFieldPath('poster', posterField, params, options), value: assetReference(poster.id) });
+  }
+
+  const backdropField = params.movieFields.backdrops;
+  const backdrops = uploadedAssetsByImage.filter((asset) => asset.image.type === 'backdrop');
+  if (backdropField && backdrops.length > 0) {
+    changes.push({
+      fieldPath: movieFieldPath('backdrops', backdropField, params, options),
+      value: backdrops.map((asset) => assetReference(asset.id)),
+    });
   }
 
   try {
@@ -81,4 +116,13 @@ export async function executeImportPlan(plan: ImportPlan, params: PluginParamete
     uploadedAssets,
     appliedFields: changes.map((change) => change.fieldPath),
   };
+}
+
+function movieFieldPath(
+  key: MovieFieldKey,
+  fieldApiKey: string,
+  params: PluginParameters,
+  options: ImportExecutorOptions,
+): string {
+  return fieldPathForMovieField(fieldApiKey, Boolean(options.localizedMovieFields?.[key]), params.targetLocale);
 }
