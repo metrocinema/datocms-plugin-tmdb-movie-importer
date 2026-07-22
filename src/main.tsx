@@ -1,9 +1,18 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { buildClient } from '@datocms/cma-client';
 import { connect } from 'datocms-plugin-sdk';
 import { Canvas } from 'datocms-react-ui';
 import 'datocms-react-ui/styles.css';
 import { App, type PluginScreen } from './App';
+import { executeImportPlan } from './dato/importExecutor';
+import { createDatoGateway, type GatewayClient } from './dato/datoGateway';
+import type { CurrentMovieValues } from './domain/fieldComparison';
+import type { ImportPlan } from './domain/importPlanning';
+import type { MovieFieldKey } from './domain/movie';
+import { parsePluginParameters } from './plugin/parameters';
+import { TmdbClient } from './providers/tmdbClient';
+import { normalizeTmdbMovie } from './providers/tmdbNormalizer';
 
 function render(screen: PluginScreen, ctx: unknown) {
   const root = ReactDOM.createRoot(document.getElementById('root')!);
@@ -36,18 +45,100 @@ connect({
         type: 'fieldAddon',
         tmdbId: ctx.formValues[ctx.fieldPath] as number | string | null,
         onOpen: async (mode) => {
-          await ctx.openModal({
+          const params = parsePluginParameters(ctx.plugin.attributes.parameters);
+          const mappedFields = (Object.keys(params.movieFields) as MovieFieldKey[])
+            .filter((key) => Boolean(params.movieFields[key]));
+          const currentValues = valuesForMappedFields(ctx.formValues, ctx.locale, params.movieFields, mappedFields);
+          const plan = await ctx.openModal({
             id: 'tmdbMovieImport',
             title: mode === 'refresh' ? 'Refresh from TMDB' : 'Find movie',
             width: 'l',
-            parameters: { mode },
+            parameters: {
+              mode,
+              currentValues,
+              mappedFields,
+              initialTitle: typeof currentValues.title === 'string' ? currentValues.title : '',
+              initialYear: typeof currentValues.yearReleased === 'number' ? currentValues.yearReleased : null,
+            },
           });
+
+          if (!isImportPlan(plan)) {
+            return;
+          }
+
+          const result = await executeImportPlan(plan, params, gatewayFor(ctx, params.targetLocale));
+          if (result.status === 'success') {
+            ctx.notice('TMDB import applied to the unsaved movie.');
+          } else {
+            ctx.alert(result.message);
+          }
         },
       },
       ctx,
     );
   },
   renderModal(_modalId, ctx) {
-    render({ type: 'modal' }, ctx);
+    const params = parsePluginParameters(ctx.plugin.attributes.parameters);
+    const mappedFields = modalMappedFields(ctx.parameters.mappedFields);
+    const currentValues = modalCurrentValues(ctx.parameters.currentValues);
+    const tmdb = new TmdbClient({ readToken: params.tmdbReadToken });
+
+    render({
+      type: 'modal',
+      initialTitle: typeof ctx.parameters.initialTitle === 'string' ? ctx.parameters.initialTitle : '',
+      initialYear: typeof ctx.parameters.initialYear === 'number' ? ctx.parameters.initialYear : null,
+      currentValues,
+      mappedFields,
+      searchMovies: (query) => tmdb.searchMovies(query),
+      loadMovie: async (tmdbId) => normalizeTmdbMovie(await tmdb.getMoviePackage(tmdbId), params.actorLimit),
+      execute: async (plan) => ctx.resolve(plan),
+    }, ctx);
   },
 });
+
+function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; environment: string; setFieldValue?: (path: string, value: unknown) => Promise<void> }, targetLocale: 'en') {
+  const client = buildClient({
+    apiToken: ctx.currentUserAccessToken ?? null,
+    baseUrl: ctx.cmaBaseUrl,
+    environment: ctx.environment,
+  });
+
+  return createDatoGateway({
+    client: {
+      items: {
+        create: async (payload) => client.items.create(payload as never),
+        list: async (query) => client.items.list(query as never) as Promise<Array<Record<string, unknown>>>,
+      },
+      uploads: {
+        createFromUrl: async ({ url, default_field_metadata }) => client.uploads.create({ path: url, default_field_metadata: default_field_metadata as never }),
+      },
+    } satisfies GatewayClient,
+    ctx,
+    targetLocale,
+  });
+}
+
+function valuesForMappedFields(formValues: Record<string, unknown>, locale: string, movieFields: Partial<Record<MovieFieldKey, string>>, mappedFields: MovieFieldKey[]): CurrentMovieValues {
+  return Object.fromEntries(mappedFields.map((key) => [key, currentValue(formValues[movieFields[key]!], locale)])) as CurrentMovieValues;
+}
+
+function currentValue(value: unknown, locale: string): unknown {
+  if (typeof value === 'object' && value !== null && !Array.isArray(value) && locale in value) {
+    return (value as Record<string, unknown>)[locale];
+  }
+
+  return value;
+}
+
+function modalMappedFields(value: unknown): MovieFieldKey[] {
+  const knownKeys: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'backdrops', 'directors', 'actors'];
+  return Array.isArray(value) ? value.filter((key): key is MovieFieldKey => typeof key === 'string' && knownKeys.includes(key as MovieFieldKey)) : [];
+}
+
+function modalCurrentValues(value: unknown): CurrentMovieValues {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as CurrentMovieValues : {};
+}
+
+function isImportPlan(value: unknown): value is ImportPlan {
+  return typeof value === 'object' && value !== null && ['fieldChanges', 'directors', 'actors', 'peopleToCreate', 'peopleToReuse', 'assetsToUpload'].every((key) => Array.isArray((value as Record<string, unknown>)[key]));
+}

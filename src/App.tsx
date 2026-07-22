@@ -1,11 +1,12 @@
 import { parsePluginParameters } from './plugin/parameters';
 import { ConfigScreen } from './ui/ConfigScreen';
 import { FieldAddon } from './ui/FieldAddon';
+import { ImportModal, type ImportModalProps } from './ui/ImportModal';
 
 export type PluginScreen =
   | { type: 'config'; parameters?: unknown; onSave?: (params: unknown) => Promise<void> }
   | { type: 'fieldAddon'; tmdbId?: number | string | null; onOpen?: (mode: 'find' | 'refresh') => void }
-  | { type: 'modal' }
+  | ({ type: 'modal' } & ImportModalProps)
   | { type: 'unknown'; label: string };
 
 type AppProps = {
@@ -22,7 +23,7 @@ export function App({ screen }: AppProps) {
   }
 
   if (screen.type === 'modal') {
-    return <div>TMDB Movie Import</div>;
+    return <ImportModal {...screen} />;
   }
 
   return <div>Unsupported plugin screen: {screen.label}</div>;
