@@ -1,6 +1,10 @@
+import { parsePluginParameters } from './plugin/parameters';
+import { ConfigScreen } from './ui/ConfigScreen';
+import { FieldAddon } from './ui/FieldAddon';
+
 export type PluginScreen =
-  | { type: 'config' }
-  | { type: 'fieldAddon' }
+  | { type: 'config'; parameters?: unknown; onSave?: (params: unknown) => Promise<void> }
+  | { type: 'fieldAddon'; tmdbId?: number | string | null; onOpen?: (mode: 'find' | 'refresh') => void }
   | { type: 'modal' }
   | { type: 'unknown'; label: string };
 
@@ -10,11 +14,11 @@ type AppProps = {
 
 export function App({ screen }: AppProps) {
   if (screen.type === 'config') {
-    return <div>Configure TMDB Movie Import</div>;
+    return <ConfigScreen parameters={parsePluginParameters(screen.parameters)} onSave={async (params) => screen.onSave?.(params)} />;
   }
 
   if (screen.type === 'fieldAddon') {
-    return <button type="button">Find movie</button>;
+    return <FieldAddon tmdbId={screen.tmdbId ?? null} onOpen={(mode) => screen.onOpen?.(mode)} />;
   }
 
   if (screen.type === 'modal') {

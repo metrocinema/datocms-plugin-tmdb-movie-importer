@@ -5,7 +5,7 @@ describe('App', () => {
   it('renders the config screen', () => {
     render(<App screen={{ type: 'config' }} />);
 
-    expect(screen.getByText('Configure TMDB Movie Import')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save configuration' })).toBeInTheDocument();
   });
 
   it('renders the field add-on launcher', () => {
