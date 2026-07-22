@@ -14,16 +14,40 @@ export function validateRuntimeConfiguration(
 
 type SchemaContext = {
   itemTypes?: Record<string, unknown>;
-  fields?: Record<string, unknown>;
+  loadItemTypeFields?: (itemTypeId: string) => Promise<unknown[]>;
 };
 
-export function schemaSnapshotFromPluginContext(context: unknown): DatoSchemaSnapshot | undefined {
+export async function loadSchemaForRuntimeValidation(
+  parameters: PluginParameters,
+  context: unknown,
+): Promise<DatoSchemaSnapshot | undefined> {
   const source = context as SchemaContext;
-  if (!source.itemTypes || !source.fields) {
+  if (!source.itemTypes || typeof source.loadItemTypeFields !== 'function') {
     return undefined;
   }
 
-  const fields = Object.values(source.fields).flatMap((entity) => {
+  const models = [parameters.movieModelApiKey, parameters.personModelApiKey]
+    .map((apiKey) => modelForApiKey(source.itemTypes!, apiKey));
+  if (models.some((model) => !model)) {
+    return undefined;
+  }
+
+  try {
+    const fieldsByModel = await Promise.all(models.map((model) => source.loadItemTypeFields!(model!.id)));
+    if (fieldsByModel.some((fields) => !Array.isArray(fields))) {
+      return undefined;
+    }
+    return schemaSnapshotFromLoadedFields(source.itemTypes, fieldsByModel.flat());
+  } catch {
+    return undefined;
+  }
+}
+
+function schemaSnapshotFromLoadedFields(
+  itemTypes: Record<string, unknown>,
+  loadedFields: unknown[],
+): DatoSchemaSnapshot | undefined {
+  const fields = loadedFields.flatMap((entity) => {
     const record = entityRecord(entity);
     const attributes = entityRecord(record?.attributes);
     const id = typeof record?.id === 'string' ? record.id : null;
@@ -34,7 +58,7 @@ export function schemaSnapshotFromPluginContext(context: unknown): DatoSchemaSna
     return [{ id, itemTypeId, field: { apiKey, fieldType, localized: attributes?.localized === true, validators: validatorsFor(attributes?.validators) } }];
   });
 
-  const models = Object.values(source.itemTypes).flatMap((entity) => {
+  const models = Object.values(itemTypes).flatMap((entity) => {
     const record = entityRecord(entity);
     const attributes = entityRecord(record?.attributes);
     const id = typeof record?.id === 'string' ? record.id : null;
@@ -47,6 +71,14 @@ export function schemaSnapshotFromPluginContext(context: unknown): DatoSchemaSna
   });
 
   return models.length > 0 ? { models: Object.fromEntries(models) } : undefined;
+}
+
+function modelForApiKey(itemTypes: Record<string, unknown>, apiKey: string): { id: string } | undefined {
+  return Object.values(itemTypes).flatMap((entity) => {
+    const record = entityRecord(entity);
+    const attributes = entityRecord(record?.attributes);
+    return typeof record?.id === 'string' && attributes?.api_key === apiKey ? [{ id: record.id }] : [];
+  })[0];
 }
 
 function entityRecord(value: unknown): Record<string, unknown> | undefined {

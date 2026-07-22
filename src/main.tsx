@@ -11,7 +11,7 @@ import type { CurrentMovieValues } from './domain/fieldComparison';
 import type { ImportPlan } from './domain/importPlanning';
 import type { MovieFieldKey } from './domain/movie';
 import { parsePluginParameters } from './plugin/parameters';
-import { schemaSnapshotFromPluginContext, validateRuntimeConfiguration } from './plugin/runtimeValidation';
+import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './plugin/runtimeValidation';
 import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFields } from './plugin/mappedFields';
 import { TmdbClient } from './providers/tmdbClient';
 import { normalizeTmdbMovie } from './providers/tmdbNormalizer';
@@ -43,7 +43,7 @@ connect({
   },
   renderFieldExtension(_fieldExtensionId, ctx) {
     const params = parsePluginParameters(ctx.plugin.attributes.parameters);
-    const configurationIssues = validateRuntimeConfiguration(params, schemaSnapshotFromPluginContext(ctx));
+    const configurationIssues = validateRuntimeConfiguration(params);
     render(
       {
         type: 'fieldAddon',
@@ -51,7 +51,8 @@ connect({
         configurationIssues,
         onOpen: async (mode) => {
           const params = parsePluginParameters(ctx.plugin.attributes.parameters);
-          const currentIssues = validateRuntimeConfiguration(params, schemaSnapshotFromPluginContext(ctx));
+          const schema = await loadSchemaForRuntimeValidation(params, ctx);
+          const currentIssues = validateRuntimeConfiguration(params, schema);
           if (currentIssues.length > 0) {
             ctx.alert(`Configure the importer before using it: ${currentIssues.map((issue) => issue.message).join(' ')}`);
             return;
@@ -78,7 +79,8 @@ connect({
           }
 
           const latestParams = parsePluginParameters(ctx.plugin.attributes.parameters);
-          const executionIssues = validateRuntimeConfiguration(latestParams, schemaSnapshotFromPluginContext(ctx));
+          const latestSchema = await loadSchemaForRuntimeValidation(latestParams, ctx);
+          const executionIssues = validateRuntimeConfiguration(latestParams, latestSchema);
           if (executionIssues.length > 0) {
             ctx.alert(`Import did not run because the configuration is incomplete: ${executionIssues.map((issue) => issue.message).join(' ')}`);
             return;
@@ -97,7 +99,7 @@ connect({
   },
   renderModal(_modalId, ctx) {
     const params = parsePluginParameters(ctx.plugin.attributes.parameters);
-    const configurationIssues = validateRuntimeConfiguration(params, schemaSnapshotFromPluginContext(ctx));
+    const configurationIssues = validateRuntimeConfiguration(params);
     const mappedFields = modalMappedFields(ctx.parameters.mappedFields);
     const currentValues = modalCurrentValues(ctx.parameters.currentValues);
     const tmdb = new TmdbClient({ readToken: params.tmdbReadToken });

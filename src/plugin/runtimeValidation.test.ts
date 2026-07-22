@@ -1,4 +1,4 @@
-import { validateRuntimeConfiguration } from './runtimeValidation';
+import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './runtimeValidation';
 import { parsePluginParameters } from './parameters';
 import type { DatoSchemaSnapshot } from './datoFieldMapping';
 
@@ -33,4 +33,61 @@ describe('validateRuntimeConfiguration', () => {
 
     expect(validateRuntimeConfiguration(validParameters, badSchema).map((issue) => issue.code)).toContain('title_wrong_type');
   });
+
+  it('does not treat a partial field cache as an invalid mapping when field loading is unavailable', async () => {
+    const schema = await loadSchemaForRuntimeValidation(validParameters, partialSchemaContext());
+
+    expect(schema).toBeUndefined();
+    expect(validateRuntimeConfiguration(validParameters, schema)).toEqual([]);
+  });
+
+  it('falls back to parameter validation when field loading fails', async () => {
+    const schema = await loadSchemaForRuntimeValidation(validParameters, {
+      ...partialSchemaContext(),
+      loadItemTypeFields: async () => {
+        throw new Error('DatoCMS schema request failed');
+      },
+    });
+
+    expect(schema).toBeUndefined();
+    expect(validateRuntimeConfiguration(validParameters, schema)).toEqual([]);
+  });
+
+  it('validates loaded fields instead of a partial field cache', async () => {
+    const schema = await loadSchemaForRuntimeValidation(validParameters, {
+      ...partialSchemaContext(),
+      loadItemTypeFields: async (itemTypeId: string) => itemTypeId === 'movie-id'
+        ? [field('title-id', 'movie-id', 'title', 'integer')]
+        : [field('name-id', 'person-id', 'name', 'string')],
+    });
+
+    expect(validateRuntimeConfiguration(validParameters, schema).map((issue) => issue.code)).toContain('title_wrong_type');
+  });
 });
+
+function partialSchemaContext() {
+  return {
+    itemTypes: {
+      'movie-id': itemType('movie-id', 'movie'),
+      'person-id': itemType('person-id', 'person'),
+    },
+    fields: {},
+  };
+}
+
+function itemType(id: string, apiKey: string) {
+  return { id, attributes: { api_key: apiKey } };
+}
+
+function field(id: string, itemTypeId: string, apiKey: string, fieldType: string) {
+  return {
+    id,
+    attributes: {
+      api_key: apiKey,
+      item_type: itemTypeId,
+      field_type: fieldType,
+      localized: false,
+      validators: {},
+    },
+  };
+}
