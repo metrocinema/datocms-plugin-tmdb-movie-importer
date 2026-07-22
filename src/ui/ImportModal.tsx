@@ -20,6 +20,7 @@ export type ImportModalProps = {
   searchMovies: (query: TmdbSearchQuery) => Promise<TmdbSearchResult[]>;
   loadMovie: (tmdbId: number) => Promise<NormalizedMovie>;
   resolvePeople?: (candidates: PersonCandidate[]) => Promise<ExistingPersonRecord[]>;
+  tmdbIdFieldConfigured?: boolean;
   execute: (plan: ImportPlan) => Promise<void>;
 };
 
@@ -41,7 +42,7 @@ export function ImportModal(props: ImportModalProps) {
       const records = await props.resolvePeople?.([...loaded.directors, ...loaded.actors]) ?? [];
       setMovie(loaded);
       setComparisons(compareMovieFields(props.currentValues, loaded, props.mappedFields));
-      setPeople([...loaded.directors, ...loaded.actors].map((candidate) => ({ candidate, decision: matchPerson(candidate, records, true) })));
+      setPeople([...loaded.directors, ...loaded.actors].map((candidate) => ({ candidate, decision: matchPerson(candidate, records, props.tmdbIdFieldConfigured ?? true) })));
       setImageSelection(defaultImageSelection(props.currentValues, loaded.images));
       setStep('review');
     } catch {

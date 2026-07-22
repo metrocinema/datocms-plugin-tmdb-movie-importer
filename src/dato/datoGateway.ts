@@ -28,6 +28,7 @@ export type FindPeopleInput = {
   nameFieldApiKey: string;
   tmdbIdFieldApiKey: string | null;
   names: string[];
+  tmdbIds?: number[];
 };
 
 export type CreatePersonDraftInput = {
@@ -58,17 +59,23 @@ export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
       });
 
       const requestedNames = new Set(person.names.map(normalizePersonName));
+      const requestedTmdbIds = new Set(person.tmdbIds ?? []);
 
       return records.flatMap((record) => {
         const name = record[person.nameFieldApiKey];
-        if (typeof name !== 'string' || !requestedNames.has(normalizePersonName(name))) {
+        const tmdbId = person.tmdbIdFieldApiKey ? numericTmdbId(record[person.tmdbIdFieldApiKey]) : null;
+        const matchesName = typeof name === 'string' && requestedNames.has(normalizePersonName(name));
+        const matchesTmdbId = tmdbId !== null && requestedTmdbIds.has(tmdbId);
+        if (!matchesName && !matchesTmdbId) {
           return [];
         }
+
+        if (typeof name !== 'string') return [];
 
         return [{
           id: String(record.id),
           name,
-          tmdbId: person.tmdbIdFieldApiKey ? numericTmdbId(record[person.tmdbIdFieldApiKey]) : null,
+          tmdbId,
         }];
       });
     },

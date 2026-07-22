@@ -99,4 +99,28 @@ describe('ImportModal data flow', () => {
     await waitFor(() => expect(screen.getByText('Review changes')).toBeInTheDocument());
     expect(loadMovie).toHaveBeenCalledWith(123);
   });
+
+  it('reuses a different-name record when the TMDB ID matches', async () => {
+    const execute = vi.fn();
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Stored Name', tmdbId: 10 }]} execute={execute} />);
+
+    await reachReview();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    expect(execute.mock.calls[0][0].peopleToReuse).toContainEqual({ candidateTmdbId: 10, recordId: 'director-10', name: 'Director Name' });
+  });
+
+  it('does not use TMDB ID matching when the person ID field is not configured', async () => {
+    const execute = vi.fn();
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Stored Name', tmdbId: 10 }]} tmdbIdFieldConfigured={false} execute={execute} />);
+
+    await reachReview();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    expect(execute.mock.calls[0][0].peopleToCreate).toContainEqual({ candidateTmdbId: 10, name: 'Director Name' });
+  });
 });

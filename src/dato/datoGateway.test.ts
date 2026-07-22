@@ -43,6 +43,25 @@ describe('DatoGateway', () => {
     ).rejects.toThrow('DatoCMS item list permission is unavailable.');
   });
 
+  it('finds a configured person by TMDB ID even when the stored name differs', async () => {
+    const gateway = createDatoGateway({
+      client: {
+        items: {
+          list: async () => [{ id: 'person-1', name: 'Dato Display Name', tmdb_id: 77 }],
+        },
+      },
+      ctx: {},
+    });
+
+    await expect(gateway.findPeople({
+      modelApiKey: 'person',
+      nameFieldApiKey: 'name',
+      tmdbIdFieldApiKey: 'tmdb_id',
+      names: ['TMDB Director Name'],
+      tmdbIds: [77],
+    })).resolves.toEqual([{ id: 'person-1', name: 'Dato Display Name', tmdbId: 77 }]);
+  });
+
   it('creates draft people with name and optional TMDB id', async () => {
     const created: unknown[] = [];
     const gateway = createDatoGateway({

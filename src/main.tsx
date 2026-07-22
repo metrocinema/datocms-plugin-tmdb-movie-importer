@@ -95,11 +95,13 @@ connect({
       mappedFields,
       searchMovies: (query) => tmdb.searchMovies(query),
       loadMovie: async (tmdbId) => normalizeTmdbMovie(await tmdb.getMoviePackage(tmdbId), params.actorLimit),
+      tmdbIdFieldConfigured: Boolean(params.personTmdbIdFieldApiKey),
       resolvePeople: (people) => gateway.findPeople({
         modelApiKey: params.personModelApiKey,
         nameFieldApiKey: params.personNameFieldApiKey,
         tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
         names: people.map((person) => person.name),
+        tmdbIds: people.map((person) => person.tmdbId),
       }),
       execute: async (plan) => ctx.resolve(plan),
     }, ctx);
