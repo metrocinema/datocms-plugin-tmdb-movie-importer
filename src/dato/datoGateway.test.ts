@@ -1,18 +1,18 @@
 import { createDatoGateway } from './datoGateway';
 
 describe('DatoGateway', () => {
-  it('finds configured people by name and maps their records', async () => {
+  it('finds configured people by normalized name and maps their records', async () => {
     const list = async (params: Record<string, unknown>) => {
       expect(params).toEqual({
         filter: {
           type: 'person',
-          name: { in: ['Director Name', 'Actor Name'] },
         },
       });
 
       return [
         { id: 'person-1', name: 'Director Name', tmdb_id: '77' },
-        { id: 'person-2', name: 'Actor Name' },
+        { id: 'person-2', name: ' actor   name ' },
+        { id: 'person-3', name: 'Unrequested Person' },
       ];
     };
     const gateway = createDatoGateway({ client: { items: { list } }, ctx: {} });
@@ -26,7 +26,7 @@ describe('DatoGateway', () => {
       }),
     ).resolves.toEqual([
       { id: 'person-1', name: 'Director Name', tmdbId: 77 },
-      { id: 'person-2', name: 'Actor Name', tmdbId: null },
+      { id: 'person-2', name: ' actor   name ', tmdbId: null },
     ]);
   });
 
@@ -73,6 +73,77 @@ describe('DatoGateway', () => {
     });
   });
 
+  it('throws when draft person creation is unavailable', async () => {
+    const gateway = createDatoGateway({ client: { items: {} }, ctx: {} });
+
+    await expect(
+      gateway.createPersonDraft({
+        modelApiKey: 'person',
+        nameFieldApiKey: 'name',
+        tmdbIdFieldApiKey: null,
+        name: 'Director Name',
+        tmdbId: 77,
+      }),
+    ).rejects.toThrow('DatoCMS item create permission is unavailable.');
+  });
+
+  it('uploads image metadata using the configured locale', async () => {
+    const created: unknown[] = [];
+    const gateway = createDatoGateway({
+      client: {
+        uploads: {
+          createFromUrl: async (payload) => {
+            created.push(payload);
+            return { id: 'upload-1' };
+          },
+        },
+      },
+      ctx: {},
+      targetLocale: 'en-US',
+    });
+
+    await gateway.uploadImage({
+      providerKey: 'tmdb',
+      providerImageId: '/poster.jpg',
+      movieIdentity: { providerKey: 'tmdb', tmdbId: 1 },
+      type: 'poster',
+      originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg',
+      width: 100,
+      height: 150,
+      language: 'en',
+      rank: 1,
+      attribution: 'TMDB',
+    });
+
+    expect(created[0]).toMatchObject({
+      default_field_metadata: {
+        'en-US': {
+          alt: 'poster from tmdb',
+          title: '/poster.jpg',
+        },
+      },
+    });
+  });
+
+  it('throws when image upload is unavailable', async () => {
+    const gateway = createDatoGateway({ client: {}, ctx: {} });
+
+    await expect(
+      gateway.uploadImage({
+        providerKey: 'tmdb',
+        providerImageId: '/poster.jpg',
+        movieIdentity: { providerKey: 'tmdb', tmdbId: 1 },
+        type: 'poster',
+        originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg',
+        width: 100,
+        height: 150,
+        language: 'en',
+        rank: 1,
+        attribution: 'TMDB',
+      }),
+    ).rejects.toThrow('DatoCMS upload permission is unavailable.');
+  });
+
   it('applies form values through the provided setter', async () => {
     const calls: Array<[string, unknown]> = [];
     const gateway = createDatoGateway({
@@ -87,5 +158,11 @@ describe('DatoGateway', () => {
     await gateway.applyFormValues([{ fieldPath: 'title.en', value: 'Example Movie' }]);
 
     expect(calls).toEqual([['title.en', 'Example Movie']]);
+  });
+
+  it('throws when form updates are unavailable', async () => {
+    const gateway = createDatoGateway({ client: {}, ctx: {} });
+
+    await expect(gateway.applyFormValues([])).rejects.toThrow('DatoCMS form update API is unavailable.');
   });
 });

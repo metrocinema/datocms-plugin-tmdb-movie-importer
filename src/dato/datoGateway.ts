@@ -1,5 +1,5 @@
 import type { NormalizedImageCandidate } from '../domain/movie';
-import type { ExistingPersonRecord } from '../domain/personMatching';
+import { normalizePersonName, type ExistingPersonRecord } from '../domain/personMatching';
 
 export type GatewayClient = {
   items?: {
@@ -41,6 +41,7 @@ export type CreatePersonDraftInput = {
 type CreateDatoGatewayInput = {
   client: GatewayClient;
   ctx: GatewayContext;
+  targetLocale?: string;
 };
 
 export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
@@ -53,18 +54,22 @@ export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
       const records = await input.client.items.list({
         filter: {
           type: person.modelApiKey,
-          [person.nameFieldApiKey]: { in: person.names },
         },
       });
 
-      return records.map((record) => {
-        const name = record[person.nameFieldApiKey];
+      const requestedNames = new Set(person.names.map(normalizePersonName));
 
-        return {
+      return records.flatMap((record) => {
+        const name = record[person.nameFieldApiKey];
+        if (typeof name !== 'string' || !requestedNames.has(normalizePersonName(name))) {
+          return [];
+        }
+
+        return [{
           id: String(record.id),
-          name: typeof name === 'string' ? name : '',
+          name,
           tmdbId: person.tmdbIdFieldApiKey ? numericTmdbId(record[person.tmdbIdFieldApiKey]) : null,
-        };
+        }];
       });
     },
 
@@ -93,7 +98,7 @@ export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
       return input.client.uploads.createFromUrl({
         url: image.originalUrl,
         default_field_metadata: {
-          en: {
+          [input.targetLocale ?? 'en']: {
             alt: `${image.type} from ${image.providerKey}`,
             title: image.providerImageId,
           },
