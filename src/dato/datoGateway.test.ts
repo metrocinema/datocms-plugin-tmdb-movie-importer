@@ -184,4 +184,25 @@ describe('DatoGateway', () => {
 
     await expect(gateway.applyFormValues([])).rejects.toThrow('DatoCMS form update API is unavailable.');
   });
+
+  it('reports paths written before a later form value update fails', async () => {
+    const gateway = createDatoGateway({
+      client: {},
+      ctx: {
+        setFieldValue: async (fieldPath: string) => {
+          if (fieldPath === 'runtime') {
+            throw new Error('runtime validation failed');
+          }
+        },
+      },
+    });
+
+    await expect(gateway.applyFormValues([
+      { fieldPath: 'title', value: 'Example Movie' },
+      { fieldPath: 'runtime', value: 125 },
+    ])).rejects.toMatchObject({
+      message: 'runtime validation failed',
+      appliedFields: ['title'],
+    });
+  });
 });

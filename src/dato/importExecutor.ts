@@ -1,8 +1,9 @@
-import type { DatoGateway } from './datoGateway';
+import { FormValuesApplyError, type DatoGateway } from './datoGateway';
 import type { ImportPlan } from '../domain/importPlanning';
 import type { MovieFieldKey, NormalizedImageCandidate } from '../domain/movie';
 import type { PluginParameters } from '../plugin/parameters';
 import { assetReference, fieldPathForMovieField, itemReference } from '../plugin/datoFieldMapping';
+import { matchPerson } from '../domain/personMatching';
 
 export type ImportResult =
   | { status: 'success'; createdPeople: string[]; uploadedAssets: string[]; appliedFields: string[] }
@@ -34,7 +35,28 @@ export async function executeImportPlan(
       personIdsByTmdb.set(person.candidateTmdbId, person.recordId);
     }
 
-    for (const person of plan.peopleToCreate) {
+    const peopleToCreate = plan.peopleToCreate.filter((person) => !personIdsByTmdb.has(person.candidateTmdbId));
+    const existingPeople = peopleToCreate.length > 0
+      ? await gateway.findPeople({
+        modelApiKey: params.personModelApiKey,
+        nameFieldApiKey: params.personNameFieldApiKey,
+        tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
+        names: peopleToCreate.map((person) => person.name),
+        tmdbIds: peopleToCreate.map((person) => person.candidateTmdbId),
+      })
+      : [];
+
+    for (const person of peopleToCreate) {
+      const decision = matchPerson(
+        { tmdbId: person.candidateTmdbId, name: person.name, order: 0, role: 'actor' },
+        existingPeople,
+        Boolean(params.personTmdbIdFieldApiKey),
+      );
+      if (decision.type === 'reuse') {
+        personIdsByTmdb.set(person.candidateTmdbId, decision.recordId);
+        continue;
+      }
+
       const record = await gateway.createPersonDraft({
         modelApiKey: params.personModelApiKey,
         nameFieldApiKey: params.personNameFieldApiKey,
@@ -106,7 +128,7 @@ export async function executeImportPlan(
       message: error instanceof Error ? error.message : 'Form update failed.',
       createdPeople,
       uploadedAssets,
-      appliedFields: [],
+      appliedFields: error instanceof FormValuesApplyError ? error.appliedFields : [],
     };
   }
 

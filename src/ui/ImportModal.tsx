@@ -28,6 +28,7 @@ export function ImportModal(props: ImportModalProps) {
   const [step, setStep] = useState<Step>('search');
   const [title, setTitle] = useState(props.initialTitle);
   const [year, setYear] = useState<number | null>(props.initialYear);
+  const [tmdbId, setTmdbId] = useState('');
   const [results, setResults] = useState<TmdbSearchResult[]>([]);
   const [movie, setMovie] = useState<NormalizedMovie | null>(null);
   const [comparisons, setComparisons] = useState<FieldComparison[]>([]);
@@ -72,7 +73,14 @@ export function ImportModal(props: ImportModalProps) {
   }), [comparisons, imageSelection, movie, people]);
 
   if (step === 'search') {
-    return <><SearchStep title={title} year={year} results={results} onTitleChange={setTitle} onYearChange={setYear} onSearch={async () => setResults(await props.searchMovies({ title, year }))} onSelect={loadSelectedMovie} />{error ? <p role="alert">{error}</p> : null}</>;
+    return <><SearchStep title={title} year={year} results={results} onTitleChange={setTitle} onYearChange={setYear} onSearch={async () => setResults(await props.searchMovies({ title, year }))} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} onLoadTmdbId={() => {
+      const parsed = Number(tmdbId);
+      if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+        setError('Enter a valid TMDB ID.');
+        return;
+      }
+      void loadSelectedMovie(parsed);
+    }} />{error ? <p role="alert">{error}</p> : null}</>;
   }
 
   if (step === 'review') {

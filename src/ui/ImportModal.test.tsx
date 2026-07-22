@@ -100,6 +100,17 @@ describe('ImportModal data flow', () => {
     expect(loadMovie).toHaveBeenCalledWith(123);
   });
 
+  it('loads a movie from a TMDB ID entered in find mode', async () => {
+    const loadMovie = vi.fn(async () => movie);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={loadMovie} resolvePeople={async () => []} execute={vi.fn()} />);
+
+    await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
+    await userEvent.click(screen.getByRole('button', { name: 'Load TMDB ID' }));
+
+    await waitFor(() => expect(screen.getByText('Review changes')).toBeInTheDocument());
+    expect(loadMovie).toHaveBeenCalledWith(123);
+  });
+
   it('reuses a different-name record when the TMDB ID matches', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Stored Name', tmdbId: 10 }]} execute={execute} />);

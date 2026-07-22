@@ -32,8 +32,9 @@ const FIELD_TYPES: Record<string, string[]> = {
 };
 
 function linkedItemTypes(field: DatoFieldSnapshot): string[] {
-  const itemItemType = field.validators.itemItemType as { itemTypes?: unknown } | undefined;
-  return Array.isArray(itemItemType?.itemTypes) ? itemItemType.itemTypes.filter((value): value is string => typeof value === 'string') : [];
+  const itemItemType = (field.validators.itemItemType ?? field.validators.items_item_type) as { itemTypes?: unknown; item_types?: unknown } | undefined;
+  const itemTypes = itemItemType?.itemTypes ?? itemItemType?.item_types;
+  return Array.isArray(itemTypes) ? itemTypes.filter((value): value is string => typeof value === 'string') : [];
 }
 
 export function validateFieldMappings(params: PluginParameters, schema: DatoSchemaSnapshot): ValidationIssue[] {

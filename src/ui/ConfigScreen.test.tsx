@@ -26,6 +26,47 @@ describe('ConfigScreen', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(parameters));
   });
 
+  it('saves a complete configuration with field mappings and actor limit', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    const movieFields = {
+      title: 'title',
+      yearReleased: 'year_released',
+      mpaaRating: 'mpaa_rating',
+      runtime: 'runtime',
+      tmdbId: 'tmdb_id',
+      tagline: 'tagline',
+      description: 'description',
+      poster: 'poster',
+      backdrops: 'backdrops',
+      directors: 'directors',
+      actors: 'actors',
+    };
+    render(<ConfigScreen parameters={parsePluginParameters({})} onSave={onSave} />);
+
+    await user.type(screen.getByLabelText('TMDB read token'), 'read-token');
+    await user.type(screen.getByLabelText('Movie model API key'), 'movie');
+    for (const [key, value] of Object.entries(movieFields)) {
+      await user.type(screen.getByLabelText(`${movieFieldLabel(key)} field API key`), value);
+    }
+    await user.type(screen.getByLabelText('Person model API key'), 'person');
+    await user.type(screen.getByLabelText('Person name field API key'), 'name');
+    await user.type(screen.getByLabelText('Person TMDB ID field API key'), 'person_tmdb_id');
+    await user.clear(screen.getByLabelText('Actor limit'));
+    await user.type(screen.getByLabelText('Actor limit'), '7');
+    await user.click(screen.getByRole('button', { name: 'Save configuration' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      tmdbReadToken: 'read-token',
+      movieModelApiKey: 'movie',
+      movieFields,
+      personModelApiKey: 'person',
+      personNameFieldApiKey: 'name',
+      personTmdbIdFieldApiKey: 'person_tmdb_id',
+      actorLimit: 7,
+    })));
+  });
+
   it('disables the save button while saving', async () => {
     let completeSave: (() => void) | undefined;
     const onSave = vi.fn(
@@ -52,3 +93,19 @@ describe('ConfigScreen', () => {
     expect(screen.queryByText(/private-token/i)).not.toBeInTheDocument();
   });
 });
+
+function movieFieldLabel(key: string): string {
+  return {
+    title: 'Title',
+    yearReleased: 'Year released',
+    mpaaRating: 'MPAA rating',
+    runtime: 'Runtime',
+    tmdbId: 'TMDB ID',
+    tagline: 'Tagline',
+    description: 'Description',
+    poster: 'Poster',
+    backdrops: 'Backdrops',
+    directors: 'Directors',
+    actors: 'Actors',
+  }[key] ?? key;
+}

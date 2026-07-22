@@ -29,4 +29,11 @@ describe('FieldAddon', () => {
 
     expect(onOpen).toHaveBeenCalledWith('find');
   });
+
+  it('disables the launcher and explains the configuration problem', () => {
+    render(<FieldAddon tmdbId={null} onOpen={vi.fn()} configurationIssues={['TMDB read token is required.']} />);
+
+    expect(screen.getByRole('button', { name: 'Find movie' })).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('TMDB read token is required.');
+  });
 });

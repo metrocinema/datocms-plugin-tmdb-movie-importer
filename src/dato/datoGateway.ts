@@ -23,6 +23,13 @@ export type DatoGateway = {
   applyFormValues(changes: Array<{ fieldPath: string; value: unknown }>): Promise<void>;
 };
 
+export class FormValuesApplyError extends Error {
+  constructor(message: string, readonly appliedFields: string[]) {
+    super(message);
+    this.name = 'FormValuesApplyError';
+  }
+}
+
 export type FindPeopleInput = {
   modelApiKey: string;
   nameFieldApiKey: string;
@@ -118,8 +125,17 @@ export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
         throw new Error('DatoCMS form update API is unavailable.');
       }
 
+      const appliedFields: string[] = [];
       for (const change of changes) {
-        await input.ctx.setFieldValue(change.fieldPath, change.value);
+        try {
+          await input.ctx.setFieldValue(change.fieldPath, change.value);
+          appliedFields.push(change.fieldPath);
+        } catch (error) {
+          throw new FormValuesApplyError(
+            error instanceof Error ? error.message : 'DatoCMS form update failed.',
+            appliedFields,
+          );
+        }
       }
     },
   };

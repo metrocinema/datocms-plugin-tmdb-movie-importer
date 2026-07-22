@@ -11,6 +11,7 @@ import type { CurrentMovieValues } from './domain/fieldComparison';
 import type { ImportPlan } from './domain/importPlanning';
 import type { MovieFieldKey } from './domain/movie';
 import { parsePluginParameters } from './plugin/parameters';
+import { schemaSnapshotFromPluginContext, validateRuntimeConfiguration } from './plugin/runtimeValidation';
 import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFields } from './plugin/mappedFields';
 import { TmdbClient } from './providers/tmdbClient';
 import { normalizeTmdbMovie } from './providers/tmdbNormalizer';
@@ -41,12 +42,20 @@ connect({
     );
   },
   renderFieldExtension(_fieldExtensionId, ctx) {
+    const params = parsePluginParameters(ctx.plugin.attributes.parameters);
+    const configurationIssues = validateRuntimeConfiguration(params, schemaSnapshotFromPluginContext(ctx));
     render(
       {
         type: 'fieldAddon',
         tmdbId: ctx.formValues[ctx.fieldPath] as number | string | null,
+        configurationIssues,
         onOpen: async (mode) => {
           const params = parsePluginParameters(ctx.plugin.attributes.parameters);
+          const currentIssues = validateRuntimeConfiguration(params, schemaSnapshotFromPluginContext(ctx));
+          if (currentIssues.length > 0) {
+            ctx.alert(`Configure the importer before using it: ${currentIssues.map((issue) => issue.message).join(' ')}`);
+            return;
+          }
           const fieldMetadata = mappedFieldMetadata(params.movieFields, ctx.fields);
           const mappedFields = fieldMetadata.map((field) => field.key);
           const currentValues = valuesForMappedFields(ctx.formValues, params.targetLocale, fieldMetadata);
@@ -68,7 +77,14 @@ connect({
             return;
           }
 
-          const result = await executeImportPlan(plan, params, gatewayFor(ctx, params.targetLocale), executorOptionsForMappedFields(fieldMetadata));
+          const latestParams = parsePluginParameters(ctx.plugin.attributes.parameters);
+          const executionIssues = validateRuntimeConfiguration(latestParams, schemaSnapshotFromPluginContext(ctx));
+          if (executionIssues.length > 0) {
+            ctx.alert(`Import did not run because the configuration is incomplete: ${executionIssues.map((issue) => issue.message).join(' ')}`);
+            return;
+          }
+
+          const result = await executeImportPlan(plan, latestParams, gatewayFor(ctx, latestParams.targetLocale), executorOptionsForMappedFields(fieldMetadata));
           if (result.status === 'success') {
             ctx.notice('TMDB import applied to the unsaved movie.');
           } else {
@@ -81,6 +97,7 @@ connect({
   },
   renderModal(_modalId, ctx) {
     const params = parsePluginParameters(ctx.plugin.attributes.parameters);
+    const configurationIssues = validateRuntimeConfiguration(params, schemaSnapshotFromPluginContext(ctx));
     const mappedFields = modalMappedFields(ctx.parameters.mappedFields);
     const currentValues = modalCurrentValues(ctx.parameters.currentValues);
     const tmdb = new TmdbClient({ readToken: params.tmdbReadToken });
@@ -88,6 +105,7 @@ connect({
 
     render({
       type: 'modal',
+      configurationIssues,
       initialTitle: typeof ctx.parameters.initialTitle === 'string' ? ctx.parameters.initialTitle : '',
       initialYear: typeof ctx.parameters.initialYear === 'number' ? ctx.parameters.initialYear : null,
       initialTmdbId: typeof ctx.parameters.initialTmdbId === 'number' ? ctx.parameters.initialTmdbId : null,

@@ -1,4 +1,5 @@
 import { executeImportPlan } from './importExecutor';
+import { FormValuesApplyError } from './datoGateway';
 import type { ImportPlan } from '../domain/importPlanning';
 import type { PluginParameters } from '../plugin/parameters';
 
@@ -150,5 +151,51 @@ describe('executeImportPlan', () => {
     });
 
     expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('directors');
+  });
+
+  it('reuses a person discovered during the pre-create requery', async () => {
+    const createPersonDraft = vi.fn();
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+    const result = await executeImportPlan({
+      ...plan,
+      actors: [],
+      peopleToCreate: [{ candidateTmdbId: 10, name: 'Director Name' }],
+      assetsToUpload: [],
+    }, params, {
+      async findPeople(input) {
+        expect(input).toMatchObject({ names: ['Director Name'], tmdbIds: [10] });
+        return [{ id: 'person-existing', name: 'Director Name', tmdbId: null }];
+      },
+      createPersonDraft,
+      async uploadImage() {
+        return { id: 'upload-1' };
+      },
+      async applyFormValues(changes) {
+        appliedChanges.push(...changes);
+      },
+    });
+
+    expect(result.status).toBe('success');
+    expect(createPersonDraft).not.toHaveBeenCalled();
+    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: [{ type: 'item', id: 'person-existing' }] });
+  });
+
+  it('reports fields applied before a form update fails', async () => {
+    const result = await executeImportPlan({ ...plan, directors: [], actors: [], peopleToCreate: [], assetsToUpload: [] }, params, {
+      async findPeople() {
+        return [];
+      },
+      async createPersonDraft() {
+        return { id: 'person-1' };
+      },
+      async uploadImage() {
+        return { id: 'upload-1' };
+      },
+      async applyFormValues() {
+        throw new FormValuesApplyError('Form update failed.', ['title']);
+      },
+    });
+
+    expect(result).toMatchObject({ status: 'form_failed', appliedFields: ['title'] });
   });
 });
