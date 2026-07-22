@@ -4,7 +4,8 @@ type FieldAddonProps = {
 };
 
 export function FieldAddon({ tmdbId, onOpen }: FieldAddonProps) {
-  const hasTmdbId = tmdbId !== null && tmdbId !== '';
+  const hasTmdbId =
+    tmdbId !== null && (typeof tmdbId !== 'string' || tmdbId.trim() !== '');
   const mode = hasTmdbId ? 'refresh' : 'find';
 
   return (

@@ -20,4 +20,13 @@ describe('FieldAddon', () => {
 
     expect(onOpen).toHaveBeenCalledWith('refresh');
   });
+
+  it('opens find mode when the TMDB id is whitespace only', async () => {
+    const onOpen = vi.fn();
+    render(<FieldAddon tmdbId="   " onOpen={onOpen} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Find movie' }));
+
+    expect(onOpen).toHaveBeenCalledWith('find');
+  });
 });

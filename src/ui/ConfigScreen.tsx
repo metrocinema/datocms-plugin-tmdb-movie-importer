@@ -13,13 +13,32 @@ type ConfigScreenProps = {
 
 export function ConfigScreen({ parameters, onSave }: ConfigScreenProps) {
   const [draft, setDraft] = useState(parameters);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const issues = validatePluginParameters(draft);
+
+  async function handleSubmit() {
+    if (isSaving) {
+      return;
+    }
+
+    setSaveError(false);
+    setIsSaving(true);
+
+    try {
+      await onSave(draft);
+    } catch {
+      setSaveError(true);
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        void onSave(draft);
+        void handleSubmit();
       }}
     >
       <FieldGroup>
@@ -42,8 +61,9 @@ export function ConfigScreen({ parameters, onSave }: ConfigScreenProps) {
       {issues.map((issue) => (
         <p key={issue.code}>{issue.message}</p>
       ))}
-      <Button type="submit" buttonType="primary">
-        Save configuration
+      {saveError && <p>Unable to save configuration. Please try again.</p>}
+      <Button type="submit" buttonType="primary" disabled={isSaving}>
+        {isSaving ? 'Saving configuration' : 'Save configuration'}
       </Button>
     </form>
   );
