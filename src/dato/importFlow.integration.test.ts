@@ -57,7 +57,12 @@ describe('import flow integration', () => {
     });
 
     expect(result.status).toBe('success');
-    expect(applied.map((change) => change.fieldPath)).toEqual(['title', 'directors']);
+    expect(applied).toEqual([
+      { fieldPath: 'title', value: 'Example Movie' },
+      { fieldPath: 'directors', value: [{ type: 'item', id: 'person-1' }] },
+    ]);
+    expect(applied.map((change) => change.fieldPath)).not.toContain('runtime');
+    expect(applied.map((change) => change.fieldPath)).not.toContain('mpaaRating');
   });
 
   it('does not update movie form when person creation fails', async () => {

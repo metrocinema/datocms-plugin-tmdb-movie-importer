@@ -14,7 +14,7 @@ Run the automated test suite and production checks:
     npm test
     npm run build
 
-`npm run build` includes TypeScript checking. You can also run `npm run typecheck` and `npm run lint` directly.
+`npm run build` includes TypeScript checking. `npm run lint` currently runs the same TypeScript no-emit check as `npm run typecheck`.
 
 ## DatoCMS setup
 
@@ -49,6 +49,7 @@ Run the local release checks:
     npm run build
 
 Normal automated tests use mocked DatoCMS interactions and sanitized TMDB fixtures; they do not call live DatoCMS or TMDB.
+`npm run lint` currently repeats the TypeScript no-emit check run by `npm run typecheck`.
 
 Before release, complete this manual acceptance checklist in a DatoCMS sandbox project. Use a movie model with the configured mappings, a shared person model with `name` and optional `tmdb_id`, an editor role that can create items and uploads, and a restricted role that lacks at least one required permission.
 
