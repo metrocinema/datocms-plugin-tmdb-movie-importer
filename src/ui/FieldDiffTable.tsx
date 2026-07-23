@@ -1,4 +1,5 @@
 import type { FieldComparison } from '../domain/fieldComparison';
+import { formatEmptyValue, movieFieldLabels } from './modalPresentation';
 
 type FieldDiffTableProps = {
   comparisons: FieldComparison[];
@@ -13,10 +14,16 @@ export function FieldDiffTable({ comparisons, onToggle, onSelectAll }: FieldDiff
         Select all changes
       </button>
       {comparisons.map((comparison) => (
-        <label key={comparison.key}>
-          <input type="checkbox" checked={comparison.selected} disabled={!comparison.available || !comparison.changed} onChange={() => onToggle(comparison.key)} />
-          {comparison.key}: {String(comparison.currentValue ?? '')} -&gt; {String(comparison.proposedValue ?? '')}
-        </label>
+        <article key={comparison.key}>
+          <h4>{movieFieldLabels[comparison.key]}</h4>
+          <label>
+            <input type="checkbox" checked={comparison.selected} disabled={!comparison.available || !comparison.changed} onChange={() => onToggle(comparison.key)} />
+            Select {movieFieldLabels[comparison.key]}
+          </label>
+          <p>Destination: {movieFieldLabels[comparison.key]}</p>
+          <p>Current: {formatEmptyValue(comparison.currentValue)}</p>
+          <p>Proposed: {comparison.available ? formatEmptyValue(comparison.proposedValue) : 'No TMDB value available'}</p>
+        </article>
       ))}
     </div>
   );

@@ -12,7 +12,7 @@ describe('TmdbClient', () => {
     const client = new TmdbClient({ readToken: 'test-read-token', fetchImpl });
 
     await expect(client.searchMovies({ title: 'The Matrix & More', year: 1999 })).resolves.toEqual([
-      { id: 1, title: 'The Matrix', releaseDate: '1999-03-30', overview: 'A', posterPath: '/poster.jpg' },
+      { id: 1, title: 'The Matrix', releaseDate: '1999-03-30', overview: 'A', posterPath: '/poster.jpg', posterUrl: 'https://image.tmdb.org/t/p/w154/poster.jpg' },
     ]);
 
     expect(fetchImpl).toHaveBeenCalledWith(

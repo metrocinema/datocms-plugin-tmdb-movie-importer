@@ -84,7 +84,7 @@ export function ImportModal(props: ImportModalProps) {
   }
 
   if (step === 'review') {
-    return <ReviewStep comparisons={comparisons} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
+    return <ReviewStep movie={movie!} comparisons={comparisons} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
       if (item.candidate.tmdbId !== candidate.tmdbId) return item;
       if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, warning: null } };
       return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), warning: null } };

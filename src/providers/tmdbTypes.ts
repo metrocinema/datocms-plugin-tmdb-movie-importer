@@ -9,6 +9,7 @@ export type TmdbSearchResult = {
   releaseDate: string | null;
   overview: string | null;
   posterPath: string | null;
+  posterUrl: string | null;
 };
 
 export type TmdbReleaseDate = {

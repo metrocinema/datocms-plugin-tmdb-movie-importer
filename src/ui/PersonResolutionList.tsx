@@ -7,14 +7,17 @@ type PersonResolutionListProps = {
 };
 
 export function PersonResolutionList({ people, onResolve }: PersonResolutionListProps) {
-  return (
-    <div>
-      {people.map(({ candidate, decision }) => (
-        <div key={`${candidate.role}:${candidate.tmdbId}`}>
-          <strong>{candidate.name}</strong>
-          <span>{decision.type}</span>
-          {decision.warning ? <p>{decision.warning}</p> : null}
-          {decision.type === 'ambiguous' ? (
+  const renderPeople = (role: PersonCandidate['role']) => people
+    .filter(({ candidate }) => candidate.role === role)
+    .map(({ candidate, decision }) => (
+      <div key={`${candidate.role}:${candidate.tmdbId}`}>
+        <strong>{candidate.name}</strong>
+        {decision.type === 'reuse' ? <p>Will reuse existing person</p> : null}
+        {decision.type === 'create' ? <p>Will create new draft person</p> : null}
+        {decision.warning ? <p>{decision.warning}</p> : null}
+        {decision.type === 'ambiguous' ? (
+          <>
+            <p>Resolve this person before continuing.</p>
             <label>
               Resolve {candidate.name}
               <select defaultValue="" onChange={(event) => onResolve(candidate, event.target.value as 'create' | `reuse:${string}`)}>
@@ -23,9 +26,17 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
                 {decision.options.map((option) => <option key={option.id} value={`reuse:${option.id}`}>Reuse {option.name}</option>)}
               </select>
             </label>
-          ) : null}
-        </div>
-      ))}
+          </>
+        ) : null}
+      </div>
+    ));
+
+  return (
+    <div>
+      <h4>Directors</h4>
+      {renderPeople('director')}
+      <h4>Actors</h4>
+      {renderPeople('actor')}
     </div>
   );
 }

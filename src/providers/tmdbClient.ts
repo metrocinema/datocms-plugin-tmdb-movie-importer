@@ -42,6 +42,7 @@ export class TmdbClient {
       releaseDate: movie.release_date ?? null,
       overview: movie.overview ?? null,
       posterPath: movie.poster_path ?? null,
+      posterUrl: movie.poster_path ? `https://image.tmdb.org/t/p/w154${movie.poster_path}` : null,
     }));
   }
 
