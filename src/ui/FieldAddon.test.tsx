@@ -12,6 +12,12 @@ describe('FieldAddon', () => {
     expect(onOpen).toHaveBeenCalledWith('find');
   });
 
+  it('uses the DatoCMS button component for the launcher', () => {
+    render(<FieldAddon tmdbId={null} onOpen={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Find movie' })).toHaveAttribute('data-dato-component', 'Button');
+  });
+
   it('opens refresh mode when a TMDB id exists', async () => {
     const onOpen = vi.fn();
     render(<FieldAddon tmdbId={123} onOpen={onOpen} />);

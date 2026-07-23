@@ -1,6 +1,7 @@
 import { Button } from 'datocms-react-ui';
 import type { FieldComparison } from '../domain/fieldComparison';
 import { formatEmptyValue, movieFieldLabels } from './modalPresentation';
+import { touchTargetStyle } from './touchTargets';
 
 type FieldDiffTableProps = {
   comparisons: FieldComparison[];
@@ -31,7 +32,7 @@ export function FieldDiffTable({ comparisons, onToggle, onSelectAll }: FieldDiff
               {!comparison.available ? <span className="movie-import-modal__badge movie-import-modal__badge--neutral">No TMDB value</span> : null}
               {comparison.available && !comparison.changed ? <span className="movie-import-modal__badge movie-import-modal__badge--neutral">Already matches</span> : null}
             </div>
-            <label className="movie-import-modal__check">
+            <label className="movie-import-modal__check" style={touchTargetStyle}>
               <input type="checkbox" checked={comparison.selected} disabled={!comparison.available || !comparison.changed} onChange={() => onToggle(comparison.key)} />
               Select
             </label>

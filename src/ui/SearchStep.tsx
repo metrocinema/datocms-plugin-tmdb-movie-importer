@@ -13,9 +13,13 @@ type SearchStepProps = {
   tmdbId: string;
   onTmdbIdChange: (id: string) => void;
   onLoadTmdbId: () => void;
+  isSearching?: boolean;
+  isLoadingMovie?: boolean;
 };
 
-export function SearchStep({ title, year, results, onTitleChange, onYearChange, onSearch, onSelect, tmdbId, onTmdbIdChange, onLoadTmdbId }: SearchStepProps) {
+export function SearchStep({ title, year, results, onTitleChange, onYearChange, onSearch, onSelect, tmdbId, onTmdbIdChange, onLoadTmdbId, isSearching = false, isLoadingMovie = false }: SearchStepProps) {
+  const isBusy = isSearching || isLoadingMovie;
+
   return (
     <section>
       <ModalStepIndicator activeStep="find" />
@@ -28,12 +32,12 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
       <fieldset aria-label="Search by title and year" className="movie-import-modal__fieldset">
         <legend className="movie-import-modal__legend">Search by title and year</legend>
         <FieldGroup>
-          <TextField id="movie-title" name="movie-title" label="Title" value={title} onChange={onTitleChange} />
-          <TextField id="movie-year" name="movie-year" label="Year" value={year === null ? '' : String(year)} onChange={(value) => onYearChange(value ? Number(value) : null)} textInputProps={{ type: 'number' }} />
+          <TextField id="movie-title" name="movie-title" label="Title" value={title} onChange={onTitleChange} textInputProps={{ disabled: isBusy }} />
+          <TextField id="movie-year" name="movie-year" label="Year" value={year === null ? '' : String(year)} onChange={(value) => onYearChange(value ? Number(value) : null)} textInputProps={{ type: 'number', disabled: isBusy }} />
         </FieldGroup>
         <div className="movie-import-modal__actions">
-          <Button buttonType="primary" type="button" onClick={onSearch}>
-            Search
+          <Button buttonType="primary" type="button" onClick={onSearch} disabled={isBusy}>
+            {isSearching ? 'Searching TMDB' : 'Search'}
           </Button>
         </div>
       </fieldset>
@@ -41,11 +45,11 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
       <fieldset aria-label="Lookup by TMDB ID" className="movie-import-modal__fieldset">
         <legend className="movie-import-modal__legend">Lookup by TMDB ID</legend>
         <FieldGroup>
-          <TextField id="tmdb-id" name="tmdb-id" label="TMDB ID" value={tmdbId} onChange={onTmdbIdChange} textInputProps={{ inputMode: 'numeric' }} />
+          <TextField id="tmdb-id" name="tmdb-id" label="TMDB ID" value={tmdbId} onChange={onTmdbIdChange} textInputProps={{ inputMode: 'numeric', disabled: isBusy }} />
         </FieldGroup>
         <div className="movie-import-modal__actions">
-          <Button type="button" onClick={onLoadTmdbId}>
-            Load TMDB ID
+          <Button type="button" onClick={onLoadTmdbId} disabled={isBusy}>
+            {isLoadingMovie ? 'Loading movie' : 'Load TMDB ID'}
           </Button>
         </div>
       </fieldset>
@@ -54,7 +58,7 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
         {results.map((result) => (
           <article key={result.id} className="movie-import-modal__card">
             {result.posterUrl
-              ? <img className="movie-import-modal__card-media" src={result.posterUrl} alt={`${result.title} poster`} />
+              ? <img className="movie-import-modal__card-media" src={result.posterUrl} alt={`${result.title} poster`} loading="lazy" width={64} height={96} />
               : <div className="movie-import-modal__card-media movie-import-modal__card-placeholder">No poster</div>}
             <div>
               <h3 className="movie-import-modal__card-title">{result.title}</h3>
@@ -63,7 +67,7 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
               <p className="movie-import-modal__meta">TMDB ID {result.id}</p>
             </div>
             <div className="movie-import-modal__actions">
-              <Button buttonType="primary" type="button" onClick={() => onSelect(result.id)}>
+              <Button buttonType="primary" type="button" onClick={() => onSelect(result.id)} disabled={isBusy}>
                 Use {result.title}
               </Button>
             </div>

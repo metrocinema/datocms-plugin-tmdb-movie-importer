@@ -89,6 +89,11 @@ describe('executeImportPlan', () => {
     });
 
     expect(result.status).toBe('dependency_failed');
+    if (result.status !== 'dependency_failed') {
+      throw new Error(`Expected dependency_failed, got ${result.status}`);
+    }
+    expect(result.message).toContain('Some drafts or uploads may already exist in DatoCMS.');
+    expect(result.message).toContain('permission denied');
     expect(order).toEqual(['person']);
   });
 
@@ -270,5 +275,10 @@ describe('executeImportPlan', () => {
     });
 
     expect(result).toMatchObject({ status: 'form_failed', appliedFields: ['title'] });
+    if (result.status !== 'form_failed') {
+      throw new Error(`Expected form_failed, got ${result.status}`);
+    }
+    expect(result.message).toContain('Created people and uploaded images may already exist in DatoCMS.');
+    expect(result.message).toContain('Form update failed.');
   });
 });

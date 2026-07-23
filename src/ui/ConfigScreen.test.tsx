@@ -10,10 +10,22 @@ describe('ConfigScreen', () => {
     expect(screen.getByText(/authenticated editors can inspect the TMDB read token/i)).toBeInTheDocument();
   });
 
+  it('uses Dato form sections for plugin settings groups', () => {
+    const { container } = render(<ConfigScreen parameters={parsePluginParameters({})} onSave={vi.fn()} />);
+    const sections = Array.from(container.querySelectorAll('[data-dato-component="Section"]'));
+
+    expect(container.querySelector('form')).toHaveAttribute('data-dato-component', 'Form');
+    expect(sections).toHaveLength(4);
+    expect(screen.getByRole('heading', { name: 'TMDB access' }).closest('[data-dato-component="Section"]')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Movie model and fields' }).closest('[data-dato-component="Section"]')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Person matching' }).closest('[data-dato-component="Section"]')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Import behavior' }).closest('[data-dato-component="Section"]')).not.toBeNull();
+  });
+
   it('shows validation errors for missing required values', () => {
     render(<ConfigScreen parameters={parsePluginParameters({})} onSave={vi.fn()} />);
 
-    expect(screen.getByText('TMDB read token is required.')).toBeInTheDocument();
+    expect(screen.getByRole('alert', { name: '' })).toHaveTextContent('TMDB read token is required.');
   });
 
   it('saves the current parameters when submitted', async () => {

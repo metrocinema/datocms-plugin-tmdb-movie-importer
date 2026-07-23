@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { createElement, type ChangeEvent, type ReactNode } from 'react';
+import { createElement, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { vi } from 'vitest';
 
 class ResizeObserverMock {
@@ -27,10 +27,54 @@ vi.mock('datocms-react-ui', () => ({
     buttonSize?: string;
     fullWidth?: boolean;
   }) =>
-    createElement('button', { type, ...props }, children),
+    createElement('button', { type, 'data-dato-component': 'Button', ...props }, children),
+  FieldError: ({ children }: { children: ReactNode }) => createElement('div', { role: 'alert', 'data-dato-component': 'FieldError' }, children),
   FieldGroup: ({ children }: { children: ReactNode }) => createElement('div', undefined, children),
+  FieldHint: ({ children }: { children: ReactNode }) => createElement('div', { 'data-dato-component': 'FieldHint' }, children),
+  Form: ({ children, onSubmit }: { children: ReactNode; onSubmit?: (event: FormEvent<HTMLFormElement>) => void }) =>
+    createElement('form', {
+      'data-dato-component': 'Form',
+      onSubmit: (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        onSubmit?.(event);
+      },
+    }, children),
   Section: ({ title, children }: { title: ReactNode; children: ReactNode }) =>
-    createElement('div', undefined, createElement('h3', undefined, title), children),
+    createElement('div', { 'data-dato-component': 'Section' }, createElement('h3', undefined, title), children),
+  SelectField: ({
+    id,
+    name,
+    label,
+    value,
+    onChange,
+    selectInputProps,
+  }: {
+    id: string;
+    name: string;
+    label: ReactNode;
+    value: { label: string; value: string } | null;
+    onChange: (value: { label: string; value: string } | null) => void;
+    selectInputProps?: { options?: Array<{ label: string; value: string }> };
+  }) =>
+    createElement(
+      'label',
+      { 'data-dato-component': 'SelectField', htmlFor: id },
+      label,
+      createElement(
+        'select',
+        {
+          id,
+          name,
+          value: value?.value ?? '',
+          onChange: (event: ChangeEvent<HTMLSelectElement>) => {
+            const option = selectInputProps?.options?.find((item) => item.value === event.target.value) ?? null;
+            onChange(option);
+          },
+        },
+        createElement('option', { value: '', disabled: true }, 'Choose a resolution'),
+        ...(selectInputProps?.options ?? []).map((option) => createElement('option', { key: option.value, value: option.value }, option.label)),
+      ),
+    ),
   TextField: ({
     id,
     name,
@@ -46,7 +90,7 @@ vi.mock('datocms-react-ui', () => ({
     hint?: ReactNode;
     value: string;
     onChange: (value: string) => void;
-    textInputProps?: { type?: string; inputMode?: string };
+    textInputProps?: { type?: string; inputMode?: string; disabled?: boolean };
   }) =>
     createElement(
       'label',
@@ -57,6 +101,7 @@ vi.mock('datocms-react-ui', () => ({
         name,
         type: textInputProps?.type,
         inputMode: textInputProps?.inputMode,
+        disabled: textInputProps?.disabled,
         value,
         onChange: (event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value),
       }),

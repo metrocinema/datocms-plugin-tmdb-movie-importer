@@ -77,7 +77,7 @@ export async function executeImportPlan(
   } catch (error) {
     return {
       status: 'dependency_failed',
-      message: error instanceof Error ? error.message : 'Dependency write failed.',
+      message: importFailureMessage(error, 'The import could not finish while creating people or uploading images. Some drafts or uploads may already exist in DatoCMS.'),
       createdPeople,
       uploadedAssets,
     };
@@ -133,7 +133,7 @@ export async function executeImportPlan(
   } catch (error) {
     return {
       status: 'form_failed',
-      message: error instanceof Error ? error.message : 'Form update failed.',
+      message: importFailureMessage(error, 'The import could not finish while updating the movie form. Created people and uploaded images may already exist in DatoCMS.'),
       createdPeople,
       uploadedAssets,
       appliedFields: error instanceof FormValuesApplyError ? error.appliedFields : [],
@@ -146,6 +146,11 @@ export async function executeImportPlan(
     uploadedAssets,
     appliedFields: changes.map((change) => change.fieldPath),
   };
+}
+
+function importFailureMessage(error: unknown, prefix: string): string {
+  const detail = error instanceof Error ? error.message : null;
+  return detail ? `${prefix} ${detail}` : prefix;
 }
 
 function movieFieldPath(

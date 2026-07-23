@@ -1,4 +1,4 @@
-import { Button, FieldGroup, TextField } from 'datocms-react-ui';
+import { Button, FieldError, FieldGroup, FieldHint, Form, Section, TextField } from 'datocms-react-ui';
 import { useState } from 'react';
 import {
   parsePluginParameters,
@@ -62,59 +62,76 @@ export function ConfigScreen({ parameters, onSave }: ConfigScreenProps) {
   }
 
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
+    <Form
+      onSubmit={() => {
         void handleSubmit();
       }}
     >
-      <FieldGroup>
-        <TextField
-          id="tmdbReadToken"
-          name="tmdbReadToken"
-          label="TMDB read token"
-          value={draft.tmdbReadToken}
-          onChange={(value) => updateParameter('tmdbReadToken', value)}
-        />
-        <TextField id="movieModelApiKey" name="movieModelApiKey" label="Movie model API name" value={draft.movieModelApiKey} onChange={(value) => updateParameter('movieModelApiKey', value)} />
-        {Object.entries(movieFieldLabels).map(([key, label]) => (
+      <Section title="TMDB access">
+        <FieldGroup>
           <TextField
-            key={key}
-            id={`movieField-${key}`}
-            name={`movieField-${key}`}
-            label={`${label} field API name`}
-            value={draft.movieFields[key as keyof typeof movieFieldLabels] ?? ''}
-            onChange={(value) => updateMovieField(key as keyof typeof movieFieldLabels, value)}
+            id="tmdbReadToken"
+            name="tmdbReadToken"
+            label="TMDB read token"
+            value={draft.tmdbReadToken}
+            onChange={(value) => updateParameter('tmdbReadToken', value)}
           />
-        ))}
-        <TextField id="personModelApiKey" name="personModelApiKey" label="Person model API name" value={draft.personModelApiKey} onChange={(value) => updateParameter('personModelApiKey', value)} />
-        <TextField id="personNameFieldApiKey" name="personNameFieldApiKey" label="Person name field API name" value={draft.personNameFieldApiKey} onChange={(value) => updateParameter('personNameFieldApiKey', value)} />
-        <TextField id="personTmdbIdFieldApiKey" name="personTmdbIdFieldApiKey" label="Person TMDB ID field API name" value={draft.personTmdbIdFieldApiKey ?? ''} onChange={(value) => updateParameter('personTmdbIdFieldApiKey', value || null)} />
-        <TextField
-          id="actorLimit"
-          name="actorLimit"
-          label="Actor limit"
-          value={actorLimitInput}
-          onChange={(value) => {
-            setActorLimitInput(value);
-            const actorLimit = Number(value);
-            if (Number.isInteger(actorLimit) && actorLimit > 0) {
-              updateParameter('actorLimit', actorLimit);
-            }
-          }}
-        />
-      </FieldGroup>
-      <p>
-        Because this version is frontend-only, authenticated editors can inspect
-        the TMDB read token in the browser.
-      </p>
-      {issues.map((issue) => (
-        <p key={issue.code}>{issue.message}</p>
-      ))}
-      {saveError && <p>Unable to save configuration. Please try again.</p>}
+        </FieldGroup>
+        <FieldHint>
+          Because this version is frontend-only, authenticated editors can inspect the TMDB read token in the browser.
+        </FieldHint>
+      </Section>
+      <Section title="Movie model and fields">
+        <FieldGroup>
+          <TextField id="movieModelApiKey" name="movieModelApiKey" label="Movie model API name" value={draft.movieModelApiKey} onChange={(value) => updateParameter('movieModelApiKey', value)} />
+          {Object.entries(movieFieldLabels).map(([key, label]) => (
+            <TextField
+              key={key}
+              id={`movieField-${key}`}
+              name={`movieField-${key}`}
+              label={`${label} field API name`}
+              value={draft.movieFields[key as keyof typeof movieFieldLabels] ?? ''}
+              onChange={(value) => updateMovieField(key as keyof typeof movieFieldLabels, value)}
+            />
+          ))}
+        </FieldGroup>
+      </Section>
+      <Section title="Person matching">
+        <FieldGroup>
+          <TextField id="personModelApiKey" name="personModelApiKey" label="Person model API name" value={draft.personModelApiKey} onChange={(value) => updateParameter('personModelApiKey', value)} />
+          <TextField id="personNameFieldApiKey" name="personNameFieldApiKey" label="Person name field API name" value={draft.personNameFieldApiKey} onChange={(value) => updateParameter('personNameFieldApiKey', value)} />
+          <TextField id="personTmdbIdFieldApiKey" name="personTmdbIdFieldApiKey" label="Person TMDB ID field API name" value={draft.personTmdbIdFieldApiKey ?? ''} onChange={(value) => updateParameter('personTmdbIdFieldApiKey', value || null)} />
+        </FieldGroup>
+      </Section>
+      <Section title="Import behavior">
+        <FieldGroup>
+          <TextField
+            id="actorLimit"
+            name="actorLimit"
+            label="Actor limit"
+            value={actorLimitInput}
+            onChange={(value) => {
+              setActorLimitInput(value);
+              const actorLimit = Number(value);
+              if (Number.isInteger(actorLimit) && actorLimit > 0) {
+                updateParameter('actorLimit', actorLimit);
+              }
+            }}
+            textInputProps={{ type: 'number', min: 1 }}
+          />
+        </FieldGroup>
+      </Section>
+      {issues.length > 0 ? (
+        <FieldError>
+          {issues.map((issue) => (
+            <p key={issue.code}>{issue.message}</p>
+          ))}
+        </FieldError>
+      ) : null}
+      {saveError ? <FieldError>Unable to save configuration. Please try again.</FieldError> : null}
       <Button type="submit" buttonType="primary" disabled={isSaving}>
         {isSaving ? 'Saving configuration' : 'Save configuration'}
       </Button>
-    </form>
+    </Form>
   );
 }

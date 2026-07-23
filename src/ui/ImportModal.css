@@ -232,7 +232,7 @@
   align-items: center;
   display: flex;
   gap: var(--spacing-xs);
-  min-height: 32px;
+  min-height: 44px;
   white-space: nowrap;
 }
 
@@ -279,6 +279,7 @@
   border-radius: 4px;
   display: grid;
   gap: var(--spacing-xs);
+  min-height: 44px;
   padding: var(--spacing-s);
 }
 
@@ -357,7 +358,7 @@
   border-radius: 4px;
   color: var(--color--ink);
   font: inherit;
-  min-height: 36px;
+  min-height: 44px;
   padding: var(--spacing-xs) var(--spacing-s);
 }
 

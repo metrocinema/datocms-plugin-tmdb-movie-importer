@@ -1,5 +1,11 @@
+import { SelectField } from 'datocms-react-ui';
 import type { PersonMatchDecision } from '../domain/personMatching';
 import type { PersonCandidate } from '../domain/movie';
+
+type ResolutionOption = {
+  label: string;
+  value: 'create' | `reuse:${string}`;
+};
 
 type PersonResolutionListProps = {
   people: Array<{ candidate: PersonCandidate; decision: PersonMatchDecision }>;
@@ -25,14 +31,25 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
         {decision.type === 'ambiguous' ? (
           <>
             <p><span className="movie-import-modal__warning">Resolve this person before continuing.</span></p>
-            <label className="movie-import-modal__select-label">
-              Resolve {candidate.name}
-              <select defaultValue="" onChange={(event) => onResolve(candidate, event.target.value as 'create' | `reuse:${string}`)}>
-                <option value="" disabled>Choose a resolution</option>
-                <option value="create">Create new draft</option>
-                {decision.options.map((option) => <option key={option.id} value={`reuse:${option.id}`}>Reuse {option.name}</option>)}
-              </select>
-            </label>
+            <div className="movie-import-modal__select-label">
+              <SelectField
+                id={`resolve-${candidate.role}-${candidate.tmdbId}`}
+                name={`resolve-${candidate.role}-${candidate.tmdbId}`}
+                label={`Resolve ${candidate.name}`}
+                value={null}
+                onChange={(option) => {
+                  if (option && !Array.isArray(option) && 'value' in option) {
+                    onResolve(candidate, option.value as ResolutionOption['value']);
+                  }
+                }}
+                selectInputProps={{
+                  options: [
+                    { label: 'Create new draft', value: 'create' },
+                    ...decision.options.map((option) => ({ label: `Reuse ${option.name}`, value: `reuse:${option.id}` })),
+                  ],
+                }}
+              />
+            </div>
           </>
         ) : null}
       </div>

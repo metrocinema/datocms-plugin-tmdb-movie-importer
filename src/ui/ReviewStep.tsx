@@ -47,24 +47,18 @@ export function ReviewStep({ movie, comparisons, onToggle, onSelectAll, onContin
         </div>
       </article>
       <div className="movie-import-modal__review-stack">
-        <section aria-label="Field changes">
-          <Section title="Field changes">
-            <p className="movie-import-modal__section-help">Select the content fields you want to update from TMDB.</p>
-            <FieldDiffTable comparisons={comparisons} onToggle={onToggle} onSelectAll={onSelectAll} />
-          </Section>
-        </section>
-        <section aria-label="Images">
-          <Section title="Images">
-            <p className="movie-import-modal__section-help">Pick the poster and backdrops to upload. The first selected backdrop becomes the hero image.</p>
-            <ImagePicker images={images} selectedIds={selectedImageIds} onToggle={onToggleImage} />
-          </Section>
-        </section>
-        <section aria-label="People">
-          <Section title="People">
-            <p className="movie-import-modal__section-help">Confirm whether directors and actors should reuse existing people or create new draft records.</p>
-            <PersonResolutionList people={people} onResolve={onResolvePerson} />
-          </Section>
-        </section>
+        <Section title="Field changes">
+          <p className="movie-import-modal__section-help">Select the content fields you want to update from TMDB.</p>
+          <FieldDiffTable comparisons={comparisons} onToggle={onToggle} onSelectAll={onSelectAll} />
+        </Section>
+        <Section title="Images">
+          <p className="movie-import-modal__section-help">Pick the poster and backdrops to upload. The first selected backdrop becomes the hero image.</p>
+          <ImagePicker images={images} selectedIds={selectedImageIds} onToggle={onToggleImage} />
+        </Section>
+        <Section title="People">
+          <p className="movie-import-modal__section-help">Confirm whether directors and actors should reuse existing people or create new draft records.</p>
+          <PersonResolutionList people={people} onResolve={onResolvePerson} />
+        </Section>
       </div>
       <div className="movie-import-modal__actions">
         <Button buttonType="primary" type="button" onClick={onContinue} disabled={hasAmbiguousPeople}>

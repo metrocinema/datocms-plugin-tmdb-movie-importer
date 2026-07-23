@@ -1,5 +1,6 @@
 import type { NormalizedImageCandidate } from '../domain/movie';
 import { isEnglishPoster } from '../providers/imageProvider';
+import { touchTargetStyle } from './touchTargets';
 
 type ImagePickerProps = {
   images: NormalizedImageCandidate[];
@@ -13,9 +14,9 @@ export function ImagePicker({ images, selectedIds, onToggle }: ImagePickerProps)
   const heroBackdropId = selectedIds.find((providerImageId) => backdrops.some((image) => image.providerImageId === providerImageId));
 
   const imageOptions = (candidates: NormalizedImageCandidate[]) => candidates.map((image) => (
-    <label key={`${image.providerKey}:${image.providerImageId}`} className="movie-import-modal__image-option">
+    <label key={`${image.providerKey}:${image.providerImageId}`} className="movie-import-modal__image-option" style={touchTargetStyle}>
       <input type="checkbox" checked={selectedIds.includes(image.providerImageId)} onChange={() => onToggle(image.providerImageId)} />
-      <img className={`movie-import-modal__image-thumb movie-import-modal__image-thumb--${image.type}`} src={image.originalUrl} alt={`${image.type} candidate`} width={120} />
+      <img className={`movie-import-modal__image-thumb movie-import-modal__image-thumb--${image.type}`} src={image.originalUrl} alt={`${image.type} candidate`} loading="lazy" width={120} height={image.type === 'poster' ? 180 : 68} />
       {image.providerImageId === heroBackdropId ? <span className="movie-import-modal__badge">Hero image selection</span> : null}
     </label>
   ));

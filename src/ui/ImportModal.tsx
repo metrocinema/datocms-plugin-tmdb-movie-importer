@@ -36,10 +36,14 @@ export function ImportModal(props: ImportModalProps) {
   const [people, setPeople] = useState<Array<{ candidate: PersonCandidate; decision: PersonMatchDecision }>>([]);
   const [imageSelection, setImageSelection] = useState({ poster: null as NormalizedImageCandidate | null, backdrops: [] as NormalizedImageCandidate[] });
   const [error, setError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMovie, setIsLoadingMovie] = useState(false);
+  const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
 
   const loadSelectedMovie = async (tmdbId: number) => {
     try {
       setError(null);
+      setIsLoadingMovie(true);
       const loaded = await props.loadMovie(tmdbId);
       const records = await props.resolvePeople?.([...loaded.directors, ...loaded.actors]) ?? [];
       setMovie(loaded);
@@ -50,6 +54,32 @@ export function ImportModal(props: ImportModalProps) {
     } catch {
       setError('Unable to load that TMDB movie. Search manually to continue.');
       setStep('search');
+    } finally {
+      setIsLoadingMovie(false);
+    }
+  };
+
+  const searchTmdb = async () => {
+    try {
+      setError(null);
+      setIsSearching(true);
+      setResults(await props.searchMovies({ title, year }));
+    } catch {
+      setError('Unable to search TMDB right now. Try again in a moment.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const submitImportPlan = async () => {
+    try {
+      setError(null);
+      setIsSubmittingPlan(true);
+      await props.execute(plan);
+    } catch {
+      setError('Unable to start the import. If the import already began, some drafts or uploads may exist in DatoCMS.');
+    } finally {
+      setIsSubmittingPlan(false);
     }
   };
 
@@ -76,7 +106,7 @@ export function ImportModal(props: ImportModalProps) {
   if (step === 'search') {
     return (
       <div className="movie-import-modal">
-        <SearchStep title={title} year={year} results={results} onTitleChange={setTitle} onYearChange={setYear} onSearch={async () => setResults(await props.searchMovies({ title, year }))} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} onLoadTmdbId={() => {
+        <SearchStep title={title} year={year} results={results} onTitleChange={setTitle} onYearChange={setYear} onSearch={searchTmdb} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} isSearching={isSearching} isLoadingMovie={isLoadingMovie} onLoadTmdbId={() => {
           const parsed = Number(tmdbId);
           if (!Number.isSafeInteger(parsed) || parsed <= 0) {
             setError('Enter a valid TMDB ID.');
@@ -108,7 +138,8 @@ export function ImportModal(props: ImportModalProps) {
 
   return (
     <div className="movie-import-modal">
-      <ConfirmStep plan={plan} onConfirm={() => void props.execute(plan)} />
+      <ConfirmStep plan={plan} isSubmittingPlan={isSubmittingPlan} onConfirm={() => void submitImportPlan()} />
+      {error ? <p role="alert" className="movie-import-modal__warning">{error}</p> : null}
     </div>
   );
 }

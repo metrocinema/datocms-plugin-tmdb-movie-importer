@@ -361,3 +361,28 @@ Expected: Only the modal UI redesign files, the spec, and this plan should appea
 Run: `npm run dev`
 
 Expected: Vite starts on port 5174. In the DatoCMS sandbox plugin configuration, the modal opens from the TMDB ID field and shows the redesigned Find, Review, and Confirm screens.
+
+---
+
+## Follow-up DatoCMS UI-kit audit amendment
+
+The Impeccable audit expanded the UI polish pass beyond the original modal-only boundary to address DatoCMS-native component usage in the plugin field add-on and settings screen. This follow-up keeps the same importer data flow: the modal prepares and resolves an import plan, then the field-extension host executes the real DatoCMS creates, uploads, and unsaved form updates after the modal closes.
+
+Additional completed scope:
+
+- Use Dato `Button` for the TMDB ID field add-on action.
+- Use Dato `Form`, `Section`, `FieldHint`, and `FieldError` in plugin settings while preserving the existing configuration fields.
+- Add busy states for TMDB search, direct TMDB ID loading, and modal plan submission.
+- Keep final confirmation copy accurate: the modal shows `Preparing import` while submitting the plan, not while performing downstream DatoCMS writes.
+- Replace ambiguous-person resolution with Dato `SelectField`.
+- Remove duplicate review-section landmarks and let Dato `Section` own visual section structure.
+- Add lazy image loading, explicit image dimensions, and 44px minimum touch targets for custom review controls.
+- Make failure copy safe for partial side effects: DatoCMS drafts or uploads may already exist if execution fails after dependency writes begin.
+
+Verification after review fixes:
+
+- `npm test` passed with 19 files and 110 tests.
+- `npm run build` passed typecheck and production build.
+- `git diff --check` passed.
+- Impeccable detector returned no findings for the touched UI files.
+- Superpowers code review rereview found no remaining Critical or Important issues.
