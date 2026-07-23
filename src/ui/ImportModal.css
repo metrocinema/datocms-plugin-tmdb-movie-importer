@@ -73,6 +73,7 @@
 }
 
 .movie-import-modal__actions {
+  align-items: center;
   display: flex;
   gap: var(--spacing-s);
   justify-content: flex-end;
@@ -283,6 +284,11 @@
   padding: var(--spacing-s);
 }
 
+.movie-import-modal__image-label {
+  color: var(--color--ink-muted);
+  font-size: var(--font-size-s);
+}
+
 .movie-import-modal__image-thumb {
   border-radius: 4px;
   display: block;
@@ -345,6 +351,11 @@
 .movie-import-modal__warning {
   background: var(--color--warning-soft--surface);
   color: var(--color--warning-soft--ink);
+}
+
+.movie-import-modal__action-note {
+  color: var(--color--warning-soft--ink);
+  margin: 0 auto 0 0;
 }
 
 .movie-import-modal__select-label {

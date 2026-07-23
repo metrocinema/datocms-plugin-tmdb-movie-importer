@@ -6,10 +6,11 @@ import { ModalStepIndicator } from './ModalStepIndicator';
 type ConfirmStepProps = {
   plan: ImportPlan;
   onConfirm: () => void;
+  onBack: () => void;
   isSubmittingPlan?: boolean;
 };
 
-export function ConfirmStep({ plan, onConfirm, isSubmittingPlan = false }: ConfirmStepProps) {
+export function ConfirmStep({ plan, onConfirm, onBack, isSubmittingPlan = false }: ConfirmStepProps) {
   const summary = countConfirmSummary(plan);
 
   return (
@@ -46,6 +47,9 @@ export function ConfirmStep({ plan, onConfirm, isSubmittingPlan = false }: Confi
         <p>Created people and uploaded images may remain in DatoCMS if a later form update fails.</p>
       </div>
       <div className="movie-import-modal__actions">
+        <Button type="button" onClick={onBack} disabled={isSubmittingPlan}>
+          Back to review
+        </Button>
         <Button buttonType="primary" type="button" onClick={onConfirm} disabled={isSubmittingPlan}>
           {isSubmittingPlan ? 'Preparing import' : 'Apply to unsaved movie'}
         </Button>

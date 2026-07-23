@@ -12,6 +12,8 @@ export type ImportPlan = {
   actors: PersonCandidate[];
   peopleToCreate: Array<{ candidateTmdbId: number; name: string }>;
   peopleToReuse: Array<{ candidateTmdbId: number; recordId: string; name: string }>;
+  heroImageToUpload: NormalizedImageCandidate | null;
+  otherImagesToUpload: NormalizedImageCandidate[];
   assetsToUpload: NormalizedImageCandidate[];
 };
 
@@ -28,6 +30,12 @@ export function buildImportPlan(input: BuildImportPlanInput): ImportPlan {
     .filter((comparison) => comparison.selected && comparison.available && comparison.changed)
     .map((comparison) => ({ key: comparison.key, value: comparison.proposedValue }));
 
+  const assetsToUpload = uniqueImages([
+    input.imageSelection.poster,
+    input.imageSelection.heroImage,
+    ...input.imageSelection.backdrops,
+  ]);
+
   return {
     fieldChanges,
     directors: [...input.directors],
@@ -38,6 +46,19 @@ export function buildImportPlan(input: BuildImportPlanInput): ImportPlan {
     peopleToReuse: input.personResolutions
       .filter((resolution): resolution is Extract<PersonResolution, { action: 'reuse' }> => resolution.action === 'reuse')
       .map((resolution) => ({ candidateTmdbId: resolution.candidateTmdbId, recordId: resolution.recordId, name: resolution.name })),
-    assetsToUpload: [input.imageSelection.poster, ...input.imageSelection.backdrops].filter((image): image is NormalizedImageCandidate => image !== null),
+    heroImageToUpload: input.imageSelection.heroImage,
+    otherImagesToUpload: [...input.imageSelection.backdrops],
+    assetsToUpload,
   };
+}
+
+function uniqueImages(images: Array<NormalizedImageCandidate | null>): NormalizedImageCandidate[] {
+  const seen = new Set<string>();
+  return images.filter((image): image is NormalizedImageCandidate => {
+    if (!image) return false;
+    const key = `${image.providerKey}:${image.providerImageId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }

@@ -2,6 +2,7 @@ import { Button, Section } from 'datocms-react-ui';
 import type { FieldComparison } from '../domain/fieldComparison';
 import type { NormalizedImageCandidate, NormalizedMovie, PersonCandidate } from '../domain/movie';
 import type { PersonMatchDecision } from '../domain/personMatching';
+import type { ImageSelection } from '../providers/imageProvider';
 import { FieldDiffTable } from './FieldDiffTable';
 import { ImagePicker } from './ImagePicker';
 import { isEnglishPoster } from '../providers/imageProvider';
@@ -15,15 +16,19 @@ type ReviewStepProps = {
   onToggle: (key: FieldComparison['key']) => void;
   onSelectAll: () => void;
   onContinue: () => void;
+  onBack: () => void;
   people: Array<{ candidate: PersonCandidate; decision: PersonMatchDecision }>;
   onResolvePerson: (candidate: PersonCandidate, value: 'create' | `reuse:${string}`) => void;
   images: NormalizedImageCandidate[];
-  selectedImageIds: string[];
-  onToggleImage: (providerImageId: string) => void;
+  imageSelection: ImageSelection;
+  onTogglePoster: (providerImageId: string) => void;
+  onSelectHeroImage: (providerImageId: string) => void;
+  onToggleBackdrop: (providerImageId: string) => void;
 };
 
-export function ReviewStep({ movie, comparisons, onToggle, onSelectAll, onContinue, people, onResolvePerson, images, selectedImageIds, onToggleImage }: ReviewStepProps) {
-  const hasAmbiguousPeople = people.some(({ decision }) => decision.type === 'ambiguous');
+export function ReviewStep({ movie, comparisons, onToggle, onSelectAll, onContinue, onBack, people, onResolvePerson, images, imageSelection, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ReviewStepProps) {
+  const ambiguousPeopleCount = people.filter(({ decision }) => decision.type === 'ambiguous').length;
+  const hasAmbiguousPeople = ambiguousPeopleCount > 0;
   const poster = movie.images.find(isEnglishPoster);
 
   return (
@@ -52,8 +57,8 @@ export function ReviewStep({ movie, comparisons, onToggle, onSelectAll, onContin
           <FieldDiffTable comparisons={comparisons} onToggle={onToggle} onSelectAll={onSelectAll} />
         </Section>
         <Section title="Images">
-          <p className="movie-import-modal__section-help">Pick the poster and backdrops to upload. The first selected backdrop becomes the hero image.</p>
-          <ImagePicker images={images} selectedIds={selectedImageIds} onToggle={onToggleImage} />
+          <p className="movie-import-modal__section-help">Pick the poster and backdrop images to upload. Hero image and Other images are separate DatoCMS destinations.</p>
+          <ImagePicker images={images} selection={imageSelection} onTogglePoster={onTogglePoster} onSelectHeroImage={onSelectHeroImage} onToggleBackdrop={onToggleBackdrop} />
         </Section>
         <Section title="People">
           <p className="movie-import-modal__section-help">Confirm whether directors and actors should reuse existing people or create new draft records.</p>
@@ -61,6 +66,10 @@ export function ReviewStep({ movie, comparisons, onToggle, onSelectAll, onContin
         </Section>
       </div>
       <div className="movie-import-modal__actions">
+        <Button type="button" onClick={onBack}>
+          Back
+        </Button>
+        {hasAmbiguousPeople ? <p role="alert" className="movie-import-modal__action-note">Resolve {ambiguousPeopleCount} {ambiguousPeopleCount === 1 ? 'person' : 'people'} before continuing.</p> : null}
         <Button buttonType="primary" type="button" onClick={onContinue} disabled={hasAmbiguousPeople}>
           Continue
         </Button>

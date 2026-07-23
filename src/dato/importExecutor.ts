@@ -116,15 +116,22 @@ export async function executeImportPlan(
   const backdrops = uploadedAssetsByImage.filter((asset) => asset.image.type === 'backdrop');
 
   const heroImageField = params.movieFields.heroImage;
-  const heroImage = backdrops[0];
+  const heroImage = plan.heroImageToUpload
+    ? backdrops.find((asset) => asset.image.providerImageId === plan.heroImageToUpload?.providerImageId)
+    : backdrops[0];
   if (heroImageField && heroImage) {
     changes.push({ fieldPath: movieFieldPath('heroImage', heroImageField, params, options), value: assetReference(heroImage.id) });
   }
 
   if (backdropField && backdrops.length > 0) {
+    const otherImagesToUpload = plan.otherImagesToUpload ?? backdrops.map((asset) => asset.image);
+    const otherImages = otherImagesToUpload
+      .map((image) => backdrops.find((asset) => asset.image.providerImageId === image.providerImageId))
+      .filter((asset): asset is UploadedAsset => Boolean(asset));
+
     changes.push({
       fieldPath: movieFieldPath('backdrops', backdropField, params, options),
-      value: backdrops.map((asset) => assetReference(asset.id)),
+      value: otherImages.map((asset) => assetReference(asset.id)),
     });
   }
 

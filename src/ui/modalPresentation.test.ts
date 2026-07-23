@@ -16,6 +16,8 @@ const plan: ImportPlan = {
   actors: [],
   peopleToCreate: [{ candidateTmdbId: 10, name: 'Director Name' }],
   peopleToReuse: [{ candidateTmdbId: 20, recordId: 'person-20', name: 'Actor Name' }],
+  heroImageToUpload: null,
+  otherImagesToUpload: [],
   assetsToUpload: [
     {
       providerKey: 'tmdb', providerImageId: '/poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg', width: 100, height: 150, language: 'en', rank: 1, attribution: 'TMDB',

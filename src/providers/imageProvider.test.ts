@@ -13,13 +13,15 @@ describe('defaultImageSelection', () => {
     const selection = defaultImageSelection({ poster: null, backdrops: [] }, images);
 
     expect(selection.poster?.providerImageId).toBe('/poster.jpg');
+    expect(selection.heroImage?.providerImageId).toBe('/backdrop-1.jpg');
     expect(selection.backdrops.map((image) => image.providerImageId)).toEqual(['/backdrop-1.jpg', '/backdrop-2.jpg']);
   });
 
   it('does not preselect replacements when destinations are populated', () => {
-    const selection = defaultImageSelection({ poster: 'asset-1', backdrops: ['asset-2'] }, images);
+    const selection = defaultImageSelection({ poster: 'asset-1', heroImage: 'asset-hero', backdrops: ['asset-2'] }, images);
 
     expect(selection.poster).toBeNull();
+    expect(selection.heroImage).toBeNull();
     expect(selection.backdrops).toEqual([]);
   });
 

@@ -36,7 +36,7 @@ describe('import flow integration', () => {
       fieldComparisons: comparisons,
       directors: movie.directors,
       actors: movie.actors,
-      imageSelection: { poster: null, backdrops: [] },
+      imageSelection: { poster: null, heroImage: null, backdrops: [] },
       personResolutions: [{ candidateTmdbId: 10, action: 'create', name: 'Director Name' }],
     });
     const applied: Array<{ fieldPath: string; value: unknown }> = [];
@@ -70,7 +70,7 @@ describe('import flow integration', () => {
       fieldComparisons: compareMovieFields({ title: '' }, movie, ['title']),
       directors: movie.directors,
       actors: [],
-      imageSelection: { poster: null, backdrops: [] },
+      imageSelection: { poster: null, heroImage: null, backdrops: [] },
       personResolutions: [{ candidateTmdbId: 10, action: 'create', name: 'Director Name' }],
     });
     const applyFormValues = vi.fn();

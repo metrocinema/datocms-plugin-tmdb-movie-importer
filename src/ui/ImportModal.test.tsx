@@ -167,19 +167,27 @@ async function reachReview() {
 }
 
 describe('ImportModal data flow', () => {
-  it('makes the first selected backdrop the visible hero selection and preserves backdrop upload order', async () => {
+  it('uses an explicit hero selector and keeps other image choices separate', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={execute} />);
 
     await reachReview();
-    expect(screen.getByText('The first selected backdrop becomes the Hero image. All selected backdrops are added to Other images.')).toBeInTheDocument();
-    expect(screen.getByText('Hero image selection')).toBeInTheDocument();
+    expect(screen.getByText('Choose one TMDB backdrop for the single Hero image field.')).toBeInTheDocument();
+    expect(screen.getByText('Select every backdrop you want available in the gallery. These choices are separate from the Hero image.')).toBeInTheDocument();
+    const heroOptions = screen.getAllByRole('radio', { name: /Use as Hero image/i });
+    expect(heroOptions[0]).toBeChecked();
+    expect(heroOptions[1]).not.toBeChecked();
+
+    await userEvent.click(heroOptions[1]);
+    expect(heroOptions[1]).toBeChecked();
 
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
-    expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-1.jpg', '/backdrop-2.jpg']);
+    expect(execute.mock.calls[0][0].heroImageToUpload.providerImageId).toBe('/backdrop-2.jpg');
+    expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-1.jpg', '/backdrop-2.jpg']);
+    expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg', '/backdrop-1.jpg']);
   });
 
   it('creates resolutions for imported directors and actors before confirming', async () => {
@@ -207,6 +215,7 @@ describe('ImportModal data flow', () => {
 
     await reachReview();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Resolve 1 person before continuing.');
     const resolutionControl = screen.getByLabelText('Resolve Director Name');
     expect(resolutionControl.closest('[data-dato-component="SelectField"]')).not.toBeNull();
     expect(within(resolutionControl.closest('.movie-import-modal__person-row')!).getByText('Resolve this person before continuing.')).toBeInTheDocument();
@@ -219,11 +228,11 @@ describe('ImportModal data flow', () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={execute} />);
 
     await reachReview();
-    expect(screen.getByRole('checkbox', { name: 'poster candidate' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
     expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('loading', 'lazy');
     expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('width', '120');
     expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('height', '180');
-    await userEvent.click(screen.getByRole('checkbox', { name: 'poster candidate' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
 
@@ -238,7 +247,7 @@ describe('ImportModal data flow', () => {
     await reachReview();
 
     expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
-    expect(screen.getByRole('checkbox', { name: 'poster candidate' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
     expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
     expect(screen.queryByText('textless-poster.jpg')).not.toBeInTheDocument();
 
@@ -316,7 +325,7 @@ describe('ImportModal data flow', () => {
     await reachReview();
 
     const fieldToggle = screen.getAllByRole('checkbox', { name: 'Select' })[0];
-    const imageToggle = screen.getByRole('checkbox', { name: 'poster candidate' });
+    const imageToggle = screen.getByRole('checkbox', { name: /Use as poster/i });
     expect(fieldToggle.closest('.movie-import-modal__check')).toHaveStyle({ minHeight: '44px' });
     expect(imageToggle.closest('.movie-import-modal__image-option')).toHaveStyle({ minHeight: '44px' });
   });

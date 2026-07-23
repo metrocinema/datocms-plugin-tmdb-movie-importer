@@ -26,6 +26,10 @@ const plan: ImportPlan = {
   actors: [{ tmdbId: 20, name: 'Actor Name', order: 0, role: 'actor' }],
   peopleToCreate: [{ candidateTmdbId: 10, name: 'Director Name' }, { candidateTmdbId: 20, name: 'Actor Name' }],
   peopleToReuse: [],
+  heroImageToUpload: null,
+  otherImagesToUpload: [
+    { providerKey: 'tmdb', providerImageId: '/backdrop.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop.jpg', width: 200, height: 100, language: 'en', rank: 1, attribution: 'TMDB' },
+  ],
   assetsToUpload: [
     { providerKey: 'tmdb', providerImageId: '/poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg', width: 100, height: 150, language: 'en', rank: 1, attribution: 'TMDB' },
     { providerKey: 'tmdb', providerImageId: '/backdrop.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop.jpg', width: 200, height: 100, language: 'en', rank: 1, attribution: 'TMDB' },
@@ -118,10 +122,10 @@ describe('executeImportPlan', () => {
     expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('poster');
   });
 
-  it('maps the first selected backdrop to the hero image field', async () => {
+  it('maps an explicit hero image separately from other images', async () => {
     const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
     await executeImportPlan(
-      { ...plan, directors: [], actors: [], peopleToCreate: [], assetsToUpload: [plan.assetsToUpload[1]] },
+      { ...plan, directors: [], actors: [], peopleToCreate: [], heroImageToUpload: plan.assetsToUpload[1], otherImagesToUpload: [], assetsToUpload: [plan.assetsToUpload[1]] },
       { ...params, movieFields: { ...params.movieFields, heroImage: 'hero_image', backdrops: 'other_images' } },
       {
         async findPeople() {
@@ -140,7 +144,7 @@ describe('executeImportPlan', () => {
     );
 
     expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: { type: 'upload', id: 'backdrop-upload' } });
-    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [{ type: 'upload', id: 'backdrop-upload' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [] });
   });
 
   it('uses the English path for configured localized fields', async () => {

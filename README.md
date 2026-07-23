@@ -9,6 +9,12 @@ Install dependencies and start the Vite development server:
     npm install
     npm run dev
 
+For standalone UI review outside the DatoCMS iframe, open the Impeccable harness:
+
+    http://localhost:5174/?impeccable=modal
+
+The harness uses fixture data and resolves the import plan in the browser only. It is for visual review and interaction testing; it does not write to DatoCMS or call TMDB.
+
 Run the automated test suite and production checks:
 
     npm test
@@ -35,7 +41,7 @@ This frontend-only version exposes the TMDB read token to authenticated editors 
 
 1. Open the field add-on on the TMDB ID field and choose **Find movie** or **Refresh from TMDB**.
 2. Search by title and optional year, or retrieve a movie by TMDB ID.
-3. Review the proposed changes and choose the fields, people, poster, and selected TMDB backdrop images to apply. Empty destination fields are selected by default; populated fields are not. Missing TMDB values cannot be selected and never clear existing content.
+3. Review the proposed changes and choose the fields, people, poster, Hero image, and Other images to apply. Empty destination fields are selected by default; populated fields are not. Missing TMDB values cannot be selected and never clear existing content.
 4. Confirm the import. The plugin creates required people as drafts, uploads selected images, and applies the approved values to the unsaved movie form.
 5. Manually save or publish the movie in DatoCMS. The plugin does not save or publish the movie record.
 
@@ -61,7 +67,7 @@ Before release, complete this manual acceptance checklist in a DatoCMS sandbox p
 - [ ] Missing TMDB values cannot clear existing content.
 - [ ] Ambiguous people require an editor choice.
 - [ ] Missing people are created as drafts.
-- [ ] The poster and selected TMDB backdrop images upload to DatoCMS Media.
-- [ ] The first selected TMDB backdrop populates Hero image when that field is configured.
+- [ ] The selected poster, Hero image, and Other images upload to DatoCMS Media.
+- [ ] The explicit Hero image selection populates Hero image when that field is configured.
 - [ ] The movie form changes, but the record is not saved or published.
 - [ ] A restricted role receives a permission error before movie form updates.

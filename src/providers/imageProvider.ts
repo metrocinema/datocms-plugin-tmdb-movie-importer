@@ -3,6 +3,7 @@ import type { NormalizedImageCandidate } from '../domain/movie';
 
 export type ImageSelection = {
   poster: NormalizedImageCandidate | null;
+  heroImage: NormalizedImageCandidate | null;
   backdrops: NormalizedImageCandidate[];
 };
 
@@ -21,10 +22,13 @@ function ranked(images: NormalizedImageCandidate[], type: 'poster' | 'backdrop')
 
 export function defaultImageSelection(current: CurrentMovieValues, images: NormalizedImageCandidate[]): ImageSelection {
   const posterEmpty = current.poster === null || current.poster === undefined || current.poster === '';
+  const heroImageEmpty = current.heroImage === null || current.heroImage === undefined || current.heroImage === '';
   const backdropsEmpty = !Array.isArray(current.backdrops) || current.backdrops.length === 0;
+  const rankedBackdrops = ranked(images, 'backdrop');
 
   return {
     poster: posterEmpty ? ranked(images, 'poster').find(isEnglishPoster) ?? null : null,
-    backdrops: backdropsEmpty ? ranked(images, 'backdrop').slice(0, 5) : [],
+    heroImage: heroImageEmpty ? rankedBackdrops[0] ?? null : null,
+    backdrops: backdropsEmpty ? rankedBackdrops.slice(0, 5) : [],
   };
 }

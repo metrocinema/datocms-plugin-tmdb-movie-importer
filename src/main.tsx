@@ -16,6 +16,7 @@ import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './
 import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFields } from './plugin/mappedFields';
 import { TmdbClient } from './providers/tmdbClient';
 import { normalizeTmdbMovie } from './providers/tmdbNormalizer';
+import { isDevHarnessRequest, renderDevHarness } from './devHarness';
 
 type ErrorBoundaryState = {
   error: Error | null;
@@ -60,6 +61,9 @@ function render(screen: PluginScreen, ctx: unknown) {
   );
 }
 
+if (isDevHarnessRequest()) {
+  renderDevHarness();
+} else {
 connect({
   manualFieldExtensions,
   renderConfigScreen(ctx) {
@@ -161,6 +165,7 @@ connect({
     }, ctx);
   },
 });
+}
 
 function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; environment: string; setFieldValue?: (path: string, value: unknown) => Promise<void> }, targetLocale: 'en') {
   const client = buildClient({
