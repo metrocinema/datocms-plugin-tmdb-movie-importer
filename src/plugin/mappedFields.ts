@@ -2,12 +2,13 @@ import type { ImportExecutorOptions } from '../dato/importExecutor';
 import type { CurrentMovieValues } from '../domain/fieldComparison';
 import type { MovieFieldKey } from '../domain/movie';
 
-type FieldSnapshot = { attributes: { api_key: string; localized: boolean } };
+type FieldSnapshot = { attributes: { api_key: string; localized: boolean; field_type?: string } };
 
 export type MappedFieldMetadata = {
   key: MovieFieldKey;
   apiKey: string;
   localized: boolean;
+  fieldType: string | null;
 };
 
 export function mappedFieldMetadata(movieFields: Partial<Record<MovieFieldKey, string>>, fields: Partial<Record<string, FieldSnapshot>>): MappedFieldMetadata[] {
@@ -15,7 +16,7 @@ export function mappedFieldMetadata(movieFields: Partial<Record<MovieFieldKey, s
     const apiKey = movieFields[key];
     if (!apiKey) return [];
     const field = Object.values(fields).find((candidate) => candidate?.attributes.api_key === apiKey);
-    return [{ key, apiKey, localized: field?.attributes.localized ?? false }];
+    return [{ key, apiKey, localized: field?.attributes.localized ?? false, fieldType: field?.attributes.field_type ?? null }];
   });
 }
 
@@ -24,7 +25,10 @@ export function valuesForMappedFields(formValues: Record<string, unknown>, targe
 }
 
 export function executorOptionsForMappedFields(fields: MappedFieldMetadata[]): ImportExecutorOptions {
-  return { localizedMovieFields: Object.fromEntries(fields.map(({ key, localized }) => [key, localized])) };
+  return {
+    localizedMovieFields: Object.fromEntries(fields.map(({ key, localized }) => [key, localized])),
+    movieFieldTypes: Object.fromEntries(fields.flatMap(({ key, fieldType }) => fieldType ? [[key, fieldType]] : [])),
+  };
 }
 
 function localizedValue(value: unknown, targetLocale: string): unknown {

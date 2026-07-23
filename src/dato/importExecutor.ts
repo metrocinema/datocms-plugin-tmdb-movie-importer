@@ -12,6 +12,7 @@ export type ImportResult =
 
 export type ImportExecutorOptions = {
   localizedMovieFields?: Partial<Record<MovieFieldKey, boolean>>;
+  movieFieldTypes?: Partial<Record<MovieFieldKey, string>>;
 };
 
 type UploadedAsset = {
@@ -85,7 +86,7 @@ export async function executeImportPlan(
   const changes = plan.fieldChanges
     .map((change) => {
       const fieldApiKey = params.movieFields[change.key];
-      return fieldApiKey ? { fieldPath: movieFieldPath(change.key, fieldApiKey, params, options), value: change.value } : null;
+      return fieldApiKey ? { fieldPath: movieFieldPath(change.key, fieldApiKey, params, options), value: valueForMovieField(change.key, change.value, options) } : null;
     })
     .filter((change): change is { fieldPath: string; value: unknown } => change !== null);
 
@@ -113,6 +114,13 @@ export async function executeImportPlan(
 
   const backdropField = params.movieFields.backdrops;
   const backdrops = uploadedAssetsByImage.filter((asset) => asset.image.type === 'backdrop');
+
+  const heroImageField = params.movieFields.heroImage;
+  const heroImage = backdrops[0];
+  if (heroImageField && heroImage) {
+    changes.push({ fieldPath: movieFieldPath('heroImage', heroImageField, params, options), value: assetReference(heroImage.id) });
+  }
+
   if (backdropField && backdrops.length > 0) {
     changes.push({
       fieldPath: movieFieldPath('backdrops', backdropField, params, options),
@@ -147,4 +155,27 @@ function movieFieldPath(
   options: ImportExecutorOptions,
 ): string {
   return fieldPathForMovieField(fieldApiKey, Boolean(options.localizedMovieFields?.[key]), params.targetLocale);
+}
+
+function valueForMovieField(key: MovieFieldKey, value: unknown, options: ImportExecutorOptions): unknown {
+  if (key === 'description' && options.movieFieldTypes?.description === 'structured_text') {
+    return structuredTextDocument(String(value));
+  }
+
+  return value;
+}
+
+function structuredTextDocument(value: string): { schema: 'dast'; document: { type: 'root'; children: Array<{ type: 'paragraph'; children: Array<{ type: 'span'; value: string }> }> } } {
+  return {
+    schema: 'dast',
+    document: {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{ type: 'span', value }],
+        },
+      ],
+    },
+  };
 }

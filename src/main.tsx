@@ -11,23 +11,57 @@ import type { CurrentMovieValues } from './domain/fieldComparison';
 import type { ImportPlan } from './domain/importPlanning';
 import type { MovieFieldKey } from './domain/movie';
 import { parsePluginParameters } from './plugin/parameters';
+import { manualFieldExtensions } from './plugin/fieldExtensions';
 import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './plugin/runtimeValidation';
 import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFields } from './plugin/mappedFields';
 import { TmdbClient } from './providers/tmdbClient';
 import { normalizeTmdbMovie } from './providers/tmdbNormalizer';
 
+type ErrorBoundaryState = {
+  error: Error | null;
+};
+
+class PluginErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('MCS Movie Importer render failed', error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div role="alert" style={{ color: '#b42318', fontFamily: 'sans-serif', padding: 16 }}>
+          <h2>MCS Movie Importer failed to render</h2>
+          <p>{this.state.error.message}</p>
+          <p>Open the browser console for the full stack trace.</p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function render(screen: PluginScreen, ctx: unknown) {
   const root = ReactDOM.createRoot(document.getElementById('root')!);
   root.render(
     <React.StrictMode>
-      <Canvas ctx={ctx as never}>
-        <App screen={screen} />
-      </Canvas>
+      <PluginErrorBoundary>
+        <Canvas ctx={ctx as never}>
+          <App screen={screen} />
+        </Canvas>
+      </PluginErrorBoundary>
     </React.StrictMode>,
   );
 }
 
 connect({
+  manualFieldExtensions,
   renderConfigScreen(ctx) {
     render(
       {
@@ -151,7 +185,7 @@ function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; 
 }
 
 function modalMappedFields(value: unknown): MovieFieldKey[] {
-  const knownKeys: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'backdrops', 'directors', 'actors'];
+  const knownKeys: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'];
   return Array.isArray(value) ? value.filter((key): key is MovieFieldKey => typeof key === 'string' && knownKeys.includes(key as MovieFieldKey)) : [];
 }
 

@@ -52,7 +52,7 @@ function schemaSnapshotFromLoadedFields(
     const attributes = entityRecord(record?.attributes);
     const id = typeof record?.id === 'string' ? record.id : null;
     const apiKey = typeof attributes?.api_key === 'string' ? attributes.api_key : null;
-    const itemTypeId = typeof attributes?.item_type === 'string' ? attributes.item_type : null;
+    const itemTypeId = record ? itemTypeIdForField(record, attributes) : null;
     const fieldType = typeof attributes?.field_type === 'string' ? attributes.field_type : null;
     if (!id || !apiKey || !itemTypeId || !fieldType) return [];
     return [{ id, itemTypeId, field: { apiKey, fieldType, localized: attributes?.localized === true, validators: validatorsFor(attributes?.validators) } }];
@@ -65,6 +65,7 @@ function schemaSnapshotFromLoadedFields(
     const apiKey = typeof attributes?.api_key === 'string' ? attributes.api_key : null;
     if (!id || !apiKey) return [];
     return [[apiKey, {
+      id,
       apiKey,
       fields: Object.fromEntries(fields.filter((field) => field.itemTypeId === id).map((field) => [field.field.apiKey, field.field])),
     }] as const];
@@ -83,6 +84,22 @@ function modelForApiKey(itemTypes: Record<string, unknown>, apiKey: string): { i
 
 function entityRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : undefined;
+}
+
+function itemTypeIdForField(record: Record<string, unknown>, attributes: Record<string, unknown> | undefined): string | null {
+  if (typeof attributes?.item_type === 'string') {
+    return attributes.item_type;
+  }
+
+  const topLevelItemType = entityRecord(record.item_type);
+  if (typeof topLevelItemType?.id === 'string') {
+    return topLevelItemType.id;
+  }
+
+  const relationships = entityRecord(record.relationships);
+  const relationshipItemType = entityRecord(relationships?.item_type);
+  const relationshipData = entityRecord(relationshipItemType?.data);
+  return typeof relationshipData?.id === 'string' ? relationshipData.id : null;
 }
 
 function validatorsFor(value: unknown): DatoFieldSnapshot['validators'] {

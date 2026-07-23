@@ -31,9 +31,10 @@ The plugin supports movie records only. It maps the following logical destinatio
 | Runtime | Movie `runtime` in minutes | Integer |
 | TMDB ID | Movie `id` | Integer or compatible string |
 | Tagline | Movie `tagline` | String or text, localized when configured |
-| Description | Movie `overview` | Text, localized when configured |
+| Description | Movie `overview` | Text or Structured Text, localized when configured |
 | Poster | Selected normalized poster candidate | Single asset |
-| Backdrops | Selected normalized backdrop candidates | Asset gallery |
+| Hero image | First selected normalized backdrop candidate | Single asset |
+| Other images | Selected normalized backdrop candidates | Asset gallery |
 | Directors | Crew members whose job is `Director` | Multiple links to the person model |
 | Actors | Ordered cast, limited by configuration | Multiple links to the person model |
 
@@ -73,7 +74,7 @@ The add-on seeds search with the current title and release year when available. 
 The approved layout is a three-step flow:
 
 1. **Search:** Search by title and optional year, or enter a TMDB ID directly. Show enough result context to distinguish similarly named movies.
-2. **Review:** Compare current DatoCMS values with normalized TMDB values. Select fields, people, poster, and backdrops.
+2. **Review:** Compare current DatoCMS values with normalized TMDB values. Select fields, people, poster, and TMDB backdrop images for hero image and other images.
 3. **Import:** Show the exact planned creates, uploads, links, and form changes. Require final confirmation before any DatoCMS side effect.
 
 The modal returns an approved import result to the field add-on. The add-on applies final values through the form context. It does not save or publish the movie.
@@ -134,7 +135,7 @@ An administrator configures:
 
 The configuration screen validates model relationships and field types. The plugin refuses to run when required mappings are missing or incompatible. Optional mappings may be omitted, in which case the corresponding TMDB value is excluded from review and import.
 
-The directors and actors destinations must be multiple-link fields targeting the configured shared person model. The poster destination must accept one asset, and backdrops must accept multiple assets.
+The directors and actors destinations must be multiple-link fields targeting the configured shared person model. The poster and hero image destinations must each accept one asset, and other images must accept multiple assets.
 
 ## Editor Behavior
 
@@ -156,7 +157,7 @@ Every mapped value displays its current DatoCMS value and proposed TMDB value.
 
 If the poster field is empty, the highest-ranked TMDB poster is preselected. If it is populated, no replacement poster is preselected.
 
-If the backdrops field is empty, the five highest-ranked TMDB backdrops are preselected. If it is populated, no replacement backdrops are preselected. Editors can preview candidates, change the selection, and select any number of available backdrops.
+If the other images field is empty, the five highest-ranked TMDB backdrops are preselected. If it is populated, no replacement backdrop images are preselected. Editors can preview candidates, change the selection, and select any number of available TMDB backdrops. When the hero image field is configured, the first selected backdrop also populates hero image.
 
 Selected images are uploaded into DatoCMS Media and linked to the movie form. Uploads use stable source-aware filenames or metadata and DatoCMS duplicate detection where supported, allowing retries to reuse completed work.
 
@@ -246,7 +247,7 @@ Use recorded, sanitized TMDB response fixtures for:
 
 - Complete mainstream movie data
 - Missing US certification
-- Missing poster or backdrops
+- Missing poster or backdrop images
 - Empty or incomplete credits
 - Multiple release certifications
 - Localized and language-neutral image candidates
@@ -296,7 +297,7 @@ Version one is complete when an authorized editor can:
 4. Review every mapped current and proposed value.
 5. Select exactly which existing values to replace.
 6. Reuse or create linked draft people safely.
-7. Upload a selected poster and selected backdrops into DatoCMS Media.
+7. Upload a selected poster and selected TMDB backdrops into DatoCMS Media.
 8. Apply the approved values to the unsaved movie form.
 9. Retry partial imports without unnecessary duplicate people or assets.
 10. Complete the workflow without automatic movie saving or publishing.

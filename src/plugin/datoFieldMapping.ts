@@ -9,6 +9,7 @@ export type DatoFieldSnapshot = {
 };
 
 export type DatoModelSnapshot = {
+  id?: string;
   apiKey: string;
   fields: Record<string, DatoFieldSnapshot>;
 };
@@ -24,8 +25,9 @@ const FIELD_TYPES: Record<string, string[]> = {
   runtime: ['integer', 'float'],
   tmdbId: ['integer', 'float', 'string'],
   tagline: ['string', 'text'],
-  description: ['text', 'string'],
+  description: ['text', 'string', 'structured_text'],
   poster: ['file'],
+  heroImage: ['file'],
   backdrops: ['gallery'],
   directors: ['links'],
   actors: ['links'],
@@ -40,6 +42,8 @@ function linkedItemTypes(field: DatoFieldSnapshot): string[] {
 export function validateFieldMappings(params: PluginParameters, schema: DatoSchemaSnapshot): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const movieModel = schema.models[params.movieModelApiKey];
+  const personModel = schema.models[params.personModelApiKey];
+  const personModelTargets = [params.personModelApiKey, personModel?.id].filter((value): value is string => Boolean(value));
 
   if (!movieModel) {
     return [{ code: 'movie_model_not_found', message: 'Configured movie model was not found.', severity: 'error' }];
@@ -60,12 +64,11 @@ export function validateFieldMappings(params: PluginParameters, schema: DatoSche
       issues.push({ code: `${fieldKey}_wrong_type`, message: `${fieldApiKey} has incompatible type ${field.fieldType}.`, severity: 'error' });
     }
 
-    if ((fieldKey === 'directors' || fieldKey === 'actors') && !linkedItemTypes(field).includes(params.personModelApiKey)) {
+    if ((fieldKey === 'directors' || fieldKey === 'actors') && !linkedItemTypes(field).some((itemType) => personModelTargets.includes(itemType))) {
       issues.push({ code: `${fieldKey}_wrong_target_model`, message: `${fieldApiKey} must link to the configured person model.`, severity: 'error' });
     }
   }
 
-  const personModel = schema.models[params.personModelApiKey];
   const nameField = personModel?.fields[params.personNameFieldApiKey];
 
   if (!personModel) {

@@ -20,7 +20,8 @@ const movieFieldLabels = {
   tagline: 'Tagline',
   description: 'Description',
   poster: 'Poster',
-  backdrops: 'Backdrops',
+  heroImage: 'Hero image',
+  backdrops: 'Other images',
   directors: 'Directors',
   actors: 'Actors',
 } as const;
@@ -75,20 +76,20 @@ export function ConfigScreen({ parameters, onSave }: ConfigScreenProps) {
           value={draft.tmdbReadToken}
           onChange={(value) => updateParameter('tmdbReadToken', value)}
         />
-        <TextField id="movieModelApiKey" name="movieModelApiKey" label="Movie model API key" value={draft.movieModelApiKey} onChange={(value) => updateParameter('movieModelApiKey', value)} />
+        <TextField id="movieModelApiKey" name="movieModelApiKey" label="Movie model API name" value={draft.movieModelApiKey} onChange={(value) => updateParameter('movieModelApiKey', value)} />
         {Object.entries(movieFieldLabels).map(([key, label]) => (
           <TextField
             key={key}
             id={`movieField-${key}`}
             name={`movieField-${key}`}
-            label={`${label} field API key`}
+            label={`${label} field API name`}
             value={draft.movieFields[key as keyof typeof movieFieldLabels] ?? ''}
             onChange={(value) => updateMovieField(key as keyof typeof movieFieldLabels, value)}
           />
         ))}
-        <TextField id="personModelApiKey" name="personModelApiKey" label="Person model API key" value={draft.personModelApiKey} onChange={(value) => updateParameter('personModelApiKey', value)} />
-        <TextField id="personNameFieldApiKey" name="personNameFieldApiKey" label="Person name field API key" value={draft.personNameFieldApiKey} onChange={(value) => updateParameter('personNameFieldApiKey', value)} />
-        <TextField id="personTmdbIdFieldApiKey" name="personTmdbIdFieldApiKey" label="Person TMDB ID field API key" value={draft.personTmdbIdFieldApiKey ?? ''} onChange={(value) => updateParameter('personTmdbIdFieldApiKey', value || null)} />
+        <TextField id="personModelApiKey" name="personModelApiKey" label="Person model API name" value={draft.personModelApiKey} onChange={(value) => updateParameter('personModelApiKey', value)} />
+        <TextField id="personNameFieldApiKey" name="personNameFieldApiKey" label="Person name field API name" value={draft.personNameFieldApiKey} onChange={(value) => updateParameter('personNameFieldApiKey', value)} />
+        <TextField id="personTmdbIdFieldApiKey" name="personTmdbIdFieldApiKey" label="Person TMDB ID field API name" value={draft.personTmdbIdFieldApiKey ?? ''} onChange={(value) => updateParameter('personTmdbIdFieldApiKey', value || null)} />
         <TextField
           id="actorLimit"
           name="actorLimit"

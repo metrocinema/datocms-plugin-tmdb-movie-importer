@@ -113,6 +113,31 @@ describe('executeImportPlan', () => {
     expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('poster');
   });
 
+  it('maps the first selected backdrop to the hero image field', async () => {
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+    await executeImportPlan(
+      { ...plan, directors: [], actors: [], peopleToCreate: [], assetsToUpload: [plan.assetsToUpload[1]] },
+      { ...params, movieFields: { ...params.movieFields, heroImage: 'hero_image', backdrops: 'other_images' } },
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'backdrop-upload' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+    );
+
+    expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: { type: 'upload', id: 'backdrop-upload' } });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [{ type: 'upload', id: 'backdrop-upload' }] });
+  });
+
   it('uses the English path for configured localized fields', async () => {
     const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
     await executeImportPlan({ ...plan, directors: [], actors: [], peopleToCreate: [], assetsToUpload: [] }, params, {
@@ -131,6 +156,54 @@ describe('executeImportPlan', () => {
     }, { localizedMovieFields: { title: true } });
 
     expect(appliedChanges).toEqual([{ fieldPath: 'title.en', value: 'Example Movie' }]);
+  });
+
+  it('writes description as a structured text document when configured field type is structured_text', async () => {
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+    await executeImportPlan(
+      {
+        ...plan,
+        fieldChanges: [{ key: 'description', value: 'Overview text' }],
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        assetsToUpload: [],
+      },
+      { ...params, movieFields: { description: 'description' } },
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+      { movieFieldTypes: { description: 'structured_text' } },
+    );
+
+    expect(appliedChanges).toEqual([
+      {
+        fieldPath: 'description',
+        value: {
+          schema: 'dast',
+          document: {
+            type: 'root',
+            children: [
+              {
+                type: 'paragraph',
+                children: [{ type: 'span', value: 'Overview text' }],
+              },
+            ],
+          },
+        },
+      },
+    ]);
   });
 
   it('does not clear directors when none are selected', async () => {

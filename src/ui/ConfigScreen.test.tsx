@@ -38,20 +38,21 @@ describe('ConfigScreen', () => {
       tagline: 'tagline',
       description: 'description',
       poster: 'poster',
-      backdrops: 'backdrops',
+      heroImage: 'hero_image',
+      backdrops: 'other_images',
       directors: 'directors',
       actors: 'actors',
     };
     render(<ConfigScreen parameters={parsePluginParameters({})} onSave={onSave} />);
 
     await user.type(screen.getByLabelText('TMDB read token'), 'read-token');
-    await user.type(screen.getByLabelText('Movie model API key'), 'movie');
+    await user.type(screen.getByLabelText('Movie model API name'), 'movie');
     for (const [key, value] of Object.entries(movieFields)) {
-      await user.type(screen.getByLabelText(`${movieFieldLabel(key)} field API key`), value);
+      await user.type(screen.getByLabelText(`${movieFieldLabel(key)} field API name`), value);
     }
-    await user.type(screen.getByLabelText('Person model API key'), 'person');
-    await user.type(screen.getByLabelText('Person name field API key'), 'name');
-    await user.type(screen.getByLabelText('Person TMDB ID field API key'), 'person_tmdb_id');
+    await user.type(screen.getByLabelText('Person model API name'), 'person');
+    await user.type(screen.getByLabelText('Person name field API name'), 'name');
+    await user.type(screen.getByLabelText('Person TMDB ID field API name'), 'person_tmdb_id');
     await user.clear(screen.getByLabelText('Actor limit'));
     await user.type(screen.getByLabelText('Actor limit'), '7');
     await user.click(screen.getByRole('button', { name: 'Save configuration' }));
@@ -104,7 +105,8 @@ function movieFieldLabel(key: string): string {
     tagline: 'Tagline',
     description: 'Description',
     poster: 'Poster',
-    backdrops: 'Backdrops',
+    heroImage: 'Hero image',
+    backdrops: 'Other images',
     directors: 'Directors',
     actors: 'Actors',
   }[key] ?? key;

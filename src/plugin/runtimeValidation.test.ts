@@ -63,6 +63,17 @@ describe('validateRuntimeConfiguration', () => {
 
     expect(validateRuntimeConfiguration(validParameters, schema).map((issue) => issue.code)).toContain('title_wrong_type');
   });
+
+  it('uses the item type relationship on loaded Dato field records', async () => {
+    const schema = await loadSchemaForRuntimeValidation(validParameters, {
+      ...partialSchemaContext(),
+      loadItemTypeFields: async (itemTypeId: string) => itemTypeId === 'movie-id'
+        ? [relationshipField('title-id', 'movie-id', 'title', 'string')]
+        : [relationshipField('name-id', 'person-id', 'name', 'string')],
+    });
+
+    expect(validateRuntimeConfiguration(validParameters, schema)).toEqual([]);
+  });
 });
 
 function partialSchemaContext() {
@@ -88,6 +99,25 @@ function field(id: string, itemTypeId: string, apiKey: string, fieldType: string
       field_type: fieldType,
       localized: false,
       validators: {},
+    },
+  };
+}
+
+function relationshipField(id: string, itemTypeId: string, apiKey: string, fieldType: string) {
+  return {
+    id,
+    attributes: {
+      api_key: apiKey,
+      field_type: fieldType,
+      localized: false,
+      validators: {},
+    },
+    relationships: {
+      item_type: {
+        data: {
+          id: itemTypeId,
+        },
+      },
     },
   };
 }

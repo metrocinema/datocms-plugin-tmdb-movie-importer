@@ -24,7 +24,9 @@ const schema: DatoSchemaSnapshot = {
       apiKey: 'movie',
       fields: {
         title: { apiKey: 'title', fieldType: 'string', localized: true, validators: {} },
+        description: { apiKey: 'description', fieldType: 'structured_text', localized: false, validators: {} },
         poster: { apiKey: 'poster', fieldType: 'file', localized: false, validators: {} },
+        hero_image: { apiKey: 'hero_image', fieldType: 'file', localized: false, validators: {} },
         backdrops: { apiKey: 'backdrops', fieldType: 'gallery', localized: false, validators: {} },
         directors: { apiKey: 'directors', fieldType: 'links', localized: false, validators: { itemItemType: { itemTypes: ['person'] } } },
         actors: { apiKey: 'actors', fieldType: 'links', localized: false, validators: { itemItemType: { itemTypes: ['person'] } } },
@@ -44,6 +46,32 @@ describe('validateFieldMappings', () => {
     expect(validateFieldMappings(baseParams, schema)).toEqual([]);
   });
 
+  it('accepts hero image as a single file field', () => {
+    expect(validateFieldMappings({ ...baseParams, movieFields: { ...baseParams.movieFields, heroImage: 'hero_image' } }, schema)).toEqual([]);
+  });
+
+  it('accepts description as a structured text field', () => {
+    expect(validateFieldMappings({ ...baseParams, movieFields: { description: 'description' } }, schema)).toEqual([]);
+  });
+
+  it('rejects hero image when it is not a single file field', () => {
+    const badSchema: DatoSchemaSnapshot = {
+      ...schema,
+      models: {
+        ...schema.models,
+        movie: {
+          ...schema.models.movie,
+          fields: {
+            ...schema.models.movie.fields,
+            hero_image: { apiKey: 'hero_image', fieldType: 'gallery', localized: false, validators: {} },
+          },
+        },
+      },
+    };
+
+    expect(validateFieldMappings({ ...baseParams, movieFields: { ...baseParams.movieFields, heroImage: 'hero_image' } }, badSchema).map((issue) => issue.code)).toContain('heroImage_wrong_type');
+  });
+
   it('rejects people fields that do not target the shared person model', () => {
     const badSchema: DatoSchemaSnapshot = {
       ...schema,
@@ -60,6 +88,30 @@ describe('validateFieldMappings', () => {
     };
 
     expect(validateFieldMappings(baseParams, badSchema).map((issue) => issue.code)).toContain('actors_wrong_target_model');
+  });
+
+  it('accepts people fields that target the configured person model ID', () => {
+    const schemaWithModelIds: DatoSchemaSnapshot = {
+      models: {
+        movie: {
+          id: 'movie-id',
+          apiKey: 'movie',
+          fields: {
+            directors: { apiKey: 'directors', fieldType: 'links', localized: false, validators: { items_item_type: { item_types: ['person-id'] } } },
+            actors: { apiKey: 'actors', fieldType: 'links', localized: false, validators: { items_item_type: { item_types: ['person-id'] } } },
+          },
+        },
+        person: {
+          id: 'person-id',
+          apiKey: 'person',
+          fields: {
+            name: { apiKey: 'name', fieldType: 'string', localized: false, validators: {} },
+          },
+        },
+      },
+    };
+
+    expect(validateFieldMappings({ ...baseParams, movieFields: { directors: 'directors', actors: 'actors' } }, schemaWithModelIds)).toEqual([]);
   });
 
   it('accepts a configured scalar TMDB ID field on the person model', () => {

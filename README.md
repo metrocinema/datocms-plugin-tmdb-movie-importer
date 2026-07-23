@@ -19,13 +19,13 @@ Run the automated test suite and production checks:
 ## DatoCMS setup
 
 1. Install the plugin in the DatoCMS project.
-2. Configure the TMDB read token and the movie model API key.
-3. Map the movie fields you want to import. Version one supports title, release year, MPAA rating, runtime, TMDB ID, tagline, description, poster, backdrops, directors, and actors.
+2. Configure the TMDB read token and the movie model API name.
+3. Map the movie fields you want to import. Version one supports title, release year, MPAA rating, runtime, TMDB ID, tagline, description, poster, hero image, other images, directors, and actors.
 4. Attach the field add-on to the mapped TMDB ID field on the movie model.
 5. Configure the shared person model and its name field. A person TMDB ID field is optional but provides safer matching when available.
 6. Configure the actor limit; it defaults to 10.
 
-The importer validates required mappings before it runs. Optional unmapped movie fields are excluded from review and import.
+The importer validates required mappings before it runs. Optional unmapped movie fields are excluded from review and import. DatoCMS model and field API names are stable schema identifiers, not secret tokens.
 
 ## Security note
 
@@ -35,7 +35,7 @@ This frontend-only version exposes the TMDB read token to authenticated editors 
 
 1. Open the field add-on on the TMDB ID field and choose **Find movie** or **Refresh from TMDB**.
 2. Search by title and optional year, or retrieve a movie by TMDB ID.
-3. Review the proposed changes and choose the fields, people, poster, and backdrops to apply. Empty destination fields are selected by default; populated fields are not. Missing TMDB values cannot be selected and never clear existing content.
+3. Review the proposed changes and choose the fields, people, poster, and selected TMDB backdrop images to apply. Empty destination fields are selected by default; populated fields are not. Missing TMDB values cannot be selected and never clear existing content.
 4. Confirm the import. The plugin creates required people as drafts, uploads selected images, and applies the approved values to the unsaved movie form.
 5. Manually save or publish the movie in DatoCMS. The plugin does not save or publish the movie record.
 
@@ -61,6 +61,7 @@ Before release, complete this manual acceptance checklist in a DatoCMS sandbox p
 - [ ] Missing TMDB values cannot clear existing content.
 - [ ] Ambiguous people require an editor choice.
 - [ ] Missing people are created as drafts.
-- [ ] The poster and selected backdrops upload to DatoCMS Media.
+- [ ] The poster and selected TMDB backdrop images upload to DatoCMS Media.
+- [ ] The first selected TMDB backdrop populates Hero image when that field is configured.
 - [ ] The movie form changes, but the record is not saved or published.
 - [ ] A restricted role receives a permission error before movie form updates.

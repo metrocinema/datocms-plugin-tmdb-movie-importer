@@ -7,6 +7,7 @@ export type MovieFieldKey =
   | 'tagline'
   | 'description'
   | 'poster'
+  | 'heroImage'
   | 'backdrops'
   | 'directors'
   | 'actors';

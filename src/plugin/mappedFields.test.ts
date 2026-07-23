@@ -3,8 +3,8 @@ import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFie
 describe('mapped field metadata', () => {
   const movieFields = { title: 'title', runtime: 'runtime' };
   const fields = {
-    title: { attributes: { api_key: 'title', localized: true } },
-    runtime: { attributes: { api_key: 'runtime', localized: false } },
+    title: { attributes: { api_key: 'title', localized: true, field_type: 'string' } },
+    runtime: { attributes: { api_key: 'runtime', localized: false, field_type: 'integer' } },
   };
 
   it('reads localized current values from the configured target locale', () => {
@@ -14,6 +14,9 @@ describe('mapped field metadata', () => {
   });
 
   it('passes localization metadata to the executor', () => {
-    expect(executorOptionsForMappedFields(mappedFieldMetadata(movieFields, fields))).toEqual({ localizedMovieFields: { title: true, runtime: false } });
+    expect(executorOptionsForMappedFields(mappedFieldMetadata(movieFields, fields))).toEqual({
+      localizedMovieFields: { title: true, runtime: false },
+      movieFieldTypes: { title: 'string', runtime: 'integer' },
+    });
   });
 });
