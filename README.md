@@ -13,7 +13,7 @@ For standalone UI review outside the DatoCMS iframe, open the Impeccable harness
 
     http://localhost:5174/?impeccable=modal
 
-The harness uses fixture data and resolves the import plan in the browser only. It is for visual review and interaction testing; it does not write to DatoCMS or call TMDB.
+The harness uses fixture data and resolves the import plan in the browser only. It is for visual review and interaction testing; it does not write to DatoCMS or call TMDB. The harness uses Dato's React UI stylesheet and a mock `Canvas` context with representative host color and shadow tokens; add `&theme=dark` to review the dark-mode token set.
 
 Run the automated test suite and production checks:
 

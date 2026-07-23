@@ -5,6 +5,7 @@ import { App, type PluginScreen } from './App';
 import type { NormalizedMovie } from './domain/movie';
 
 type HarnessMode = 'modal' | 'config' | 'field';
+type HarnessTheme = 'light' | 'dark';
 
 export function isDevHarnessRequest(url = window.location.href) {
   if (!import.meta.env.DEV) {
@@ -15,10 +16,16 @@ export function isDevHarnessRequest(url = window.location.href) {
 }
 
 export function renderDevHarness() {
+  const theme = harnessTheme();
+  const ctx = mockCanvasContext(theme);
+
+  document.documentElement.dataset.colorScheme = theme;
+  document.documentElement.style.colorScheme = theme;
+
   const root = ReactDOM.createRoot(document.getElementById('root')!);
   root.render(
     <React.StrictMode>
-      <Canvas ctx={mockCanvasContext as never} noAutoResizer>
+      <Canvas ctx={ctx as never} noAutoResizer>
         <App screen={screenForHarnessMode(harnessMode())} />
       </Canvas>
     </React.StrictMode>,
@@ -33,6 +40,12 @@ function harnessMode(): HarnessMode {
   }
 
   return 'modal';
+}
+
+function harnessTheme(): HarnessTheme {
+  const requestedTheme = new URL(window.location.href).searchParams.get('theme');
+
+  return requestedTheme === 'dark' ? 'dark' : 'light';
 }
 
 function screenForHarnessMode(mode: HarnessMode): PluginScreen {
@@ -182,35 +195,86 @@ const fixtureMovie: NormalizedMovie = {
   ],
 };
 
-const designTokens = {
+const lightDesignTokens = {
   '--color--ink': '#1f2933',
+  '--color--ink-subtle': '#5d6a76',
   '--color--ink-muted': '#5d6a76',
+  '--color--ink-placeholder': '#8c99a5',
   '--color--border': '#d9e1e8',
+  '--color--border-hover': '#b9c6d3',
   '--color--surface': '#ffffff',
+  '--color--surface-hover': '#f5f7f9',
   '--color--surface-muted': '#f5f7f9',
   '--color--surface-raised': '#ffffff',
   '--color--primary': '#2f80ed',
+  '--color--primary--surface': '#2563eb',
+  '--color--primary--surface-hover': '#1d4ed8',
+  '--color--primary--surface-active': '#1e40af',
+  '--color--primary--surface-secondary': '#dbeafe',
+  '--color--primary--ink': '#ffffff',
   '--color--primary-soft--surface': '#eaf3ff',
   '--color--primary-soft--ink': '#1559a7',
+  '--color--selected--surface': '#eef6ff',
+  '--color--selected--border': '#2f80ed',
+  '--color--selected--ink': '#1559a7',
+  '--color--focus--border': '#2f80ed',
+  '--color--focus--outline': 'rgb(47 128 237 / 20%)',
+  '--color--field-group-media--surface': '#f3f5f8',
+  '--color--field-group-media--ink': '#1f2933',
+  '--color--success-soft--surface': '#eaf8ef',
+  '--color--success-soft--ink': '#1f7a3f',
+  '--color--success-soft--border': '#b8e5c7',
   '--color--warning-soft--surface': '#fff7e6',
   '--color--warning-soft--ink': '#8a4b00',
   '--color--warning-soft--border': '#f4d08a',
-  '--font-size-xs': '12px',
-  '--font-size-s': '13px',
-  '--font-size-m': '14px',
-  '--font-size-l': '16px',
-  '--font-size-xl': '20px',
-  '--font-size-xxl': '24px',
-  '--spacing-xs': '4px',
-  '--spacing-s': '8px',
-  '--spacing-m': '16px',
-  '--spacing-l': '24px',
+  '--color--scrollbar--fill': '#b9c6d3',
   '--shadow--raised': '0 2px 8px rgb(31 41 51 / 8%)',
 };
 
-const mockCanvasContext = {
-  bodyPadding: [24, 24, 24, 24],
-  mode: 'renderModal',
-  theme: designTokens,
-  cssDesignTokens: designTokens,
+const darkDesignTokens = {
+  '--color--ink': '#f5f7fb',
+  '--color--ink-subtle': '#c4ccd6',
+  '--color--ink-muted': '#a7b2bf',
+  '--color--ink-placeholder': '#818c99',
+  '--color--border': '#344150',
+  '--color--border-hover': '#4a5a6b',
+  '--color--surface': '#141a22',
+  '--color--surface-hover': '#1b2430',
+  '--color--surface-muted': '#10151d',
+  '--color--surface-raised': '#1a222d',
+  '--color--primary': '#60a5fa',
+  '--color--primary--surface': '#3b82f6',
+  '--color--primary--surface-hover': '#60a5fa',
+  '--color--primary--surface-active': '#2563eb',
+  '--color--primary--surface-secondary': '#1e3a5f',
+  '--color--primary--ink': '#ffffff',
+  '--color--primary-soft--surface': '#172f4f',
+  '--color--primary-soft--ink': '#bfdbfe',
+  '--color--selected--surface': '#18375c',
+  '--color--selected--border': '#60a5fa',
+  '--color--selected--ink': '#dbeafe',
+  '--color--focus--border': '#60a5fa',
+  '--color--focus--outline': 'rgb(96 165 250 / 25%)',
+  '--color--field-group-media--surface': '#1d2430',
+  '--color--field-group-media--ink': '#f5f7fb',
+  '--color--success-soft--surface': '#12351f',
+  '--color--success-soft--ink': '#86efac',
+  '--color--success-soft--border': '#166534',
+  '--color--warning-soft--surface': '#3a2a12',
+  '--color--warning-soft--ink': '#facc15',
+  '--color--warning-soft--border': '#854d0e',
+  '--color--scrollbar--fill': '#4a5a6b',
+  '--shadow--raised': '0 2px 8px rgb(0 0 0 / 30%)',
 };
+
+function mockCanvasContext(colorScheme: HarnessTheme) {
+  const cssDesignTokens = colorScheme === 'dark' ? darkDesignTokens : lightDesignTokens;
+
+  return {
+    bodyPadding: [24, 24, 24, 24],
+    colorScheme,
+    mode: 'renderModal',
+    theme: cssDesignTokens,
+    cssDesignTokens,
+  };
+}

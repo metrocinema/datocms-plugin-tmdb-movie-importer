@@ -17,25 +17,37 @@ export function ImagePicker({ images, selection, onTogglePoster, onSelectHeroIma
 
   const posterOptions = posters.map((image) => (
     <label key={`${image.providerKey}:${image.providerImageId}`} className="movie-import-modal__image-option" style={touchTargetStyle}>
-      <input type="checkbox" checked={selection.poster?.providerImageId === image.providerImageId} onChange={() => onTogglePoster(image.providerImageId)} />
-      <img className={`movie-import-modal__image-thumb movie-import-modal__image-thumb--${image.type}`} src={image.originalUrl} alt={`${image.type} candidate`} loading="lazy" width={120} height={image.type === 'poster' ? 180 : 68} />
-      <span className="movie-import-modal__image-label">Use as poster</span>
+      <span className="movie-import-modal__image-preview">
+        <img className={`movie-import-modal__image-thumb movie-import-modal__image-thumb--${image.type}`} src={image.originalUrl} alt={`${image.type} candidate`} loading="lazy" width={120} height={image.type === 'poster' ? 180 : 68} />
+      </span>
+      <span className="movie-import-modal__image-footer">
+        <input type="checkbox" checked={selection.poster?.providerImageId === image.providerImageId} onChange={() => onTogglePoster(image.providerImageId)} />
+        <span className="movie-import-modal__image-label">Use as poster</span>
+      </span>
     </label>
   ));
 
   const heroOptions = backdrops.map((image) => (
     <label key={`${image.providerKey}:${image.providerImageId}:hero`} className="movie-import-modal__image-option" style={touchTargetStyle}>
-      <input type="radio" name="hero-image-selection" checked={selection.heroImage?.providerImageId === image.providerImageId} onChange={() => onSelectHeroImage(image.providerImageId)} />
-      <img className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop" src={image.originalUrl} alt="hero image candidate" loading="lazy" width={120} height={68} />
-      <span className="movie-import-modal__image-label">Use as Hero image</span>
+      <span className="movie-import-modal__image-preview">
+        <img className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop" src={image.originalUrl} alt="hero image candidate" loading="lazy" width={120} height={68} />
+      </span>
+      <span className="movie-import-modal__image-footer">
+        <input type="radio" name="hero-image-selection" checked={selection.heroImage?.providerImageId === image.providerImageId} onChange={() => onSelectHeroImage(image.providerImageId)} />
+        <span className="movie-import-modal__image-label">Use as Hero image</span>
+      </span>
     </label>
   ));
 
   const backdropOptions = backdrops.map((image) => (
     <label key={`${image.providerKey}:${image.providerImageId}:other`} className="movie-import-modal__image-option" style={touchTargetStyle}>
-      <input type="checkbox" checked={selection.backdrops.some((selected) => selected.providerImageId === image.providerImageId)} onChange={() => onToggleBackdrop(image.providerImageId)} />
-      <img className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop" src={image.originalUrl} alt="other image candidate" loading="lazy" width={120} height={68} />
-      <span className="movie-import-modal__image-label">Add to Other images</span>
+      <span className="movie-import-modal__image-preview">
+        <img className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop" src={image.originalUrl} alt="other image candidate" loading="lazy" width={120} height={68} />
+      </span>
+      <span className="movie-import-modal__image-footer">
+        <input type="checkbox" checked={selection.backdrops.some((selected) => selected.providerImageId === image.providerImageId)} onChange={() => onToggleBackdrop(image.providerImageId)} />
+        <span className="movie-import-modal__image-label">Add to Other images</span>
+      </span>
     </label>
   ));
 
