@@ -28,6 +28,22 @@ export function formatEmptyValue(value: unknown): string {
   return value === null || value === undefined || value === '' ? 'Empty' : String(value);
 }
 
+export function formatReviewValue(key: MovieFieldKey, value: unknown): string {
+  if (value === null || value === undefined || value === '') {
+    return 'Empty';
+  }
+
+  if (key === 'runtime' && typeof value === 'number') {
+    return formatRuntime(value);
+  }
+
+  if (key === 'yearReleased' && typeof value === 'number') {
+    return formatYear(value);
+  }
+
+  return String(value);
+}
+
 export function countConfirmSummary(plan: ImportPlan): {
   fieldChanges: number;
   peopleToCreate: number;

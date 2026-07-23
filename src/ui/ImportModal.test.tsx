@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ImportModal } from './ImportModal';
 import type { NormalizedMovie } from '../domain/movie';
@@ -152,6 +152,8 @@ describe('ImportModal', () => {
     expect(screen.getByRole('heading', { name: 'Field changes' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Images' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
+    expect(screen.getByText('1 field selected · 1 image to upload · 2 draft people · 0 reused people')).toBeInTheDocument();
+    expect(screen.getByText('1 field available · 1 selected change')).toBeInTheDocument();
     expect(screen.getAllByText('Title').length).toBeGreaterThan(0);
     expect(screen.getByText('Poster')).toBeInTheDocument();
     expect(screen.getByText('Hero image')).toBeInTheDocument();
@@ -324,10 +326,21 @@ describe('ImportModal data flow', () => {
 
     await reachReview();
 
-    const fieldToggle = screen.getAllByRole('checkbox', { name: 'Select' })[0];
+    const fieldToggle = screen.getByRole('checkbox', { name: 'Select Title' });
     const imageToggle = screen.getByRole('checkbox', { name: /Use as poster/i });
     expect(fieldToggle.closest('.movie-import-modal__check')).toHaveStyle({ minHeight: '44px' });
     expect(imageToggle.closest('.movie-import-modal__image-option')).toHaveStyle({ minHeight: '44px' });
+  });
+
+  it('keeps image choices understandable when a preview fails to load', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={vi.fn()} />);
+
+    await reachReview();
+    fireEvent.error(screen.getByRole('img', { name: 'poster candidate' }));
+
+    expect(screen.getByRole('img', { name: 'poster preview unavailable' })).toBeInTheDocument();
+    expect(screen.getByText('Preview unavailable')).toBeInTheDocument();
+    expect(screen.getByText('TMDB · 100 × 150 · EN')).toBeInTheDocument();
   });
 
   it('reuses a different-name record when the TMDB ID matches', async () => {
