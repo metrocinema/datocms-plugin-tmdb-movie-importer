@@ -1,4 +1,6 @@
+import { Button, FieldGroup, TextField } from 'datocms-react-ui';
 import type { TmdbSearchResult } from '../providers/tmdbTypes';
+import { ModalStepIndicator } from './ModalStepIndicator';
 
 type SearchStepProps = {
   title: string;
@@ -16,50 +18,58 @@ type SearchStepProps = {
 export function SearchStep({ title, year, results, onTitleChange, onYearChange, onSearch, onSelect, tmdbId, onTmdbIdChange, onLoadTmdbId }: SearchStepProps) {
   return (
     <section>
-      <ol aria-label="Import steps">
-        <li>Find movie</li>
-        <li>Review changes</li>
-        <li>Confirm import</li>
-      </ol>
-      <h2>Find movie</h2>
-      <p>Find the TMDB record that matches this DatoCMS movie.</p>
+      <ModalStepIndicator activeStep="find" />
+      <header className="movie-import-modal__header">
+        <p className="movie-import-modal__eyebrow">TMDB movie importer</p>
+        <h2 className="movie-import-modal__title">Find movie</h2>
+        <p className="movie-import-modal__intro">Find the TMDB record that matches this DatoCMS movie.</p>
+      </header>
 
-      <fieldset aria-label="Search by title and year">
-        <label>
-          Title
-          <input value={title} onChange={(event) => onTitleChange(event.target.value)} />
-        </label>
-        <label>
-          Year
-          <input type="number" value={year ?? ''} onChange={(event) => onYearChange(event.target.value ? Number(event.target.value) : null)} />
-        </label>
-        <button type="button" onClick={onSearch}>
-          Search
-        </button>
+      <fieldset aria-label="Search by title and year" className="movie-import-modal__fieldset">
+        <legend className="movie-import-modal__legend">Search by title and year</legend>
+        <FieldGroup>
+          <TextField id="movie-title" name="movie-title" label="Title" value={title} onChange={onTitleChange} />
+          <TextField id="movie-year" name="movie-year" label="Year" value={year === null ? '' : String(year)} onChange={(value) => onYearChange(value ? Number(value) : null)} textInputProps={{ type: 'number' }} />
+        </FieldGroup>
+        <div className="movie-import-modal__actions">
+          <Button buttonType="primary" type="button" onClick={onSearch}>
+            Search
+          </Button>
+        </div>
       </fieldset>
 
-      <fieldset aria-label="Lookup by TMDB ID">
-        <label>
-          TMDB ID
-          <input value={tmdbId} inputMode="numeric" onChange={(event) => onTmdbIdChange(event.target.value)} />
-        </label>
-        <button type="button" onClick={onLoadTmdbId}>
-          Load TMDB ID
-        </button>
+      <fieldset aria-label="Lookup by TMDB ID" className="movie-import-modal__fieldset">
+        <legend className="movie-import-modal__legend">Lookup by TMDB ID</legend>
+        <FieldGroup>
+          <TextField id="tmdb-id" name="tmdb-id" label="TMDB ID" value={tmdbId} onChange={onTmdbIdChange} textInputProps={{ inputMode: 'numeric' }} />
+        </FieldGroup>
+        <div className="movie-import-modal__actions">
+          <Button type="button" onClick={onLoadTmdbId}>
+            Load TMDB ID
+          </Button>
+        </div>
       </fieldset>
 
-      {results.map((result) => (
-        <article key={result.id}>
-          {result.posterUrl ? <img src={result.posterUrl} alt={`${result.title} poster`} /> : null}
-          <h3>{result.title}</h3>
-          {result.releaseDate ? <p>{result.releaseDate.slice(0, 4)}</p> : null}
-          {result.overview ? <p>{result.overview}</p> : null}
-          <p>TMDB ID {result.id}</p>
-          <button type="button" onClick={() => onSelect(result.id)}>
-            Use {result.title}
-          </button>
-        </article>
-      ))}
+      <div className="movie-import-modal__cards">
+        {results.map((result) => (
+          <article key={result.id} className="movie-import-modal__card">
+            {result.posterUrl
+              ? <img className="movie-import-modal__card-media" src={result.posterUrl} alt={`${result.title} poster`} />
+              : <div className="movie-import-modal__card-media movie-import-modal__card-placeholder">No poster</div>}
+            <div>
+              <h3 className="movie-import-modal__card-title">{result.title}</h3>
+              {result.releaseDate ? <p className="movie-import-modal__meta">{result.releaseDate.slice(0, 4)}</p> : null}
+              {result.overview ? <p className="movie-import-modal__body">{result.overview}</p> : null}
+              <p className="movie-import-modal__meta">TMDB ID {result.id}</p>
+            </div>
+            <div className="movie-import-modal__actions">
+              <Button buttonType="primary" type="button" onClick={() => onSelect(result.id)}>
+                Use {result.title}
+              </Button>
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }

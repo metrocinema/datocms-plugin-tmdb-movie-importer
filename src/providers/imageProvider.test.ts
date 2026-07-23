@@ -3,6 +3,7 @@ import type { NormalizedImageCandidate } from '../domain/movie';
 
 const images: NormalizedImageCandidate[] = [
   { providerKey: 'tmdb', providerImageId: '/poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg', width: 100, height: 150, language: 'en', rank: 1, attribution: 'TMDB' },
+  { providerKey: 'tmdb', providerImageId: '/textless-poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/textless-poster.jpg', width: 100, height: 150, language: null, rank: 2, attribution: 'TMDB' },
   { providerKey: 'tmdb', providerImageId: '/backdrop-1.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop-1.jpg', width: 300, height: 150, language: null, rank: 1, attribution: 'TMDB' },
   { providerKey: 'tmdb', providerImageId: '/backdrop-2.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop-2.jpg', width: 300, height: 150, language: null, rank: 2, attribution: 'TMDB' },
 ];
@@ -20,6 +21,15 @@ describe('defaultImageSelection', () => {
 
     expect(selection.poster).toBeNull();
     expect(selection.backdrops).toEqual([]);
+  });
+
+  it('only preselects English-language posters', () => {
+    const selection = defaultImageSelection({ poster: null }, [
+      { providerKey: 'tmdb', providerImageId: '/textless-poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/textless-poster.jpg', width: 100, height: 150, language: null, rank: 1, attribution: 'TMDB' },
+      { providerKey: 'tmdb', providerImageId: '/english-poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/english-poster.jpg', width: 100, height: 150, language: 'en', rank: 2, attribution: 'TMDB' },
+    ]);
+
+    expect(selection.poster?.providerImageId).toBe('/english-poster.jpg');
   });
 
   it('preselects at most the five highest-ranked backdrops', () => {

@@ -7,18 +7,25 @@ type PersonResolutionListProps = {
 };
 
 export function PersonResolutionList({ people, onResolve }: PersonResolutionListProps) {
-  const renderPeople = (role: PersonCandidate['role']) => people
-    .filter(({ candidate }) => candidate.role === role)
-    .map(({ candidate, decision }) => (
-      <div key={`${candidate.role}:${candidate.tmdbId}`}>
-        <strong>{candidate.name}</strong>
-        {decision.type === 'reuse' ? <p>Will reuse existing person</p> : null}
-        {decision.type === 'create' ? <p>Will create new draft person</p> : null}
-        {decision.warning ? <p>{decision.warning}</p> : null}
+  const renderPeople = (role: PersonCandidate['role']) => {
+    const matches = people.filter(({ candidate }) => candidate.role === role);
+
+    if (matches.length === 0) {
+      return <p className="movie-import-modal__empty">No {role === 'director' ? 'directors' : 'actors'} were returned for this movie.</p>;
+    }
+
+    return matches.map(({ candidate, decision }) => (
+      <div key={`${candidate.role}:${candidate.tmdbId}`} className="movie-import-modal__person-row">
+        <div className="movie-import-modal__row-header">
+          <strong>{candidate.name}</strong>
+          {decision.type === 'reuse' ? <span className="movie-import-modal__badge">Reuse existing</span> : null}
+          {decision.type === 'create' ? <span className="movie-import-modal__badge">Create draft</span> : null}
+        </div>
+        {decision.warning ? <p className="movie-import-modal__row-note">{decision.warning}</p> : null}
         {decision.type === 'ambiguous' ? (
           <>
-            <p>Resolve this person before continuing.</p>
-            <label>
+            <p><span className="movie-import-modal__warning">Resolve this person before continuing.</span></p>
+            <label className="movie-import-modal__select-label">
               Resolve {candidate.name}
               <select defaultValue="" onChange={(event) => onResolve(candidate, event.target.value as 'create' | `reuse:${string}`)}>
                 <option value="" disabled>Choose a resolution</option>
@@ -30,13 +37,18 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
         ) : null}
       </div>
     ));
+  };
 
   return (
-    <div>
-      <h4>Directors</h4>
-      {renderPeople('director')}
-      <h4>Actors</h4>
-      {renderPeople('actor')}
+    <div className="movie-import-modal__review-list">
+      <div className="movie-import-modal__people-group">
+        <h4>Directors</h4>
+        {renderPeople('director')}
+      </div>
+      <div className="movie-import-modal__people-group">
+        <h4>Actors</h4>
+        {renderPeople('actor')}
+      </div>
     </div>
   );
 }

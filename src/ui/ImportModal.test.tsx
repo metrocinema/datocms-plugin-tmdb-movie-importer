@@ -26,6 +26,15 @@ const movieWithBackdrops: NormalizedMovie = {
   ],
 };
 
+const movieWithNonEnglishPosters: NormalizedMovie = {
+  ...movie,
+  images: [
+    { providerKey: 'tmdb', providerImageId: '/textless-poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/textless-poster.jpg', width: 100, height: 150, language: null, rank: 1, attribution: 'TMDB' },
+    { providerKey: 'tmdb', providerImageId: '/english-poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/english-poster.jpg', width: 100, height: 150, language: 'en', rank: 2, attribution: 'TMDB' },
+    { providerKey: 'tmdb', providerImageId: '/spanish-poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/spanish-poster.jpg', width: 100, height: 150, language: 'es', rank: 3, attribution: 'TMDB' },
+  ],
+};
+
 describe('ImportModal', () => {
   it('presents the find movie workflow and detailed search results', async () => {
     render(
@@ -44,6 +53,8 @@ describe('ImportModal', () => {
     expect(screen.getByText('Find the TMDB record that matches this DatoCMS movie.')).toBeInTheDocument();
     expect(screen.getByText('Review changes')).toBeInTheDocument();
     expect(screen.getByText('Confirm import')).toBeInTheDocument();
+    expect(screen.getByText('Search by title and year')).toBeInTheDocument();
+    expect(screen.getByText('Lookup by TMDB ID')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Search by title and year' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Lookup by TMDB ID' })).toBeInTheDocument();
 
@@ -106,15 +117,16 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Search' }));
     await userEvent.click(screen.getByRole('button', { name: /Use Example Movie/i }));
 
-    expect(screen.getByText('Selected movie')).toBeInTheDocument();
-    expect(screen.getByText('Example Movie')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/poster.jpg');
+    const selectedMovie = screen.getByRole('article', { name: 'Selected movie' });
+    expect(within(selectedMovie).getByText('Selected movie')).toBeInTheDocument();
+    expect(within(selectedMovie).getByText('Example Movie')).toBeInTheDocument();
+    expect(within(selectedMovie).getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/poster.jpg');
     expect(screen.getByText('PG-13')).toBeInTheDocument();
     expect(screen.getByText('125 min')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Field changes' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Images' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'People' })).toBeInTheDocument();
-    expect(screen.getByText('Title')).toBeInTheDocument();
+    expect(screen.getAllByText('Title').length).toBeGreaterThan(0);
     expect(screen.getByText('Poster')).toBeInTheDocument();
     expect(screen.getByText('Hero image')).toBeInTheDocument();
     expect(screen.getByText('Other images')).toBeInTheDocument();
@@ -187,6 +199,24 @@ describe('ImportModal data flow', () => {
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
     expect(execute.mock.calls[0][0].assetsToUpload).toEqual([]);
+  });
+
+  it('only displays and preselects English-language posters', async () => {
+    const execute = vi.fn();
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithNonEnglishPosters} resolvePeople={async () => []} execute={execute} />);
+
+    await reachReview();
+
+    expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
+    expect(screen.getByRole('checkbox', { name: 'poster candidate' })).toBeChecked();
+    expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
+    expect(screen.queryByText('textless-poster.jpg')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    expect(execute.mock.calls[0][0].assetsToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/english-poster.jpg']);
   });
 
   it('loads the existing TMDB ID directly for refresh mode', async () => {

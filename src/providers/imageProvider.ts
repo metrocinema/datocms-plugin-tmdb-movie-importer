@@ -11,6 +11,10 @@ export type ImageProvider = {
   findImages(tmdbId: number): Promise<NormalizedImageCandidate[]>;
 };
 
+export function isEnglishPoster(image: NormalizedImageCandidate): boolean {
+  return image.type === 'poster' && image.language === 'en';
+}
+
 function ranked(images: NormalizedImageCandidate[], type: 'poster' | 'backdrop'): NormalizedImageCandidate[] {
   return images.filter((image) => image.type === type).sort((a, b) => a.rank - b.rank);
 }
@@ -20,7 +24,7 @@ export function defaultImageSelection(current: CurrentMovieValues, images: Norma
   const backdropsEmpty = !Array.isArray(current.backdrops) || current.backdrops.length === 0;
 
   return {
-    poster: posterEmpty ? ranked(images, 'poster')[0] ?? null : null,
+    poster: posterEmpty ? ranked(images, 'poster').find(isEnglishPoster) ?? null : null,
     backdrops: backdropsEmpty ? ranked(images, 'backdrop').slice(0, 5) : [],
   };
 }

@@ -6,6 +6,7 @@ import { matchPerson, type ExistingPersonRecord, type PersonMatchDecision } from
 import type { TmdbSearchQuery, TmdbSearchResult } from '../providers/tmdbTypes';
 import { defaultImageSelection } from '../providers/imageProvider';
 import { ConfirmStep } from './ConfirmStep';
+import './ImportModal.css';
 import { ReviewStep } from './ReviewStep';
 import { SearchStep } from './SearchStep';
 
@@ -73,28 +74,41 @@ export function ImportModal(props: ImportModalProps) {
   }), [comparisons, imageSelection, movie, people]);
 
   if (step === 'search') {
-    return <><SearchStep title={title} year={year} results={results} onTitleChange={setTitle} onYearChange={setYear} onSearch={async () => setResults(await props.searchMovies({ title, year }))} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} onLoadTmdbId={() => {
-      const parsed = Number(tmdbId);
-      if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-        setError('Enter a valid TMDB ID.');
-        return;
-      }
-      void loadSelectedMovie(parsed);
-    }} />{error ? <p role="alert">{error}</p> : null}</>;
+    return (
+      <div className="movie-import-modal">
+        <SearchStep title={title} year={year} results={results} onTitleChange={setTitle} onYearChange={setYear} onSearch={async () => setResults(await props.searchMovies({ title, year }))} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} onLoadTmdbId={() => {
+          const parsed = Number(tmdbId);
+          if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+            setError('Enter a valid TMDB ID.');
+            return;
+          }
+          void loadSelectedMovie(parsed);
+        }} />
+        {error ? <p role="alert" className="movie-import-modal__warning">{error}</p> : null}
+      </div>
+    );
   }
 
   if (step === 'review') {
-    return <ReviewStep movie={movie!} comparisons={comparisons} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
-      if (item.candidate.tmdbId !== candidate.tmdbId) return item;
-      if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, warning: null } };
-      return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), warning: null } };
-    }))} images={movie?.images ?? []} selectedImageIds={[...(imageSelection.poster ? [imageSelection.poster] : []), ...imageSelection.backdrops].map((image) => image.providerImageId)} onToggleImage={(providerImageId) => setImageSelection((selection) => {
-      const image = movie?.images.find((candidate) => candidate.providerImageId === providerImageId);
-      if (!image) return selection;
-      if (image.type === 'poster') return { ...selection, poster: selection.poster?.providerImageId === providerImageId ? null : image };
-      return { ...selection, backdrops: selection.backdrops.some((candidate) => candidate.providerImageId === providerImageId) ? selection.backdrops.filter((candidate) => candidate.providerImageId !== providerImageId) : [...selection.backdrops, image] };
-    })} onContinue={() => setStep('confirm')} />;
+    return (
+      <div className="movie-import-modal">
+        <ReviewStep movie={movie!} comparisons={comparisons} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
+          if (item.candidate.tmdbId !== candidate.tmdbId) return item;
+          if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, warning: null } };
+          return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), warning: null } };
+        }))} images={movie?.images ?? []} selectedImageIds={[...(imageSelection.poster ? [imageSelection.poster] : []), ...imageSelection.backdrops].map((image) => image.providerImageId)} onToggleImage={(providerImageId) => setImageSelection((selection) => {
+          const image = movie?.images.find((candidate) => candidate.providerImageId === providerImageId);
+          if (!image) return selection;
+          if (image.type === 'poster') return { ...selection, poster: selection.poster?.providerImageId === providerImageId ? null : image };
+          return { ...selection, backdrops: selection.backdrops.some((candidate) => candidate.providerImageId === providerImageId) ? selection.backdrops.filter((candidate) => candidate.providerImageId !== providerImageId) : [...selection.backdrops, image] };
+        })} onContinue={() => setStep('confirm')} />
+      </div>
+    );
   }
 
-  return <ConfirmStep plan={plan} onConfirm={() => void props.execute(plan)} />;
+  return (
+    <div className="movie-import-modal">
+      <ConfirmStep plan={plan} onConfirm={() => void props.execute(plan)} />
+    </div>
+  );
 }

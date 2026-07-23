@@ -1,4 +1,5 @@
 import type { NormalizedImageCandidate } from '../domain/movie';
+import { isEnglishPoster } from '../providers/imageProvider';
 
 type ImagePickerProps = {
   images: NormalizedImageCandidate[];
@@ -7,26 +8,36 @@ type ImagePickerProps = {
 };
 
 export function ImagePicker({ images, selectedIds, onToggle }: ImagePickerProps) {
-  const posters = images.filter((image) => image.type === 'poster');
+  const posters = images.filter(isEnglishPoster);
   const backdrops = images.filter((image) => image.type === 'backdrop');
   const heroBackdropId = selectedIds.find((providerImageId) => backdrops.some((image) => image.providerImageId === providerImageId));
 
   const imageOptions = (candidates: NormalizedImageCandidate[]) => candidates.map((image) => (
-    <label key={`${image.providerKey}:${image.providerImageId}`}>
+    <label key={`${image.providerKey}:${image.providerImageId}`} className="movie-import-modal__image-option">
       <input type="checkbox" checked={selectedIds.includes(image.providerImageId)} onChange={() => onToggle(image.providerImageId)} />
-      <img src={image.originalUrl} alt={`${image.type} candidate`} width={120} />
-      {image.providerImageId === heroBackdropId ? <span>Hero image selection</span> : null}
+      <img className={`movie-import-modal__image-thumb movie-import-modal__image-thumb--${image.type}`} src={image.originalUrl} alt={`${image.type} candidate`} width={120} />
+      {image.providerImageId === heroBackdropId ? <span className="movie-import-modal__badge">Hero image selection</span> : null}
     </label>
   ));
 
   return (
-    <div>
-      <h4>Poster</h4>
-      {imageOptions(posters)}
-      <h4>Hero image</h4>
-      <h4>Other images</h4>
-      <p>The first selected backdrop becomes the Hero image. All selected backdrops are added to Other images.</p>
-      {imageOptions(backdrops)}
+    <div className="movie-import-modal__review-list">
+      <div className="movie-import-modal__asset-group">
+        <div className="movie-import-modal__asset-copy">
+          <h4>Poster</h4>
+          <p>Usually one vertical image for listing and detail-page artwork.</p>
+        </div>
+        {posters.length > 0 ? <div className="movie-import-modal__image-grid">{imageOptions(posters)}</div> : <p className="movie-import-modal__empty">TMDB did not return an English-language poster candidate.</p>}
+      </div>
+      <div className="movie-import-modal__asset-group">
+        <div className="movie-import-modal__asset-copy">
+          <h4>Hero image</h4>
+          <p>The first selected backdrop becomes the Hero image. All selected backdrops are added to Other images.</p>
+          <h4>Other images</h4>
+          <p>Select every backdrop you want available in the gallery.</p>
+        </div>
+        {backdrops.length > 0 ? <div className="movie-import-modal__image-grid">{imageOptions(backdrops)}</div> : <p className="movie-import-modal__empty">TMDB did not return backdrop candidates.</p>}
+      </div>
     </div>
   );
 }
