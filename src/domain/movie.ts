@@ -25,6 +25,7 @@ export type NormalizedImageCandidate = {
   movieIdentity: { providerKey: 'tmdb'; tmdbId: number };
   type: 'poster' | 'backdrop';
   originalUrl: string;
+  previewUrl?: string;
   width: number | null;
   height: number | null;
   language: string | null;

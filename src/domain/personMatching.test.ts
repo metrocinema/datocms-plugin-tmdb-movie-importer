@@ -12,7 +12,7 @@ describe('person matching', () => {
       true,
     );
 
-    expect(decision).toEqual({ type: 'reuse', recordId: 'person-1', warning: null });
+    expect(decision).toEqual({ type: 'reuse', recordId: 'person-1', source: 'tmdb-id', warning: null });
   });
 
   it('requires editor choice for ambiguous name matches', () => {
@@ -31,6 +31,6 @@ describe('person matching', () => {
   it('proposes draft creation when no match exists', () => {
     const decision = matchPerson({ tmdbId: 44, name: 'Actor Name', order: 0, role: 'actor' }, [], false);
 
-    expect(decision).toEqual({ type: 'create', name: 'Actor Name', warning: null });
+    expect(decision).toEqual({ type: 'create', name: 'Actor Name', source: 'auto', warning: null });
   });
 });

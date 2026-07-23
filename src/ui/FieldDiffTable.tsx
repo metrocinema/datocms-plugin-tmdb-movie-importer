@@ -7,9 +7,12 @@ type FieldDiffTableProps = {
   comparisons: FieldComparison[];
   onToggle: (key: FieldComparison['key']) => void;
   onSelectAll: () => void;
+  onClearAll: () => void;
+  overwriteCount: number;
+  emptyFillCount: number;
 };
 
-export function FieldDiffTable({ comparisons, onToggle, onSelectAll }: FieldDiffTableProps) {
+export function FieldDiffTable({ comparisons, onToggle, onSelectAll, onClearAll, overwriteCount, emptyFillCount }: FieldDiffTableProps) {
   const fieldCountLabel = comparisons.length === 1 ? '1 field available' : `${comparisons.length} fields available`;
   const selectedCount = comparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed).length;
   const selectedCountLabel = selectedCount === 1 ? '1 selected change' : `${selectedCount} selected changes`;
@@ -21,18 +24,30 @@ export function FieldDiffTable({ comparisons, onToggle, onSelectAll }: FieldDiff
   return (
     <div className="movie-import-modal__review-list">
       <div className="movie-import-modal__list-toolbar">
-        <span>{fieldCountLabel} · {selectedCountLabel}</span>
-        <Button buttonSize="s" type="button" onClick={onSelectAll}>
-          Select all changes
-        </Button>
+        <div className="movie-import-modal__toolbar-summary">
+          <span>{fieldCountLabel} · {selectedCountLabel}</span>
+          <span>{overwriteCount} {pluralize(overwriteCount, 'overwrite')} · {emptyFillCount} empty-field {pluralize(emptyFillCount, 'fill')}</span>
+        </div>
+        <div className="movie-import-modal__toolbar-actions">
+          <Button buttonSize="s" type="button" onClick={onSelectAll}>
+            Select all changes
+          </Button>
+          <Button buttonSize="s" buttonType="muted" type="button" onClick={onClearAll} disabled={selectedCount === 0}>
+            Clear all
+          </Button>
+        </div>
       </div>
       {comparisons.map((comparison) => {
         const detailed = isDetailedField(comparison);
+        const isOverwrite = comparison.available && comparison.changed && !isEmptyValue(comparison.currentValue);
+        const isEmptyFill = comparison.available && comparison.changed && isEmptyValue(comparison.currentValue);
 
         return (
           <article key={comparison.key} className={detailed ? 'movie-import-modal__field-row movie-import-modal__field-row--detailed' : 'movie-import-modal__field-row'}>
             <div className="movie-import-modal__field-name">
               <h4 className="movie-import-modal__field-title">{movieFieldLabels[comparison.key]}</h4>
+              {isOverwrite ? <span className="movie-import-modal__badge movie-import-modal__badge--warning">Overwrites value</span> : null}
+              {isEmptyFill ? <span className="movie-import-modal__badge movie-import-modal__badge--success">Fills empty field</span> : null}
               {!comparison.available ? <span className="movie-import-modal__badge movie-import-modal__badge--neutral">No TMDB value</span> : null}
               {comparison.available && !comparison.changed ? <span className="movie-import-modal__badge movie-import-modal__badge--neutral">Already matches</span> : null}
             </div>
@@ -53,4 +68,12 @@ export function FieldDiffTable({ comparisons, onToggle, onSelectAll }: FieldDiff
 
 function isDetailedField(comparison: FieldComparison) {
   return comparison.key === 'tagline' || comparison.key === 'description';
+}
+
+function isEmptyValue(value: unknown) {
+  return value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return count === 1 ? singular : plural;
 }

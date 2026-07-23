@@ -30,10 +30,10 @@ describe('buildImportPlan', () => {
         heroImage: null,
         backdrops: [],
       },
-      personResolutions: [{ candidateTmdbId: 10, action: 'create', name: 'Director Name' }],
+      personResolutions: [{ candidateTmdbId: 10, candidateRole: 'director', action: 'create', name: 'Director Name', source: 'auto' }],
     });
 
-    expect(plan.peopleToCreate).toEqual([{ candidateTmdbId: 10, name: 'Director Name' }]);
+    expect(plan.peopleToCreate).toEqual([{ candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' }]);
     expect(plan.assetsToUpload).toHaveLength(1);
   });
 

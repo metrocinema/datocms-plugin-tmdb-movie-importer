@@ -7,9 +7,9 @@ import { touchTargetStyle } from './touchTargets';
 type ImagePickerProps = {
   images: NormalizedImageCandidate[];
   selection: ImageSelection;
-  onTogglePoster: (providerImageId: string) => void;
-  onSelectHeroImage: (providerImageId: string) => void;
-  onToggleBackdrop: (providerImageId: string) => void;
+  onTogglePoster: (image: NormalizedImageCandidate) => void;
+  onSelectHeroImage: (image: NormalizedImageCandidate) => void;
+  onToggleBackdrop: (image: NormalizedImageCandidate) => void;
 };
 
 export function ImagePicker({ images, selection, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ImagePickerProps) {
@@ -23,33 +23,20 @@ export function ImagePicker({ images, selection, onTogglePoster, onSelectHeroIma
       index={index}
       inputType="checkbox"
       label="Use as poster"
-      selected={selection.poster?.providerImageId === image.providerImageId}
-      onChange={() => onTogglePoster(image.providerImageId)}
+      selected={Boolean(selection.poster && sameImage(selection.poster, image))}
+      onChange={() => onTogglePoster(image)}
     />
   ));
 
   const heroOptions = backdrops.map((image, index) => (
-    <ImageOption
+    <BackdropImageOption
       key={`${image.providerKey}:${image.providerImageId}:hero`}
       image={image}
       index={index}
-      inputType="radio"
-      inputName="hero-image-selection"
-      label="Use as Hero image"
-      selected={selection.heroImage?.providerImageId === image.providerImageId}
-      onChange={() => onSelectHeroImage(image.providerImageId)}
-    />
-  ));
-
-  const backdropOptions = backdrops.map((image, index) => (
-    <ImageOption
-      key={`${image.providerKey}:${image.providerImageId}:other`}
-      image={image}
-      index={index}
-      inputType="checkbox"
-      label="Add to Other images"
-      selected={selection.backdrops.some((selected) => selected.providerImageId === image.providerImageId)}
-      onChange={() => onToggleBackdrop(image.providerImageId)}
+      heroSelected={Boolean(selection.heroImage && sameImage(selection.heroImage, image))}
+      otherSelected={selection.backdrops.some((selected) => sameImage(selected, image))}
+      onSelectHero={() => onSelectHeroImage(image)}
+      onToggleOther={() => onToggleBackdrop(image)}
     />
   ));
 
@@ -64,17 +51,10 @@ export function ImagePicker({ images, selection, onTogglePoster, onSelectHeroIma
       </div>
       <div className="movie-import-modal__asset-group">
         <div className="movie-import-modal__asset-copy">
-          <h4>Hero image</h4>
-          <p>Choose one TMDB backdrop for the single Hero image field.</p>
+          <h4>Backdrops</h4>
+          <p>Choose one Hero image and any Other images from the same TMDB backdrop candidates.</p>
         </div>
         {backdrops.length > 0 ? <div className="movie-import-modal__image-grid">{heroOptions}</div> : <p className="movie-import-modal__empty">TMDB did not return backdrop candidates.</p>}
-      </div>
-      <div className="movie-import-modal__asset-group">
-        <div className="movie-import-modal__asset-copy">
-          <h4>Other images</h4>
-          <p>Select every backdrop you want available in the gallery. These choices are separate from the Hero image.</p>
-        </div>
-        {backdrops.length > 0 ? <div className="movie-import-modal__image-grid">{backdropOptions}</div> : <p className="movie-import-modal__empty">TMDB did not return backdrop candidates.</p>}
       </div>
     </div>
   );
@@ -105,8 +85,8 @@ function ImageOption({ image, index, inputType, inputName, label, selected, onCh
         {!previewFailed ? (
           <img
             className={`movie-import-modal__image-thumb movie-import-modal__image-thumb--${image.type}`}
-            src={image.originalUrl}
-            alt={`${imageKind} candidate`}
+            src={image.previewUrl ?? image.originalUrl}
+            alt={`${capitalize(imageKind)} candidate ${optionNumber}`}
             loading="lazy"
             width={120}
             height={image.type === 'poster' ? 180 : 68}
@@ -125,4 +105,63 @@ function ImageOption({ image, index, inputType, inputName, label, selected, onCh
       </span>
     </label>
   );
+}
+
+type BackdropImageOptionProps = {
+  image: NormalizedImageCandidate;
+  index: number;
+  heroSelected: boolean;
+  otherSelected: boolean;
+  onSelectHero: () => void;
+  onToggleOther: () => void;
+};
+
+function BackdropImageOption({ image, index, heroSelected, otherSelected, onSelectHero, onToggleOther }: BackdropImageOptionProps) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const optionNumber = index + 1;
+  const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
+  const provider = image.attribution ?? image.providerKey.toUpperCase();
+  const language = image.language ? image.language.toUpperCase() : 'No language tag';
+
+  return (
+    <fieldset className="movie-import-modal__image-option movie-import-modal__image-option--multi" style={touchTargetStyle}>
+      <legend className="movie-import-modal__visually-hidden">Backdrop image {optionNumber}</legend>
+      <span className="movie-import-modal__image-preview">
+        {!previewFailed ? (
+          <img
+            className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop"
+            src={image.previewUrl ?? image.originalUrl}
+            alt={`Backdrop candidate ${optionNumber}`}
+            loading="lazy"
+            width={120}
+            height={68}
+            onError={() => setPreviewFailed(true)}
+          />
+        ) : (
+          <span className="movie-import-modal__image-fallback" role="img" aria-label="backdrop preview unavailable">
+            Preview unavailable
+          </span>
+        )}
+        <span className="movie-import-modal__image-meta">{provider} · {dimensions} · {language}</span>
+      </span>
+      <span className="movie-import-modal__image-footer movie-import-modal__image-footer--stacked">
+        <label>
+          <input aria-label={`Use as Hero image: backdrop image ${optionNumber}`} type="radio" name="hero-image-selection" checked={heroSelected} onChange={onSelectHero} />
+          <span className="movie-import-modal__image-label">Hero</span>
+        </label>
+        <label>
+          <input aria-label={`Add to Other images: backdrop image ${optionNumber}`} type="checkbox" checked={otherSelected} onChange={onToggleOther} />
+          <span className="movie-import-modal__image-label">Other images</span>
+        </label>
+      </span>
+    </fieldset>
+  );
+}
+
+function sameImage(left: NormalizedImageCandidate, right: NormalizedImageCandidate) {
+  return left.providerKey === right.providerKey && left.providerImageId === right.providerImageId;
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

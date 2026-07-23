@@ -24,7 +24,7 @@ const plan: ImportPlan = {
   fieldChanges: [{ key: 'title', value: 'Example Movie' }],
   directors: [{ tmdbId: 10, name: 'Director Name', order: 0, role: 'director' }],
   actors: [{ tmdbId: 20, name: 'Actor Name', order: 0, role: 'actor' }],
-  peopleToCreate: [{ candidateTmdbId: 10, name: 'Director Name' }, { candidateTmdbId: 20, name: 'Actor Name' }],
+  peopleToCreate: [{ candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' }, { candidateTmdbId: 20, candidateRole: 'actor', name: 'Actor Name', source: 'auto' }],
   peopleToReuse: [],
   heroImageToUpload: null,
   otherImagesToUpload: [
@@ -122,7 +122,7 @@ describe('executeImportPlan', () => {
     expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('poster');
   });
 
-  it('maps an explicit hero image separately from other images', async () => {
+  it('maps an explicit hero image without clearing other images', async () => {
     const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
     await executeImportPlan(
       { ...plan, directors: [], actors: [], peopleToCreate: [], heroImageToUpload: plan.assetsToUpload[1], otherImagesToUpload: [], assetsToUpload: [plan.assetsToUpload[1]] },
@@ -144,7 +144,43 @@ describe('executeImportPlan', () => {
     );
 
     expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: { type: 'upload', id: 'backdrop-upload' } });
-    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [] });
+    expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('other_images');
+  });
+
+  it('maps uploaded backdrop assets by provider and provider image ID', async () => {
+    const firstBackdrop = { providerKey: 'tmdb', providerImageId: '/shared.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/shared.jpg', width: 200, height: 100, language: 'en', rank: 1, attribution: 'TMDB' } as const;
+    const secondBackdrop = { ...firstBackdrop, providerKey: 'future', originalUrl: 'https://future.example/shared.jpg', attribution: 'Future Provider' } as const;
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+
+    await executeImportPlan(
+      {
+        ...plan,
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        heroImageToUpload: secondBackdrop,
+        otherImagesToUpload: [firstBackdrop],
+        assetsToUpload: [firstBackdrop, secondBackdrop],
+      },
+      { ...params, movieFields: { ...params.movieFields, heroImage: 'hero_image', backdrops: 'other_images' } },
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage(image) {
+          return { id: image.providerKey === 'future' ? 'future-upload' : 'tmdb-upload' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+    );
+
+    expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: { type: 'upload', id: 'future-upload' } });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [{ type: 'upload', id: 'tmdb-upload' }] });
   });
 
   it('uses the English path for configured localized fields', async () => {
@@ -241,7 +277,7 @@ describe('executeImportPlan', () => {
     const result = await executeImportPlan({
       ...plan,
       actors: [],
-      peopleToCreate: [{ candidateTmdbId: 10, name: 'Director Name' }],
+      peopleToCreate: [{ candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' }],
       assetsToUpload: [],
     }, params, {
       async findPeople(input) {
@@ -260,6 +296,75 @@ describe('executeImportPlan', () => {
     expect(result.status).toBe('success');
     expect(createPersonDraft).not.toHaveBeenCalled();
     expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: [{ type: 'item', id: 'person-existing' }] });
+  });
+
+  it('keeps manual create and reuse decisions separate for the same TMDB person in different roles', async () => {
+    const createPersonDraft = vi.fn(async () => ({ id: 'created-director' }));
+    const findPeople = vi.fn(async () => []);
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [{ tmdbId: 99, name: 'Multi-Hyphenate Person', order: 0, role: 'director' }],
+        actors: [{ tmdbId: 99, name: 'Multi-Hyphenate Person', order: 0, role: 'actor' }],
+        peopleToCreate: [{ candidateTmdbId: 99, candidateRole: 'director', name: 'Multi-Hyphenate Person', source: 'manual' }],
+        peopleToReuse: [{ candidateTmdbId: 99, candidateRole: 'actor', recordId: 'existing-actor', name: 'Multi-Hyphenate Person', source: 'manual' }],
+        assetsToUpload: [],
+      },
+      params,
+      {
+        findPeople,
+        createPersonDraft,
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+    );
+
+    expect(result.status).toBe('success');
+    expect(findPeople).not.toHaveBeenCalled();
+    expect(createPersonDraft).toHaveBeenCalledTimes(1);
+    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: [{ type: 'item', id: 'created-director' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'actors', value: [{ type: 'item', id: 'existing-actor' }] });
+  });
+
+  it('creates one automatic draft when the same TMDB person appears in multiple roles', async () => {
+    const createPersonDraft = vi.fn(async () => ({ id: 'created-person' }));
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [{ tmdbId: 99, name: 'Multi-Hyphenate Person', order: 0, role: 'director' }],
+        actors: [{ tmdbId: 99, name: 'Multi-Hyphenate Person', order: 0, role: 'actor' }],
+        peopleToCreate: [
+          { candidateTmdbId: 99, candidateRole: 'director', name: 'Multi-Hyphenate Person', source: 'auto' },
+          { candidateTmdbId: 99, candidateRole: 'actor', name: 'Multi-Hyphenate Person', source: 'auto' },
+        ],
+        peopleToReuse: [],
+        assetsToUpload: [],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        createPersonDraft,
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+    );
+
+    expect(result.status).toBe('success');
+    expect(createPersonDraft).toHaveBeenCalledTimes(1);
+    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: [{ type: 'item', id: 'created-person' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'actors', value: [{ type: 'item', id: 'created-person' }] });
   });
 
   it('reports fields applied before a form update fails', async () => {

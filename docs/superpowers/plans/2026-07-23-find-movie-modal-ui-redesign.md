@@ -379,10 +379,22 @@ Additional completed scope:
 - Add lazy image loading, explicit image dimensions, and 44px minimum touch targets for custom review controls.
 - Make failure copy safe for partial side effects: DatoCMS drafts or uploads may already exist if execution fails after dependency writes begin.
 
-Verification after review fixes:
+Latest implementation status:
 
-- `npm test` passed with 19 files and 110 tests.
+- Review changes uses denser DatoCMS-style field rows, MediaCard-style image candidates, explicit Hero image selection, and separate Other images checkboxes.
+- Image selection and execution compare `providerKey` plus `providerImageId`, so future image providers can safely reuse provider-local image identifiers.
+- Preview URLs are display-only; original image URLs remain the upload source.
+- Person resolution keeps row identity through the plan and executor so manual director/actor decisions for the same TMDB person do not collapse.
+- Automatic same-person draft creation still deduplicates by TMDB ID so one real person can be linked as both director and actor.
+- Hero-only backdrop imports write the Hero image field without clearing the Other images gallery.
+- Manual person choices show manual-resolution copy instead of claiming automatic TMDB-ID matching.
+
+Verification after code review fixes:
+
+- `npm test` passed with 19 files and 119 tests.
+- `npm run typecheck` passed.
+- `npm run lint` passed.
 - `npm run build` passed typecheck and production build.
 - `git diff --check` passed.
-- Impeccable detector returned no findings for the touched UI files.
-- Superpowers code review rereview found no remaining Critical or Important issues.
+- Impeccable detector returned no findings for `ReviewStep`, `FieldDiffTable`, `ImagePicker`, and `PersonResolutionList`.
+- Superpowers code review and retry review found no remaining Critical issues; all Important findings from both reviews were addressed.

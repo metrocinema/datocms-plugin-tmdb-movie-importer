@@ -3,15 +3,15 @@ import type { NormalizedImageCandidate, PersonCandidate, MovieFieldKey } from '.
 import type { ImageSelection } from '../providers/imageProvider';
 
 export type PersonResolution =
-  | { candidateTmdbId: number; action: 'reuse'; recordId: string; name: string }
-  | { candidateTmdbId: number; action: 'create'; name: string };
+  | { candidateTmdbId: number; candidateRole: PersonCandidate['role']; action: 'reuse'; recordId: string; name: string; source: 'tmdb-id' | 'exact-name' | 'manual' }
+  | { candidateTmdbId: number; candidateRole: PersonCandidate['role']; action: 'create'; name: string; source: 'auto' | 'manual' };
 
 export type ImportPlan = {
   fieldChanges: Array<{ key: MovieFieldKey; value: unknown }>;
   directors: PersonCandidate[];
   actors: PersonCandidate[];
-  peopleToCreate: Array<{ candidateTmdbId: number; name: string }>;
-  peopleToReuse: Array<{ candidateTmdbId: number; recordId: string; name: string }>;
+  peopleToCreate: Array<{ candidateTmdbId: number; candidateRole: PersonCandidate['role']; name: string; source: 'auto' | 'manual' }>;
+  peopleToReuse: Array<{ candidateTmdbId: number; candidateRole: PersonCandidate['role']; recordId: string; name: string; source: 'tmdb-id' | 'exact-name' | 'manual' }>;
   heroImageToUpload: NormalizedImageCandidate | null;
   otherImagesToUpload: NormalizedImageCandidate[];
   assetsToUpload: NormalizedImageCandidate[];
@@ -42,10 +42,10 @@ export function buildImportPlan(input: BuildImportPlanInput): ImportPlan {
     actors: [...input.actors],
     peopleToCreate: input.personResolutions
       .filter((resolution): resolution is Extract<PersonResolution, { action: 'create' }> => resolution.action === 'create')
-      .map((resolution) => ({ candidateTmdbId: resolution.candidateTmdbId, name: resolution.name })),
+      .map((resolution) => ({ candidateTmdbId: resolution.candidateTmdbId, candidateRole: resolution.candidateRole, name: resolution.name, source: resolution.source })),
     peopleToReuse: input.personResolutions
       .filter((resolution): resolution is Extract<PersonResolution, { action: 'reuse' }> => resolution.action === 'reuse')
-      .map((resolution) => ({ candidateTmdbId: resolution.candidateTmdbId, recordId: resolution.recordId, name: resolution.name })),
+      .map((resolution) => ({ candidateTmdbId: resolution.candidateTmdbId, candidateRole: resolution.candidateRole, recordId: resolution.recordId, name: resolution.name, source: resolution.source })),
     heroImageToUpload: input.imageSelection.heroImage,
     otherImagesToUpload: [...input.imageSelection.backdrops],
     assetsToUpload,

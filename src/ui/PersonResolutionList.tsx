@@ -25,8 +25,10 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
         <div className="movie-import-modal__row-header">
           <strong>{candidate.name}</strong>
           {decision.type === 'reuse' ? <span className="movie-import-modal__badge movie-import-modal__badge--success">Reuse existing</span> : null}
-          {decision.type === 'create' ? <span className="movie-import-modal__badge movie-import-modal__badge--warning">Create draft</span> : null}
+          {decision.type === 'create' ? <span className="movie-import-modal__badge movie-import-modal__badge--warning">Will create draft</span> : null}
         </div>
+        {decision.type === 'reuse' && decision.source === 'tmdb-id' ? <p className="movie-import-modal__row-note">Matched by TMDB ID.</p> : null}
+        {decision.type === 'create' && !decision.warning ? <p className="movie-import-modal__row-note">New draft Person record will be created after confirmation.</p> : null}
         {decision.warning ? <p className="movie-import-modal__row-note">{decision.warning}</p> : null}
         {decision.type === 'ambiguous' ? (
           <>

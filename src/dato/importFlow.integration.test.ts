@@ -37,7 +37,7 @@ describe('import flow integration', () => {
       directors: movie.directors,
       actors: movie.actors,
       imageSelection: { poster: null, heroImage: null, backdrops: [] },
-      personResolutions: [{ candidateTmdbId: 10, action: 'create', name: 'Director Name' }],
+      personResolutions: [{ candidateTmdbId: 10, candidateRole: 'director', action: 'create', name: 'Director Name', source: 'auto' }],
     });
     const applied: Array<{ fieldPath: string; value: unknown }> = [];
 
@@ -71,7 +71,7 @@ describe('import flow integration', () => {
       directors: movie.directors,
       actors: [],
       imageSelection: { poster: null, heroImage: null, backdrops: [] },
-      personResolutions: [{ candidateTmdbId: 10, action: 'create', name: 'Director Name' }],
+      personResolutions: [{ candidateTmdbId: 10, candidateRole: 'director', action: 'create', name: 'Director Name', source: 'auto' }],
     });
     const applyFormValues = vi.fn();
 

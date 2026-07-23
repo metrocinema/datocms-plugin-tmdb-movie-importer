@@ -97,8 +97,8 @@ export function ImportModal(props: ImportModalProps) {
     actors: movie?.actors ?? [],
     imageSelection,
     personResolutions: people.flatMap(({ candidate, decision }): PersonResolution[] => {
-      if (decision.type === 'reuse') return [{ candidateTmdbId: candidate.tmdbId, action: 'reuse', recordId: decision.recordId, name: candidate.name }];
-      if (decision.type === 'create') return [{ candidateTmdbId: candidate.tmdbId, action: 'create', name: decision.name }];
+      if (decision.type === 'reuse') return [{ candidateTmdbId: candidate.tmdbId, candidateRole: candidate.role, action: 'reuse', recordId: decision.recordId, name: candidate.name, source: decision.source }];
+      if (decision.type === 'create') return [{ candidateTmdbId: candidate.tmdbId, candidateRole: candidate.role, action: 'create', name: decision.name, source: decision.source }];
       return [];
     }),
   }), [comparisons, imageSelection, movie, people]);
@@ -122,21 +122,16 @@ export function ImportModal(props: ImportModalProps) {
   if (step === 'review') {
     return (
       <div className="movie-import-modal">
-        <ReviewStep movie={movie!} comparisons={comparisons} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} onBack={() => setStep('search')} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
-          if (item.candidate.tmdbId !== candidate.tmdbId) return item;
-          if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, warning: null } };
-          return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), warning: null } };
-        }))} images={movie?.images ?? []} imageSelection={imageSelection} onTogglePoster={(providerImageId) => setImageSelection((selection) => {
-          const image = movie?.images.find((candidate) => candidate.providerImageId === providerImageId);
-          if (!image) return selection;
-          return { ...selection, poster: selection.poster?.providerImageId === providerImageId ? null : image };
-        })} onSelectHeroImage={(providerImageId) => setImageSelection((selection) => {
-          const image = movie?.images.find((candidate) => candidate.providerImageId === providerImageId);
-          return image ? { ...selection, heroImage: image } : selection;
-        })} onToggleBackdrop={(providerImageId) => setImageSelection((selection) => {
-          const image = movie?.images.find((candidate) => candidate.providerImageId === providerImageId);
-          if (!image) return selection;
-          return { ...selection, backdrops: selection.backdrops.some((candidate) => candidate.providerImageId === providerImageId) ? selection.backdrops.filter((candidate) => candidate.providerImageId !== providerImageId) : [...selection.backdrops, image] };
+        <ReviewStep movie={movie!} comparisons={comparisons} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} onClearAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: false })))} onBack={() => setStep('search')} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
+          if (!samePersonCandidate(item.candidate, candidate)) return item;
+          if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, source: 'manual', warning: 'Selected manually. A new draft Person record will be created after confirmation.' } };
+          return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), source: 'manual', warning: 'Selected manually from possible matches.' } };
+        }))} images={movie?.images ?? []} imageSelection={imageSelection} onTogglePoster={(image) => setImageSelection((selection) => {
+          return { ...selection, poster: selection.poster && sameImage(selection.poster, image) ? null : image };
+        })} onSelectHeroImage={(image) => setImageSelection((selection) => {
+          return { ...selection, heroImage: image };
+        })} onToggleBackdrop={(image) => setImageSelection((selection) => {
+          return { ...selection, backdrops: selection.backdrops.some((candidate) => sameImage(candidate, image)) ? selection.backdrops.filter((candidate) => !sameImage(candidate, image)) : [...selection.backdrops, image] };
         })} onContinue={() => setStep('confirm')} />
       </div>
     );
@@ -148,4 +143,12 @@ export function ImportModal(props: ImportModalProps) {
       {error ? <p role="alert" className="movie-import-modal__warning">{error}</p> : null}
     </div>
   );
+}
+
+function sameImage(left: NormalizedImageCandidate, right: NormalizedImageCandidate) {
+  return left.providerKey === right.providerKey && left.providerImageId === right.providerImageId;
+}
+
+function samePersonCandidate(left: PersonCandidate, right: PersonCandidate) {
+  return left.role === right.role && left.tmdbId === right.tmdbId;
 }

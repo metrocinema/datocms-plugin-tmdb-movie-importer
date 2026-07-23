@@ -29,33 +29,44 @@ export async function executeImportPlan(
   const createdPeople: string[] = [];
   const uploadedAssets: string[] = [];
   const uploadedAssetsByImage: UploadedAsset[] = [];
-  const personIdsByTmdb = new Map<number, string>();
+  const personIdsByCandidate = new Map<string, string>();
+  const autoPersonIdsByTmdb = new Map<number, string>();
 
   try {
     for (const person of plan.peopleToReuse) {
-      personIdsByTmdb.set(person.candidateTmdbId, person.recordId);
+      personIdsByCandidate.set(personKey(person), person.recordId);
     }
 
-    const peopleToCreate = plan.peopleToCreate.filter((person) => !personIdsByTmdb.has(person.candidateTmdbId));
-    const existingPeople = peopleToCreate.length > 0
+    const peopleToCreate = plan.peopleToCreate.filter((person) => !personIdsByCandidate.has(personKey(person)));
+    const autoPeopleToCreate = peopleToCreate.filter((person) => person.source === 'auto');
+    const existingPeople = autoPeopleToCreate.length > 0
       ? await gateway.findPeople({
         modelApiKey: params.personModelApiKey,
         nameFieldApiKey: params.personNameFieldApiKey,
         tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
-        names: peopleToCreate.map((person) => person.name),
-        tmdbIds: peopleToCreate.map((person) => person.candidateTmdbId),
+        names: autoPeopleToCreate.map((person) => person.name),
+        tmdbIds: autoPeopleToCreate.map((person) => person.candidateTmdbId),
       })
       : [];
 
     for (const person of peopleToCreate) {
-      const decision = matchPerson(
-        { tmdbId: person.candidateTmdbId, name: person.name, order: 0, role: 'actor' },
-        existingPeople,
-        Boolean(params.personTmdbIdFieldApiKey),
-      );
-      if (decision.type === 'reuse') {
-        personIdsByTmdb.set(person.candidateTmdbId, decision.recordId);
-        continue;
+      if (person.source === 'auto') {
+        const autoPersonId = autoPersonIdsByTmdb.get(person.candidateTmdbId);
+        if (autoPersonId) {
+          personIdsByCandidate.set(personKey(person), autoPersonId);
+          continue;
+        }
+
+        const decision = matchPerson(
+          { tmdbId: person.candidateTmdbId, name: person.name, order: 0, role: person.candidateRole },
+          existingPeople,
+          Boolean(params.personTmdbIdFieldApiKey),
+        );
+        if (decision.type === 'reuse') {
+          personIdsByCandidate.set(personKey(person), decision.recordId);
+          autoPersonIdsByTmdb.set(person.candidateTmdbId, decision.recordId);
+          continue;
+        }
       }
 
       const record = await gateway.createPersonDraft({
@@ -66,7 +77,10 @@ export async function executeImportPlan(
         tmdbId: person.candidateTmdbId,
       });
       createdPeople.push(record.id);
-      personIdsByTmdb.set(person.candidateTmdbId, record.id);
+      personIdsByCandidate.set(personKey(person), record.id);
+      if (person.source === 'auto') {
+        autoPersonIdsByTmdb.set(person.candidateTmdbId, record.id);
+      }
     }
 
     for (const image of plan.assetsToUpload) {
@@ -94,7 +108,7 @@ export async function executeImportPlan(
   if (directorField && plan.directors.length > 0) {
     changes.push({
       fieldPath: movieFieldPath('directors', directorField, params, options),
-      value: plan.directors.map((person) => personIdsByTmdb.get(person.tmdbId)).filter((id): id is string => Boolean(id)).map(itemReference),
+      value: plan.directors.map((person) => personIdsByCandidate.get(personKey(person))).filter((id): id is string => Boolean(id)).map(itemReference),
     });
   }
 
@@ -102,7 +116,7 @@ export async function executeImportPlan(
   if (actorField && plan.actors.length > 0) {
     changes.push({
       fieldPath: movieFieldPath('actors', actorField, params, options),
-      value: plan.actors.map((person) => personIdsByTmdb.get(person.tmdbId)).filter((id): id is string => Boolean(id)).map(itemReference),
+      value: plan.actors.map((person) => personIdsByCandidate.get(personKey(person))).filter((id): id is string => Boolean(id)).map(itemReference),
     });
   }
 
@@ -117,7 +131,7 @@ export async function executeImportPlan(
 
   const heroImageField = params.movieFields.heroImage;
   const heroImage = plan.heroImageToUpload
-    ? backdrops.find((asset) => asset.image.providerImageId === plan.heroImageToUpload?.providerImageId)
+    ? backdrops.find((asset) => plan.heroImageToUpload && sameImage(asset.image, plan.heroImageToUpload))
     : backdrops[0];
   if (heroImageField && heroImage) {
     changes.push({ fieldPath: movieFieldPath('heroImage', heroImageField, params, options), value: assetReference(heroImage.id) });
@@ -126,13 +140,15 @@ export async function executeImportPlan(
   if (backdropField && backdrops.length > 0) {
     const otherImagesToUpload = plan.otherImagesToUpload ?? backdrops.map((asset) => asset.image);
     const otherImages = otherImagesToUpload
-      .map((image) => backdrops.find((asset) => asset.image.providerImageId === image.providerImageId))
+      .map((image) => backdrops.find((asset) => sameImage(asset.image, image)))
       .filter((asset): asset is UploadedAsset => Boolean(asset));
 
-    changes.push({
-      fieldPath: movieFieldPath('backdrops', backdropField, params, options),
-      value: otherImages.map((asset) => assetReference(asset.id)),
-    });
+    if (otherImages.length > 0) {
+      changes.push({
+        fieldPath: movieFieldPath('backdrops', backdropField, params, options),
+        value: otherImages.map((asset) => assetReference(asset.id)),
+      });
+    }
   }
 
   try {
@@ -153,6 +169,16 @@ export async function executeImportPlan(
     uploadedAssets,
     appliedFields: changes.map((change) => change.fieldPath),
   };
+}
+
+function sameImage(left: NormalizedImageCandidate, right: NormalizedImageCandidate) {
+  return left.providerKey === right.providerKey && left.providerImageId === right.providerImageId;
+}
+
+function personKey(person: { candidateTmdbId: number; candidateRole: 'director' | 'actor' } | { tmdbId: number; role: 'director' | 'actor' }) {
+  const tmdbId = 'candidateTmdbId' in person ? person.candidateTmdbId : person.tmdbId;
+  const role = 'candidateRole' in person ? person.candidateRole : person.role;
+  return `${role}:${tmdbId}`;
 }
 
 function importFailureMessage(error: unknown, prefix: string): string {

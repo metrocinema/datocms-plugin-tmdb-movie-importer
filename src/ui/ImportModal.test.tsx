@@ -35,6 +35,22 @@ const movieWithNonEnglishPosters: NormalizedMovie = {
   ],
 };
 
+const movieWithSamePersonInTwoRoles: NormalizedMovie = {
+  ...movie,
+  directors: [{ tmdbId: 99, name: 'Multi-Hyphenate Person', order: 0, role: 'director' }],
+  actors: [{ tmdbId: 99, name: 'Multi-Hyphenate Person', order: 0, role: 'actor' }],
+  images: [],
+};
+
+const movieWithProviderCollisionImages: NormalizedMovie = {
+  ...movie,
+  images: [
+    ...movie.images,
+    { providerKey: 'tmdb', providerImageId: '/shared-backdrop.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/shared-backdrop.jpg', previewUrl: 'https://image.tmdb.org/t/p/w780/shared-backdrop.jpg', width: 1920, height: 1080, language: 'en', rank: 2, attribution: 'TMDB' },
+    { providerKey: 'future', providerImageId: '/shared-backdrop.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'backdrop', originalUrl: 'https://future.example/images/shared-backdrop-original.jpg', previewUrl: 'https://future.example/images/shared-backdrop-preview.jpg', width: 1920, height: 1080, language: 'en', rank: 3, attribution: 'Future Provider' },
+  ],
+};
+
 describe('ImportModal', () => {
   it('presents the find movie workflow and detailed search results', async () => {
     render(
@@ -152,14 +168,21 @@ describe('ImportModal', () => {
     expect(screen.getByRole('heading', { name: 'Field changes' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Images' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
-    expect(screen.getByText('1 field selected · 1 image to upload · 2 draft people · 0 reused people')).toBeInTheDocument();
+    expect(screen.getByText('1 field')).toBeInTheDocument();
+    expect(screen.getByText('1 image')).toBeInTheDocument();
+    expect(screen.getByText('2 drafts')).toBeInTheDocument();
+    expect(screen.getByText('0 reuses')).toBeInTheDocument();
     expect(screen.getByText('1 field available · 1 selected change')).toBeInTheDocument();
+    expect(screen.getByText('0 overwrites · 1 empty-field fill')).toBeInTheDocument();
+    expect(screen.getByText('Fills empty field')).toBeInTheDocument();
     expect(screen.getAllByText('Title').length).toBeGreaterThan(0);
     expect(screen.getByText('Poster')).toBeInTheDocument();
-    expect(screen.getByText('Hero image')).toBeInTheDocument();
-    expect(screen.getByText('Other images')).toBeInTheDocument();
+    expect(screen.getByText('Backdrops')).toBeInTheDocument();
+    expect(screen.getByText('Choose one Hero image and any Other images from the same TMDB backdrop candidates.')).toBeInTheDocument();
     expect(screen.getByText('Directors')).toBeInTheDocument();
     expect(screen.getByText('Actors')).toBeInTheDocument();
+    expect(screen.getAllByText('Will create draft')).toHaveLength(2);
+    expect(screen.getAllByText('New draft Person record will be created after confirmation.')).toHaveLength(2);
   });
 });
 
@@ -174,11 +197,16 @@ describe('ImportModal data flow', () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={execute} />);
 
     await reachReview();
-    expect(screen.getByText('Choose one TMDB backdrop for the single Hero image field.')).toBeInTheDocument();
-    expect(screen.getByText('Select every backdrop you want available in the gallery. These choices are separate from the Hero image.')).toBeInTheDocument();
+    expect(screen.getByText('Choose one Hero image and any Other images from the same TMDB backdrop candidates.')).toBeInTheDocument();
+    expect(screen.getAllByRole('img', { name: /Backdrop candidate/i })).toHaveLength(2);
+    expect(screen.getByRole('group', { name: 'Backdrop image 1' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Backdrop image 2' })).toBeInTheDocument();
     const heroOptions = screen.getAllByRole('radio', { name: /Use as Hero image/i });
+    const otherImageOptions = screen.getAllByRole('checkbox', { name: /Add to Other images/i });
     expect(heroOptions[0]).toBeChecked();
     expect(heroOptions[1]).not.toBeChecked();
+    expect(otherImageOptions[0]).toBeChecked();
+    expect(otherImageOptions[1]).toBeChecked();
 
     await userEvent.click(heroOptions[1]);
     expect(heroOptions[1]).toBeChecked();
@@ -190,6 +218,20 @@ describe('ImportModal data flow', () => {
     expect(execute.mock.calls[0][0].heroImageToUpload.providerImageId).toBe('/backdrop-2.jpg');
     expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-1.jpg', '/backdrop-2.jpg']);
     expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg', '/backdrop-1.jpg']);
+  });
+
+  it('keeps image provider identity when selecting candidates with the same provider image ID', async () => {
+    const execute = vi.fn();
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithProviderCollisionImages} resolvePeople={async () => []} execute={execute} />);
+
+    await reachReview();
+    const heroOptions = screen.getAllByRole('radio', { name: /Use as Hero image/i });
+    await userEvent.click(heroOptions[1]);
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    expect(execute.mock.calls[0][0].heroImageToUpload).toMatchObject({ providerKey: 'future', providerImageId: '/shared-backdrop.jpg' });
   });
 
   it('creates resolutions for imported directors and actors before confirming', async () => {
@@ -205,8 +247,8 @@ describe('ImportModal data flow', () => {
       directors: movie.directors,
       actors: movie.actors,
       peopleToCreate: [
-        { candidateTmdbId: 10, name: 'Director Name' },
-        { candidateTmdbId: 20, name: 'Actor Name' },
+        { candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' },
+        { candidateTmdbId: 20, candidateRole: 'actor', name: 'Actor Name', source: 'auto' },
       ],
       assetsToUpload: movie.images,
     });
@@ -225,15 +267,73 @@ describe('ImportModal data flow', () => {
     expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
   });
 
+  it('resolves only the selected role when one TMDB person appears in multiple people rows', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithSamePersonInTwoRoles} resolvePeople={async () => [{ id: 'person-a', name: 'Multi-Hyphenate Person', tmdbId: null }, { id: 'person-b', name: 'Multi-Hyphenate Person', tmdbId: null }]} execute={vi.fn()} />);
+
+    await reachReview();
+    const resolutionControls = screen.getAllByLabelText('Resolve Multi-Hyphenate Person');
+    expect(resolutionControls).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+
+    await userEvent.selectOptions(resolutionControls[0], 'create');
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    expect(within(resolutionControls[1].closest('.movie-import-modal__person-row')!).getByText('Resolve this person before continuing.')).toBeInTheDocument();
+  });
+
+  it('keeps mixed manual create and reuse decisions separate for the same TMDB person in different roles', async () => {
+    const execute = vi.fn();
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithSamePersonInTwoRoles} resolvePeople={async () => [{ id: 'person-a', name: 'Multi-Hyphenate Person', tmdbId: null }, { id: 'person-b', name: 'Multi-Hyphenate Person', tmdbId: null }]} execute={execute} />);
+
+    await reachReview();
+    const resolutionControls = screen.getAllByLabelText('Resolve Multi-Hyphenate Person');
+    const directorRow = resolutionControls[0].closest('.movie-import-modal__person-row') as HTMLElement;
+    const actorRow = resolutionControls[1].closest('.movie-import-modal__person-row') as HTMLElement;
+
+    await userEvent.selectOptions(resolutionControls[0], 'create');
+    await userEvent.selectOptions(resolutionControls[1], 'reuse:person-b');
+
+    expect(within(directorRow).getByText('Selected manually. A new draft Person record will be created after confirmation.')).toBeInTheDocument();
+    expect(within(actorRow).getByText('Selected manually from possible matches.')).toBeInTheDocument();
+    expect(within(actorRow).queryByText('Matched by TMDB ID.')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    expect(execute.mock.calls[0][0].peopleToCreate).toContainEqual({ candidateTmdbId: 99, candidateRole: 'director', name: 'Multi-Hyphenate Person', source: 'manual' });
+    expect(execute.mock.calls[0][0].peopleToReuse).toContainEqual({ candidateTmdbId: 99, candidateRole: 'actor', recordId: 'person-b', name: 'Multi-Hyphenate Person', source: 'manual' });
+  });
+
+  it('labels overwrite risk and lets editors clear selected field changes in one action', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: 'Existing title', runtime: null }} mappedFields={['title', 'runtime']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={vi.fn()} />);
+
+    await reachReview();
+    expect(screen.getByText('1 overwrite · 1 empty-field fill')).toBeInTheDocument();
+    expect(screen.getByText('Overwrites value')).toBeInTheDocument();
+    expect(screen.getByText('Fills empty field')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Select Title' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select Runtime' })).toBeChecked();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Select all changes' }));
+    expect(screen.getByRole('checkbox', { name: 'Select Title' })).toBeChecked();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+
+    expect(screen.getByRole('checkbox', { name: 'Select Title' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select Runtime' })).not.toBeChecked();
+    expect(screen.getByText('2 fields available · 0 selected changes')).toBeInTheDocument();
+  });
+
   it('includes selected images and excludes images deselected in review', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={execute} />);
 
     await reachReview();
     expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
-    expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('loading', 'lazy');
-    expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('width', '120');
-    expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('height', '180');
+    expect(screen.getByRole('img', { name: 'Poster candidate 1' })).toHaveAttribute('loading', 'lazy');
+    expect(screen.getByRole('img', { name: 'Poster candidate 1' })).toHaveAttribute('width', '120');
+    expect(screen.getByRole('img', { name: 'Poster candidate 1' })).toHaveAttribute('height', '180');
     await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
@@ -250,7 +350,7 @@ describe('ImportModal data flow', () => {
 
     expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
     expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
-    expect(screen.getByRole('img', { name: 'poster candidate' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
+    expect(screen.getByRole('img', { name: 'Poster candidate 1' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
     expect(screen.queryByText('textless-poster.jpg')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -336,7 +436,7 @@ describe('ImportModal data flow', () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={vi.fn()} />);
 
     await reachReview();
-    fireEvent.error(screen.getByRole('img', { name: 'poster candidate' }));
+    fireEvent.error(screen.getByRole('img', { name: 'Poster candidate 1' }));
 
     expect(screen.getByRole('img', { name: 'poster preview unavailable' })).toBeInTheDocument();
     expect(screen.getByText('Preview unavailable')).toBeInTheDocument();
@@ -352,7 +452,7 @@ describe('ImportModal data flow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
-    expect(execute.mock.calls[0][0].peopleToReuse).toContainEqual({ candidateTmdbId: 10, recordId: 'director-10', name: 'Director Name' });
+    expect(execute.mock.calls[0][0].peopleToReuse).toContainEqual({ candidateTmdbId: 10, candidateRole: 'director', recordId: 'director-10', name: 'Director Name', source: 'tmdb-id' });
   });
 
   it('does not use TMDB ID matching when the person ID field is not configured', async () => {
@@ -364,6 +464,6 @@ describe('ImportModal data flow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply to unsaved movie' }));
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
-    expect(execute.mock.calls[0][0].peopleToCreate).toContainEqual({ candidateTmdbId: 10, name: 'Director Name' });
+    expect(execute.mock.calls[0][0].peopleToCreate).toContainEqual({ candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' });
   });
 });

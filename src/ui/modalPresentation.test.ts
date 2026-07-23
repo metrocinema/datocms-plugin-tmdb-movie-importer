@@ -14,8 +14,8 @@ const plan: ImportPlan = {
   ],
   directors: [],
   actors: [],
-  peopleToCreate: [{ candidateTmdbId: 10, name: 'Director Name' }],
-  peopleToReuse: [{ candidateTmdbId: 20, recordId: 'person-20', name: 'Actor Name' }],
+  peopleToCreate: [{ candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' }],
+  peopleToReuse: [{ candidateTmdbId: 20, candidateRole: 'actor', recordId: 'person-20', name: 'Actor Name', source: 'tmdb-id' }],
   heroImageToUpload: null,
   otherImagesToUpload: [],
   assetsToUpload: [

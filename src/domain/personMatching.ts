@@ -7,8 +7,8 @@ export type ExistingPersonRecord = {
 };
 
 export type PersonMatchDecision =
-  | { type: 'reuse'; recordId: string; warning: string | null }
-  | { type: 'create'; name: string; warning: string | null }
+  | { type: 'reuse'; recordId: string; source: 'tmdb-id' | 'exact-name' | 'manual'; warning: string | null }
+  | { type: 'create'; name: string; source: 'auto' | 'manual'; warning: string | null }
   | { type: 'ambiguous'; options: ExistingPersonRecord[]; warning: string };
 
 export function normalizePersonName(name: string): string {
@@ -19,7 +19,7 @@ export function matchPerson(candidate: PersonCandidate, records: ExistingPersonR
   if (tmdbIdFieldConfigured) {
     const tmdbMatch = records.find((record) => record.tmdbId === candidate.tmdbId);
     if (tmdbMatch) {
-      return { type: 'reuse', recordId: tmdbMatch.id, warning: null };
+      return { type: 'reuse', recordId: tmdbMatch.id, source: 'tmdb-id', warning: null };
     }
   }
 
@@ -30,6 +30,7 @@ export function matchPerson(candidate: PersonCandidate, records: ExistingPersonR
     return {
       type: 'reuse',
       recordId: nameMatches[0].id,
+      source: 'exact-name',
       warning: 'Matched by exact normalized name because no TMDB person ID match was available.',
     };
   }
@@ -42,5 +43,5 @@ export function matchPerson(candidate: PersonCandidate, records: ExistingPersonR
     };
   }
 
-  return { type: 'create', name: candidate.name, warning: null };
+  return { type: 'create', name: candidate.name, source: 'auto', warning: null };
 }
