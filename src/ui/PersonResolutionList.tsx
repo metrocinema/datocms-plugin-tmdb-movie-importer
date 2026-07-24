@@ -27,17 +27,17 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
           {decision.type === 'reuse' ? <span className="movie-import-modal__badge movie-import-modal__badge--success">Reuse existing</span> : null}
           {decision.type === 'create' ? <span className="movie-import-modal__badge movie-import-modal__badge--warning">Will create draft</span> : null}
         </div>
-        {decision.type === 'reuse' && decision.source === 'tmdb-id' ? <p className="movie-import-modal__row-note">Matched by TMDB ID.</p> : null}
-        {decision.type === 'create' && !decision.warning ? <p className="movie-import-modal__row-note">New draft Person record will be created after confirmation.</p> : null}
-        {decision.warning ? <p className="movie-import-modal__row-note">{decision.warning}</p> : null}
+        {decision.type === 'reuse' ? <p className="movie-import-modal__row-note">{formatReuseNote(decision)}</p> : null}
+        {decision.type === 'create' && !decision.warning ? <p className="movie-import-modal__row-note">A new draft Person record will be created after confirmation.</p> : null}
+        {decision.type !== 'reuse' && decision.warning ? <p className="movie-import-modal__row-note">{decision.warning}</p> : null}
         {decision.type === 'ambiguous' ? (
           <>
-            <p><span className="movie-import-modal__warning">Resolve this person before continuing.</span></p>
+            <p><span className="movie-import-modal__warning">Choose whether to reuse a match or create a new draft before continuing.</span></p>
             <div className="movie-import-modal__select-label">
               <SelectField
                 id={`resolve-${candidate.role}-${candidate.tmdbId}`}
                 name={`resolve-${candidate.role}-${candidate.tmdbId}`}
-                label={`Resolve ${candidate.name}`}
+                label={`Resolve ${formatRole(candidate.role)}: ${candidate.name}`}
                 value={null}
                 onChange={(option) => {
                   if (option && !Array.isArray(option) && 'value' in option) {
@@ -46,7 +46,7 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
                 }}
                 selectInputProps={{
                   options: [
-                    { label: 'Create new draft', value: 'create' },
+                    { label: 'Create a new draft Person', value: 'create' },
                     ...decision.options.map((option) => ({ label: `Reuse ${option.name}`, value: `reuse:${option.id}` })),
                   ],
                 }}
@@ -70,4 +70,22 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
       </div>
     </div>
   );
+}
+
+function formatReuseNote(decision: Extract<PersonMatchDecision, { type: 'reuse' }>) {
+  if (decision.source === 'manual' && decision.warning) {
+    return decision.warning;
+  }
+
+  return formatReuseSource(decision.source);
+}
+
+function formatReuseSource(source: Extract<PersonMatchDecision, { type: 'reuse' }>['source']) {
+  if (source === 'tmdb-id') return 'Matched by TMDB ID.';
+  if (source === 'exact-name') return 'Matched by exact name.';
+  return 'You chose to reuse an existing Person record.';
+}
+
+function formatRole(role: PersonCandidate['role']) {
+  return role === 'director' ? 'director' : 'actor';
 }

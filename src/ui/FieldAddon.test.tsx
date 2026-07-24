@@ -41,5 +41,6 @@ describe('FieldAddon', () => {
 
     expect(screen.getByRole('button', { name: 'Find movie' })).toBeDisabled();
     expect(screen.getByRole('alert')).toHaveTextContent('TMDB read token is required.');
+    expect(screen.getByRole('alert')).toHaveClass('movie-import-field-addon__alert');
   });
 });

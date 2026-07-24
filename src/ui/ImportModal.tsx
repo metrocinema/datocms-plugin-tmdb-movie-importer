@@ -52,7 +52,7 @@ export function ImportModal(props: ImportModalProps) {
       setImageSelection(defaultImageSelection(props.currentValues, loaded.images));
       setStep('review');
     } catch {
-      setError('Unable to load that TMDB movie. Search manually to continue.');
+      setError('The TMDB movie could not be loaded. Search by title and year, or try a different TMDB ID.');
       setStep('search');
     } finally {
       setIsLoadingMovie(false);
@@ -65,7 +65,7 @@ export function ImportModal(props: ImportModalProps) {
       setIsSearching(true);
       setResults(await props.searchMovies({ title, year }));
     } catch {
-      setError('Unable to search TMDB right now. Try again in a moment.');
+      setError('TMDB search is unavailable right now. Try again in a moment, or load a known TMDB ID.');
     } finally {
       setIsSearching(false);
     }
@@ -77,7 +77,7 @@ export function ImportModal(props: ImportModalProps) {
       setIsSubmittingPlan(true);
       await props.execute(plan);
     } catch {
-      setError('Unable to start the import. If the import already began, some drafts or uploads may exist in DatoCMS.');
+      setError('The import could not finish. If it started before failing, some draft people or uploaded images may already exist in DatoCMS.');
     } finally {
       setIsSubmittingPlan(false);
     }
@@ -109,7 +109,7 @@ export function ImportModal(props: ImportModalProps) {
         <SearchStep title={title} year={year} results={results} onTitleChange={setTitle} onYearChange={setYear} onSearch={searchTmdb} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} isSearching={isSearching} isLoadingMovie={isLoadingMovie} onLoadTmdbId={() => {
           const parsed = Number(tmdbId);
           if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-            setError('Enter a valid TMDB ID.');
+            setError('Enter a positive numeric TMDB ID.');
             return;
           }
           void loadSelectedMovie(parsed);
@@ -124,8 +124,8 @@ export function ImportModal(props: ImportModalProps) {
       <div className="movie-import-modal">
         <ReviewStep movie={movie!} comparisons={comparisons} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} onClearAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: false })))} onBack={() => setStep('search')} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
           if (!samePersonCandidate(item.candidate, candidate)) return item;
-          if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, source: 'manual', warning: 'Selected manually. A new draft Person record will be created after confirmation.' } };
-          return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), source: 'manual', warning: 'Selected manually from possible matches.' } };
+          if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, source: 'manual', warning: 'You chose to create a new draft Person after confirmation.' } };
+          return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), source: 'manual', warning: 'You chose to reuse an existing Person record.' } };
         }))} images={movie?.images ?? []} imageSelection={imageSelection} onTogglePoster={(image) => setImageSelection((selection) => {
           return { ...selection, poster: selection.poster && sameImage(selection.poster, image) ? null : image };
         })} onSelectHeroImage={(image) => setImageSelection((selection) => {

@@ -19,7 +19,7 @@ export function ConfirmStep({ plan, onConfirm, onBack, isSubmittingPlan = false 
       <header className="movie-import-modal__header">
         <p className="movie-import-modal__eyebrow">TMDB movie importer</p>
         <h2 className="movie-import-modal__title">Confirm import</h2>
-        <p className="movie-import-modal__intro">Review the planned side effects before applying values to the unsaved DatoCMS form.</p>
+        <p className="movie-import-modal__intro">Check what will be created or applied. The movie stays unsaved until you save it in DatoCMS.</p>
       </header>
       <Section title="Import summary">
         <dl className="movie-import-modal__counts">
@@ -42,9 +42,9 @@ export function ConfirmStep({ plan, onConfirm, onBack, isSubmittingPlan = false 
         </dl>
       </Section>
       <div className="movie-import-modal__safety">
-        <p>The plugin applies values to the current unsaved DatoCMS movie form.</p>
+        <p>After confirmation, the plugin applies selected values to the current unsaved DatoCMS movie form.</p>
         <p>It does not save or publish the movie.</p>
-        <p>Created people and uploaded images may remain in DatoCMS if a later form update fails.</p>
+        <p>If the import fails after creating people or uploading images, those drafts or uploads may remain in DatoCMS.</p>
       </div>
       <div className="movie-import-modal__actions">
         <Button type="button" onClick={onBack} disabled={isSubmittingPlan}>

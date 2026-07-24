@@ -398,3 +398,60 @@ Verification after code review fixes:
 - `git diff --check` passed.
 - Impeccable detector returned no findings for `ReviewStep`, `FieldDiffTable`, `ImagePicker`, and `PersonResolutionList`.
 - Superpowers code review and retry review found no remaining Critical issues; all Important findings from both reviews were addressed.
+
+Field review table follow-up:
+
+- Field changes now renders as a semantic Current/Proposed comparison table.
+- The Proposed cell is the large selection target while preserving a real checkbox for accessibility.
+- Mobile layouts collapse rows into stacked Current and Proposed blocks to avoid cramped spreadsheet behavior.
+- Import execution, image selection, person resolution, and DatoCMS write behavior were not changed.
+
+Review changes polish follow-up:
+
+- Selected Proposed cells now use a quieter DatoCMS-style muted surface so the checkbox carries selection without turning every row into a loud blue block.
+- Empty current values use placeholder styling and editor-facing summary copy now says what will happen in plain language.
+- Narrow layouts use denser stacked Current/Proposed rows and add extra bottom breathing room before the sticky action footer.
+
+Full Review changes polish follow-up:
+
+- Selected movie context is collapsible on narrow screens while staying expanded on desktop.
+- Image and People sections now show concise impact copy near the choices, matching the sticky footer summary without duplicating a large top summary.
+- Person reuse/create rows include plain-language status notes so editors can tell why a person will be reused or drafted.
+- Narrow field rows keep Field and Current together on the left and make Proposed the primary selectable cell on the right.
+
+Review changes layout follow-up:
+
+- Selected movie metadata now stays visually attached to the movie title instead of stretching across the whole modal width.
+- Image cards use constrained MediaCard-like widths so posters/backdrops do not expand into oversized full-column panels.
+- Narrow image grids use two compact columns where available, reducing the scroll cost of asset review.
+- Narrow field rows show an explicit Proposed label above the selectable value while preserving the Current label.
+- The narrow review stack reserves real bottom space for the sticky action footer so final content can scroll clear of the footer.
+
+Plugin typography follow-up:
+
+- Custom modal text roles now use explicit line heights for page intros, section help, search-result body copy, image metadata, row notes, warnings, and empty states.
+- Search-result metadata is visually quieter than result titles and overview copy, while overview copy keeps a comfortable reading measure.
+- Numeric review facts use tabular numerals for calmer scanning in summaries, field values, and confirmation counts.
+- Status badges use fixed token sizing rather than inheriting from parent text size.
+- Field add-on configuration alerts now have a plugin typography class instead of browser-default paragraph rhythm.
+
+Responsive adaptation follow-up:
+
+- Review changes was checked at 320px, 390px, 540px, 768px, and desktop widths with the local visual harness.
+- The field comparison table keeps the two-column mobile row at ordinary phone widths, but switches to a one-column field/current/proposed stack below 360px so proposed values have a usable tap target and reading measure.
+- Step tabs tighten only below 360px while preserving 44px touch targets.
+- The sticky footer, MediaCard-style image choices, and selected movie disclosure showed no horizontal overflow across the sampled widths.
+
+Clarify copy follow-up:
+
+- Find, Review, and Confirm copy now separates candidate selection, proposed-value review, and final application to the unsaved DatoCMS movie.
+- Field-change controls use action-oriented accessible names such as “Use proposed Title” instead of generic “Select Title”.
+- Field-impact summaries now say whether current values will be overwritten and whether empty fields will be filled.
+- Image copy consistently talks to editors about images, while keeping implementation “assets” terminology out of review decisions.
+- People copy now explains whether a Person record will be reused or a new draft Person will be created after confirmation.
+- Plugin settings copy distinguishes the TMDB read token from DatoCMS model and field API names.
+
+Code review follow-up:
+
+- Confirm-step busy copy uses “Preparing import” because the modal resolves an import plan before the DatoCMS host applies writes.
+- Ambiguous Person resolution selects include the role in their label, such as “Resolve director: Name” and “Resolve actor: Name”, so duplicate person names remain distinguishable to assistive technology.

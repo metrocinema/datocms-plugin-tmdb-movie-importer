@@ -15,7 +15,7 @@ type FieldDiffTableProps = {
 export function FieldDiffTable({ comparisons, onToggle, onSelectAll, onClearAll, overwriteCount, emptyFillCount }: FieldDiffTableProps) {
   const fieldCountLabel = comparisons.length === 1 ? '1 field available' : `${comparisons.length} fields available`;
   const selectedCount = comparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed).length;
-  const selectedCountLabel = selectedCount === 1 ? '1 selected change' : `${selectedCount} selected changes`;
+  const selectedCountLabel = selectedCount === 1 ? '1 selected' : `${selectedCount} selected`;
 
   if (comparisons.length === 0) {
     return <p className="movie-import-modal__empty">No mapped movie fields are available for this import.</p>;
@@ -26,48 +26,95 @@ export function FieldDiffTable({ comparisons, onToggle, onSelectAll, onClearAll,
       <div className="movie-import-modal__list-toolbar">
         <div className="movie-import-modal__toolbar-summary">
           <span>{fieldCountLabel} · {selectedCountLabel}</span>
-          <span>{overwriteCount} {pluralize(overwriteCount, 'overwrite')} · {emptyFillCount} empty-field {pluralize(emptyFillCount, 'fill')}</span>
+          <span>{formatFieldImpactSummary(overwriteCount, emptyFillCount)}</span>
         </div>
         <div className="movie-import-modal__toolbar-actions">
           <Button buttonSize="s" type="button" onClick={onSelectAll}>
-            Select all changes
+            Select all
           </Button>
           <Button buttonSize="s" buttonType="muted" type="button" onClick={onClearAll} disabled={selectedCount === 0}>
             Clear all
           </Button>
         </div>
       </div>
-      {comparisons.map((comparison) => {
-        const detailed = isDetailedField(comparison);
-        const isOverwrite = comparison.available && comparison.changed && !isEmptyValue(comparison.currentValue);
-        const isEmptyFill = comparison.available && comparison.changed && isEmptyValue(comparison.currentValue);
+      <table className="movie-import-modal__field-table" aria-label="Field changes">
+        <thead>
+          <tr>
+            <th scope="col">Field</th>
+            <th scope="col">Current</th>
+            <th scope="col">Proposed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {comparisons.map((comparison) => {
+            const fieldLabel = movieFieldLabels[comparison.key];
+            const canSelect = comparison.available && comparison.changed;
 
-        return (
-          <article key={comparison.key} className={detailed ? 'movie-import-modal__field-row movie-import-modal__field-row--detailed' : 'movie-import-modal__field-row'}>
-            <div className="movie-import-modal__field-name">
-              <h4 className="movie-import-modal__field-title">{movieFieldLabels[comparison.key]}</h4>
-              {isOverwrite ? <span className="movie-import-modal__badge movie-import-modal__badge--warning">Overwrites value</span> : null}
-              {isEmptyFill ? <span className="movie-import-modal__badge movie-import-modal__badge--success">Fills empty field</span> : null}
-              {!comparison.available ? <span className="movie-import-modal__badge movie-import-modal__badge--neutral">No TMDB value</span> : null}
-              {comparison.available && !comparison.changed ? <span className="movie-import-modal__badge movie-import-modal__badge--neutral">Already matches</span> : null}
-            </div>
-            <dl className={detailed ? 'movie-import-modal__diff' : 'movie-import-modal__diff movie-import-modal__diff--compact'}>
-              <div><dt>Current</dt><dd>{formatReviewValue(comparison.key, comparison.currentValue)}</dd></div>
-              <div><dt>Proposed</dt><dd>{comparison.available ? formatReviewValue(comparison.key, comparison.proposedValue) : 'No TMDB value available'}</dd></div>
-            </dl>
-            <label className="movie-import-modal__check" style={touchTargetStyle}>
-              <input aria-label={`Select ${movieFieldLabels[comparison.key]}`} type="checkbox" checked={comparison.selected} disabled={!comparison.available || !comparison.changed} onChange={() => onToggle(comparison.key)} />
-              <span aria-hidden="true">Select</span>
-            </label>
-          </article>
-        );
-      })}
+            return (
+              <tr
+                key={comparison.key}
+                className={comparison.selected && canSelect
+                  ? 'movie-import-modal__field-table-row movie-import-modal__field-table-row--selected'
+                  : 'movie-import-modal__field-table-row'}
+              >
+                <th scope="row" className="movie-import-modal__field-table-field">
+                  <span className="movie-import-modal__field-title">{fieldLabel}</span>
+                </th>
+                <td className="movie-import-modal__field-table-value" data-label="Current">
+                  <ReviewValue comparison={comparison} value={comparison.currentValue} />
+                </td>
+                <td className="movie-import-modal__field-table-value movie-import-modal__field-table-proposed" data-label="Proposed">
+                  <ProposedFieldCell comparison={comparison} fieldLabel={fieldLabel} canSelect={canSelect} onToggle={onToggle} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function isDetailedField(comparison: FieldComparison) {
-  return comparison.key === 'tagline' || comparison.key === 'description';
+function ReviewValue({ comparison, value }: { comparison: FieldComparison; value: unknown }) {
+  const formattedValue = formatReviewValue(comparison.key, value);
+
+  if (isEmptyValue(value)) {
+    return <span className="movie-import-modal__field-placeholder">{formattedValue}</span>;
+  }
+
+  return <>{formattedValue}</>;
+}
+
+function ProposedFieldCell({
+  comparison,
+  fieldLabel,
+  canSelect,
+  onToggle,
+}: {
+  comparison: FieldComparison;
+  fieldLabel: string;
+  canSelect: boolean;
+  onToggle: (key: FieldComparison['key']) => void;
+}) {
+  const value = comparison.available ? formatReviewValue(comparison.key, comparison.proposedValue) : 'TMDB did not provide a value';
+
+  return (
+    <label
+      className={canSelect
+        ? 'movie-import-modal__field-table-choice'
+        : 'movie-import-modal__field-table-choice movie-import-modal__field-table-choice--disabled'}
+      style={touchTargetStyle}
+    >
+      <input
+        aria-label={`Use proposed ${fieldLabel}`}
+        type="checkbox"
+        checked={canSelect ? comparison.selected : false}
+        disabled={!canSelect}
+        onChange={() => onToggle(comparison.key)}
+      />
+      <span className="movie-import-modal__field-table-choice-copy">{value}</span>
+    </label>
+  );
 }
 
 function isEmptyValue(value: unknown) {
@@ -76,4 +123,13 @@ function isEmptyValue(value: unknown) {
 
 function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return count === 1 ? singular : plural;
+}
+
+function formatFieldImpactSummary(overwriteCount: number, emptyFillCount: number) {
+  const overwriteLabel = overwriteCount === 0 ? 'No current values will be overwritten' : `${overwriteCount} current ${pluralize(overwriteCount, 'value')} will be overwritten`;
+  const fillLabel = emptyFillCount === 0
+    ? 'no empty fields will be filled'
+    : `${emptyFillCount} empty ${pluralize(emptyFillCount, 'field')} will be filled`;
+
+  return `${overwriteLabel} · ${fillLabel}`;
 }

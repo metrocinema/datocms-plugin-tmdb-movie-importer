@@ -26,7 +26,7 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
       <header className="movie-import-modal__header">
         <p className="movie-import-modal__eyebrow">TMDB movie importer</p>
         <h2 className="movie-import-modal__title">Find movie</h2>
-        <p className="movie-import-modal__intro">Find the TMDB record that matches this DatoCMS movie.</p>
+        <p className="movie-import-modal__intro">Search TMDB and choose the record that matches this DatoCMS movie.</p>
       </header>
 
       <div className="movie-import-modal__search-stack">
@@ -51,7 +51,7 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
             </FieldGroup>
             <div className="movie-import-modal__actions">
               <Button type="button" onClick={onLoadTmdbId} disabled={isBusy}>
-                {isLoadingMovie ? 'Loading movie' : 'Load TMDB ID'}
+                {isLoadingMovie ? 'Loading movie' : 'Load movie by ID'}
               </Button>
             </div>
           </div>

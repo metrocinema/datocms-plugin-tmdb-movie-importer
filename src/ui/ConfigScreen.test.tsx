@@ -7,7 +7,7 @@ describe('ConfigScreen', () => {
   it('shows token visibility warning for frontend-only v1', () => {
     render(<ConfigScreen parameters={parsePluginParameters({})} onSave={vi.fn()} />);
 
-    expect(screen.getByText(/authenticated editors can inspect the TMDB read token/i)).toBeInTheDocument();
+    expect(screen.getByText(/Editors who can use the plugin may inspect it in browser tools/i)).toBeInTheDocument();
   });
 
   it('uses Dato form sections for plugin settings groups', () => {
@@ -102,7 +102,7 @@ describe('ConfigScreen', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Save configuration' }));
 
-    expect(await screen.findByText('Unable to save configuration. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('The plugin settings could not be saved. Try again.')).toBeInTheDocument();
     expect(screen.queryByText(/private-token/i)).not.toBeInTheDocument();
   });
 });

@@ -78,7 +78,7 @@ export function ConfigScreen({ parameters, onSave }: ConfigScreenProps) {
           />
         </FieldGroup>
         <FieldHint>
-          Because this version is frontend-only, authenticated editors can inspect the TMDB read token in the browser.
+          This frontend-only version stores the TMDB token in plugin settings. Editors who can use the plugin may inspect it in browser tools.
         </FieldHint>
       </Section>
       <Section title="Movie model and fields">
@@ -128,7 +128,7 @@ export function ConfigScreen({ parameters, onSave }: ConfigScreenProps) {
           ))}
         </FieldError>
       ) : null}
-      {saveError ? <FieldError>Unable to save configuration. Please try again.</FieldError> : null}
+      {saveError ? <FieldError>The plugin settings could not be saved. Try again.</FieldError> : null}
       <Button type="submit" buttonType="primary" disabled={isSaving}>
         {isSaving ? 'Saving configuration' : 'Save configuration'}
       </Button>

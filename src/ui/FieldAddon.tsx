@@ -12,11 +12,11 @@ export function FieldAddon({ tmdbId, onOpen, configurationIssues = [] }: FieldAd
   const mode = hasTmdbId ? 'refresh' : 'find';
 
   return (
-    <>
+    <div className="movie-import-field-addon">
       <Button type="button" buttonSize="s" onClick={() => onOpen(mode)} disabled={configurationIssues.length > 0}>
         {hasTmdbId ? 'Refresh from TMDB' : 'Find movie'}
       </Button>
-      {configurationIssues.length > 0 ? <p role="alert">Configure the importer before using it: {configurationIssues.join(' ')}</p> : null}
-    </>
+      {configurationIssues.length > 0 ? <p role="alert" className="movie-import-field-addon__alert">Finish plugin configuration before using TMDB import: {configurationIssues.join(' ')}</p> : null}
+    </div>
   );
 }
