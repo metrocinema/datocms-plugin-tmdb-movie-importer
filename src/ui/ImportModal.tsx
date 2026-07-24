@@ -36,6 +36,7 @@ export function ImportModal(props: ImportModalProps) {
   const [people, setPeople] = useState<Array<{ candidate: PersonCandidate; decision: PersonMatchDecision }>>([]);
   const [imageSelection, setImageSelection] = useState<ImageSelection>({ poster: null, heroImage: null, backdrops: [] });
   const [error, setError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMovie, setIsLoadingMovie] = useState(false);
   const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
@@ -45,11 +46,12 @@ export function ImportModal(props: ImportModalProps) {
       setError(null);
       setIsLoadingMovie(true);
       const loaded = await props.loadMovie(tmdbId);
-      const records = await props.resolvePeople?.([...loaded.directors, ...loaded.actors]) ?? [];
+      const peopleCandidates = peopleCandidatesForMappedFields(loaded, props.mappedFields);
+      const records = await props.resolvePeople?.(peopleCandidates) ?? [];
       setMovie(loaded);
       setComparisons(compareMovieFields(props.currentValues, loaded, props.mappedFields));
-      setPeople([...loaded.directors, ...loaded.actors].map((candidate) => ({ candidate, decision: matchPerson(candidate, records, props.tmdbIdFieldConfigured ?? true) })));
-      setImageSelection(defaultImageSelection(props.currentValues, loaded.images));
+      setPeople(peopleCandidates.map((candidate) => ({ candidate, decision: matchPerson(candidate, records, props.tmdbIdFieldConfigured ?? true) })));
+      setImageSelection(imageSelectionForMappedFields(defaultImageSelection(props.currentValues, loaded.images), props.mappedFields));
       setStep('review');
     } catch {
       setError('The TMDB movie could not be loaded. Search by title and year, or try a different TMDB ID.');
@@ -60,10 +62,25 @@ export function ImportModal(props: ImportModalProps) {
   };
 
   const searchTmdb = async () => {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      setError('Enter a movie title before searching, or load a known TMDB ID.');
+      setResults([]);
+      setHasSearched(false);
+      return;
+    }
+
+    if (year !== null && (!Number.isSafeInteger(year) || year < 0)) {
+      setError('Enter a positive whole-number year, or leave Year blank.');
+      return;
+    }
+
     try {
       setError(null);
       setIsSearching(true);
-      setResults(await props.searchMovies({ title, year }));
+      setResults(await props.searchMovies({ title: trimmedTitle, year }));
+      setHasSearched(true);
     } catch {
       setError('TMDB search is unavailable right now. Try again in a moment, or load a known TMDB ID.');
     } finally {
@@ -72,12 +89,16 @@ export function ImportModal(props: ImportModalProps) {
   };
 
   const submitImportPlan = async () => {
+    if (isSubmittingPlan) {
+      return;
+    }
+
     try {
       setError(null);
       setIsSubmittingPlan(true);
       await props.execute(plan);
     } catch {
-      setError('The import could not finish. If it started before failing, some draft people or uploaded images may already exist in DatoCMS.');
+      setError('The import could not start from the modal. Nothing was saved or published from this confirmation step.');
     } finally {
       setIsSubmittingPlan(false);
     }
@@ -101,15 +122,18 @@ export function ImportModal(props: ImportModalProps) {
       if (decision.type === 'create') return [{ candidateTmdbId: candidate.tmdbId, candidateRole: candidate.role, action: 'create', name: decision.name, source: decision.source }];
       return [];
     }),
-  }), [comparisons, imageSelection, movie, people]);
+    mappedFields: props.mappedFields,
+  }), [comparisons, imageSelection, movie, people, props.mappedFields]);
 
   if (step === 'search') {
     return (
       <div className="movie-import-modal">
-        <SearchStep title={title} year={year} results={results} onTitleChange={setTitle} onYearChange={setYear} onSearch={searchTmdb} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} isSearching={isSearching} isLoadingMovie={isLoadingMovie} onLoadTmdbId={() => {
-          const parsed = Number(tmdbId);
-          if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-            setError('Enter a positive numeric TMDB ID.');
+        <SearchStep title={title} year={year} results={results} hasSearched={hasSearched} onTitleChange={setTitle} onYearChange={setYear} onSearch={searchTmdb} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} isSearching={isSearching} isLoadingMovie={isLoadingMovie} onLoadTmdbId={() => {
+          const trimmedTmdbId = tmdbId.trim();
+          const parsed = Number(trimmedTmdbId);
+
+          if (!/^\d+$/.test(trimmedTmdbId) || !Number.isSafeInteger(parsed) || parsed <= 0) {
+            setError('Enter a positive whole-number TMDB ID.');
             return;
           }
           void loadSelectedMovie(parsed);
@@ -122,7 +146,7 @@ export function ImportModal(props: ImportModalProps) {
   if (step === 'review') {
     return (
       <div className="movie-import-modal">
-        <ReviewStep movie={movie!} comparisons={comparisons} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} onClearAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: false })))} onBack={() => setStep('search')} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
+        <ReviewStep movie={movie!} comparisons={comparisons} mappedFields={props.mappedFields} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} onClearAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: false })))} onBack={() => setStep('search')} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
           if (!samePersonCandidate(item.candidate, candidate)) return item;
           if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, source: 'manual', warning: 'You chose to create a new draft Person after confirmation.' } };
           return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), source: 'manual', warning: 'You chose to reuse an existing Person record.' } };
@@ -139,7 +163,7 @@ export function ImportModal(props: ImportModalProps) {
 
   return (
     <div className="movie-import-modal">
-      <ConfirmStep plan={plan} isSubmittingPlan={isSubmittingPlan} onBack={() => setStep('review')} onConfirm={() => void submitImportPlan()} />
+      <ConfirmStep movie={movie!} plan={plan} isSubmittingPlan={isSubmittingPlan} onBack={() => setStep('review')} onConfirm={() => void submitImportPlan()} />
       {error ? <p role="alert" className="movie-import-modal__warning">{error}</p> : null}
     </div>
   );
@@ -151,4 +175,19 @@ function sameImage(left: NormalizedImageCandidate, right: NormalizedImageCandida
 
 function samePersonCandidate(left: PersonCandidate, right: PersonCandidate) {
   return left.role === right.role && left.tmdbId === right.tmdbId;
+}
+
+function peopleCandidatesForMappedFields(movie: NormalizedMovie, mappedFields: MovieFieldKey[]) {
+  return [
+    ...(mappedFields.includes('directors') ? movie.directors : []),
+    ...(mappedFields.includes('actors') ? movie.actors : []),
+  ];
+}
+
+function imageSelectionForMappedFields(selection: ImageSelection, mappedFields: MovieFieldKey[]): ImageSelection {
+  return {
+    poster: mappedFields.includes('poster') ? selection.poster : null,
+    heroImage: mappedFields.includes('heroImage') ? selection.heroImage : null,
+    backdrops: mappedFields.includes('backdrops') ? selection.backdrops : [],
+  };
 }

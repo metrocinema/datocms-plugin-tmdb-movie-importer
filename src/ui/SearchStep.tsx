@@ -6,6 +6,7 @@ type SearchStepProps = {
   title: string;
   year: number | null;
   results: TmdbSearchResult[];
+  hasSearched: boolean;
   onTitleChange: (title: string) => void;
   onYearChange: (year: number | null) => void;
   onSearch: () => void;
@@ -17,7 +18,7 @@ type SearchStepProps = {
   isLoadingMovie?: boolean;
 };
 
-export function SearchStep({ title, year, results, onTitleChange, onYearChange, onSearch, onSelect, tmdbId, onTmdbIdChange, onLoadTmdbId, isSearching = false, isLoadingMovie = false }: SearchStepProps) {
+export function SearchStep({ title, year, results, hasSearched, onTitleChange, onYearChange, onSearch, onSelect, tmdbId, onTmdbIdChange, onLoadTmdbId, isSearching = false, isLoadingMovie = false }: SearchStepProps) {
   const isBusy = isSearching || isLoadingMovie;
 
   return (
@@ -34,7 +35,7 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
           <div role="group" aria-label="Search by title and year">
             <FieldGroup>
               <TextField id="movie-title" name="movie-title" label="Title" value={title} onChange={onTitleChange} textInputProps={{ disabled: isBusy }} />
-              <TextField id="movie-year" name="movie-year" label="Year" value={year === null ? '' : String(year)} onChange={(value) => onYearChange(value ? Number(value) : null)} textInputProps={{ type: 'number', disabled: isBusy }} />
+              <TextField id="movie-year" name="movie-year" label="Year" value={year === null ? '' : String(year)} onChange={(value) => onYearChange(value ? Number(value) : null)} textInputProps={{ type: 'number', inputMode: 'numeric', min: 0, step: 1, disabled: isBusy }} />
             </FieldGroup>
             <div className="movie-import-modal__actions">
               <Button buttonType="primary" type="button" onClick={onSearch} disabled={isBusy}>
@@ -58,7 +59,7 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
         </Section>
       </div>
 
-      <div className="movie-import-modal__cards">
+      <div className="movie-import-modal__cards" aria-busy={isBusy}>
         {results.map((result) => (
           <article key={result.id} className="movie-import-modal__card">
             {result.posterUrl
@@ -77,6 +78,11 @@ export function SearchStep({ title, year, results, onTitleChange, onYearChange, 
             </div>
           </article>
         ))}
+        {hasSearched && results.length === 0 && !isBusy ? (
+          <p role="status" className="movie-import-modal__empty movie-import-modal__empty--results">
+            No TMDB matches found. Try a different title, remove the year, or load a known TMDB ID.
+          </p>
+        ) : null}
       </div>
     </section>
   );

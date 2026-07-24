@@ -132,7 +132,7 @@ export async function executeImportPlan(
   const heroImageField = params.movieFields.heroImage;
   const heroImage = plan.heroImageToUpload
     ? backdrops.find((asset) => plan.heroImageToUpload && sameImage(asset.image, plan.heroImageToUpload))
-    : backdrops[0];
+    : null;
   if (heroImageField && heroImage) {
     changes.push({ fieldPath: movieFieldPath('heroImage', heroImageField, params, options), value: assetReference(heroImage.id) });
   }

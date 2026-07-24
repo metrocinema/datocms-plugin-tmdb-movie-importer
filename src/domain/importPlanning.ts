@@ -23,33 +23,47 @@ export type BuildImportPlanInput = {
   actors: PersonCandidate[];
   imageSelection: ImageSelection;
   personResolutions: PersonResolution[];
+  mappedFields: MovieFieldKey[];
 };
 
 export function buildImportPlan(input: BuildImportPlanInput): ImportPlan {
+  const mappedFields = new Set(input.mappedFields);
+  const directors = mappedFields.has('directors') ? input.directors : [];
+  const actors = mappedFields.has('actors') ? input.actors : [];
+  const imageSelection = {
+    poster: mappedFields.has('poster') ? input.imageSelection.poster : null,
+    heroImage: mappedFields.has('heroImage') ? input.imageSelection.heroImage : null,
+    backdrops: mappedFields.has('backdrops') ? input.imageSelection.backdrops : [],
+  };
   const fieldChanges = input.fieldComparisons
     .filter((comparison) => comparison.selected && comparison.available && comparison.changed)
     .map((comparison) => ({ key: comparison.key, value: comparison.proposedValue }));
 
   const assetsToUpload = uniqueImages([
-    input.imageSelection.poster,
-    input.imageSelection.heroImage,
-    ...input.imageSelection.backdrops,
+    imageSelection.poster,
+    imageSelection.heroImage,
+    ...imageSelection.backdrops,
   ]);
+  const personResolutions = input.personResolutions.filter((resolution) => isMappedPersonRole(resolution.candidateRole, mappedFields));
 
   return {
     fieldChanges,
-    directors: [...input.directors],
-    actors: [...input.actors],
-    peopleToCreate: input.personResolutions
+    directors: [...directors],
+    actors: [...actors],
+    peopleToCreate: personResolutions
       .filter((resolution): resolution is Extract<PersonResolution, { action: 'create' }> => resolution.action === 'create')
       .map((resolution) => ({ candidateTmdbId: resolution.candidateTmdbId, candidateRole: resolution.candidateRole, name: resolution.name, source: resolution.source })),
-    peopleToReuse: input.personResolutions
+    peopleToReuse: personResolutions
       .filter((resolution): resolution is Extract<PersonResolution, { action: 'reuse' }> => resolution.action === 'reuse')
       .map((resolution) => ({ candidateTmdbId: resolution.candidateTmdbId, candidateRole: resolution.candidateRole, recordId: resolution.recordId, name: resolution.name, source: resolution.source })),
-    heroImageToUpload: input.imageSelection.heroImage,
-    otherImagesToUpload: [...input.imageSelection.backdrops],
+    heroImageToUpload: imageSelection.heroImage,
+    otherImagesToUpload: [...imageSelection.backdrops],
     assetsToUpload,
   };
+}
+
+function isMappedPersonRole(role: PersonCandidate['role'], mappedFields: Set<MovieFieldKey>) {
+  return role === 'director' ? mappedFields.has('directors') : mappedFields.has('actors');
 }
 
 function uniqueImages(images: Array<NormalizedImageCandidate | null>): NormalizedImageCandidate[] {

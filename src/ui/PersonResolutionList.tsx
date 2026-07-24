@@ -9,10 +9,11 @@ type ResolutionOption = {
 
 type PersonResolutionListProps = {
   people: Array<{ candidate: PersonCandidate; decision: PersonMatchDecision }>;
+  enabledRoles: PersonCandidate['role'][];
   onResolve: (candidate: PersonCandidate, value: 'create' | `reuse:${string}`) => void;
 };
 
-export function PersonResolutionList({ people, onResolve }: PersonResolutionListProps) {
+export function PersonResolutionList({ people, enabledRoles, onResolve }: PersonResolutionListProps) {
   const renderPeople = (role: PersonCandidate['role']) => {
     const matches = people.filter(({ candidate }) => candidate.role === role);
 
@@ -21,7 +22,7 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
     }
 
     return matches.map(({ candidate, decision }) => (
-      <div key={`${candidate.role}:${candidate.tmdbId}`} className="movie-import-modal__person-row">
+      <div key={`${candidate.role}:${candidate.tmdbId}:${candidate.order}`} className="movie-import-modal__person-row">
         <div className="movie-import-modal__row-header">
           <strong>{candidate.name}</strong>
           {decision.type === 'reuse' ? <span className="movie-import-modal__badge movie-import-modal__badge--success">Reuse existing</span> : null}
@@ -60,14 +61,18 @@ export function PersonResolutionList({ people, onResolve }: PersonResolutionList
 
   return (
     <div className="movie-import-modal__review-list">
-      <div className="movie-import-modal__people-group">
-        <h4>Directors</h4>
-        {renderPeople('director')}
-      </div>
-      <div className="movie-import-modal__people-group">
-        <h4>Actors</h4>
-        {renderPeople('actor')}
-      </div>
+      {enabledRoles.includes('director') ? (
+        <div className="movie-import-modal__people-group">
+          <h4>Directors</h4>
+          {renderPeople('director')}
+        </div>
+      ) : null}
+      {enabledRoles.includes('actor') ? (
+        <div className="movie-import-modal__people-group">
+          <h4>Actors</h4>
+          {renderPeople('actor')}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -147,6 +147,31 @@ describe('executeImportPlan', () => {
     expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('other_images');
   });
 
+  it('does not write hero image when only other backdrop images are selected', async () => {
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+    await executeImportPlan(
+      { ...plan, directors: [], actors: [], peopleToCreate: [], heroImageToUpload: null, otherImagesToUpload: [plan.assetsToUpload[1]], assetsToUpload: [plan.assetsToUpload[1]] },
+      { ...params, movieFields: { ...params.movieFields, heroImage: 'hero_image', backdrops: 'other_images' } },
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'backdrop-upload' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+    );
+
+    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [{ type: 'upload', id: 'backdrop-upload' }] });
+    expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('hero_image');
+  });
+
   it('maps uploaded backdrop assets by provider and provider image ID', async () => {
     const firstBackdrop = { providerKey: 'tmdb', providerImageId: '/shared.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/shared.jpg', width: 200, height: 100, language: 'en', rank: 1, attribution: 'TMDB' } as const;
     const secondBackdrop = { ...firstBackdrop, providerKey: 'future', originalUrl: 'https://future.example/shared.jpg', attribution: 'Future Provider' } as const;

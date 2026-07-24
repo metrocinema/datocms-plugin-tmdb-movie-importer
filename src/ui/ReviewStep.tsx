@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button, Section } from 'datocms-react-ui';
 import type { FieldComparison } from '../domain/fieldComparison';
 import type { NormalizedImageCandidate, NormalizedMovie, PersonCandidate } from '../domain/movie';
+import type { MovieFieldKey } from '../domain/movie';
 import type { PersonMatchDecision } from '../domain/personMatching';
 import type { ImageSelection } from '../providers/imageProvider';
 import { FieldDiffTable } from './FieldDiffTable';
@@ -14,6 +15,7 @@ import { PersonResolutionList } from './PersonResolutionList';
 type ReviewStepProps = {
   movie: NormalizedMovie;
   comparisons: FieldComparison[];
+  mappedFields: MovieFieldKey[];
   onToggle: (key: FieldComparison['key']) => void;
   onSelectAll: () => void;
   onClearAll: () => void;
@@ -28,8 +30,18 @@ type ReviewStepProps = {
   onToggleBackdrop: (image: NormalizedImageCandidate) => void;
 };
 
-export function ReviewStep({ movie, comparisons, onToggle, onSelectAll, onClearAll, onContinue, onBack, people, onResolvePerson, images, imageSelection, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ReviewStepProps) {
+export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelectAll, onClearAll, onContinue, onBack, people, onResolvePerson, images, imageSelection, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ReviewStepProps) {
   const [selectedMovieOpen, setSelectedMovieOpen] = useState(true);
+  const mappedFieldSet = new Set(mappedFields);
+  const hasPosterDestination = mappedFieldSet.has('poster');
+  const hasHeroDestination = mappedFieldSet.has('heroImage');
+  const hasOtherImagesDestination = mappedFieldSet.has('backdrops');
+  const hasImageDestinations = hasPosterDestination || hasHeroDestination || hasOtherImagesDestination;
+  const enabledPersonRoles = [
+    mappedFieldSet.has('directors') ? 'director' : null,
+    mappedFieldSet.has('actors') ? 'actor' : null,
+  ].filter((role): role is PersonCandidate['role'] => role !== null);
+  const hasPeopleDestinations = enabledPersonRoles.length > 0;
   const ambiguousPeopleCount = people.filter(({ decision }) => decision.type === 'ambiguous').length;
   const hasAmbiguousPeople = ambiguousPeopleCount > 0;
   const poster = movie.images.find(isEnglishPoster);
@@ -37,6 +49,7 @@ export function ReviewStep({ movie, comparisons, onToggle, onSelectAll, onClearA
   const overwriteCount = comparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed && !isEmptyValue(comparison.currentValue)).length;
   const emptyFillCount = comparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed && isEmptyValue(comparison.currentValue)).length;
   const selectedImageCount = countSelectedImages(imageSelection);
+  const imageDestinationCounts = countSelectedImageDestinations(imageSelection);
   const peopleToCreateCount = people.filter(({ decision }) => decision.type === 'create').length;
   const peopleToReuseCount = people.filter(({ decision }) => decision.type === 'reuse').length;
   const selectedMovieSummary = `${movie.title}${movie.yearReleased ? ` (${formatYear(movie.yearReleased)})` : ''}`;
@@ -100,20 +113,24 @@ export function ReviewStep({ movie, comparisons, onToggle, onSelectAll, onClearA
             <FieldDiffTable comparisons={comparisons} onToggle={onToggle} onSelectAll={onSelectAll} onClearAll={onClearAll} overwriteCount={overwriteCount} emptyFillCount={emptyFillCount} />
           </Section>
         </div>
-        <div id="images">
-          <Section title="Images">
-            <p className="movie-import-modal__section-help">Choose images to upload. A backdrop can be used for Hero image, Other images, or both.</p>
-            <p className="movie-import-modal__section-impact">{selectedImageCount === 0 ? 'No images selected.' : `${selectedImageCount} ${pluralize(selectedImageCount, 'image')} selected.`}</p>
-            <ImagePicker images={images} selection={imageSelection} onTogglePoster={onTogglePoster} onSelectHeroImage={onSelectHeroImage} onToggleBackdrop={onToggleBackdrop} />
-          </Section>
-        </div>
-        <div id="people">
-          <Section title="People">
-            <p className="movie-import-modal__section-help">Choose whether each director and actor should reuse an existing Person record or create a new draft.</p>
-            <p className="movie-import-modal__section-impact">After confirmation, this import will create {peopleToCreateCount} new {pluralize(peopleToCreateCount, 'person', 'people')} and reuse {peopleToReuseCount} existing {pluralize(peopleToReuseCount, 'person', 'people')}.</p>
-            <PersonResolutionList people={people} onResolve={onResolvePerson} />
-          </Section>
-        </div>
+        {hasImageDestinations ? (
+          <div id="images">
+            <Section title="Images">
+              <p className="movie-import-modal__section-help">Choose image destinations. A backdrop can be used for Hero image, Other images, or both.</p>
+              <p className="movie-import-modal__section-impact">{formatImageImpact(imageDestinationCounts)}</p>
+              <ImagePicker images={images} selection={imageSelection} allowPoster={hasPosterDestination} allowHeroImage={hasHeroDestination} allowOtherImages={hasOtherImagesDestination} onTogglePoster={onTogglePoster} onSelectHeroImage={onSelectHeroImage} onToggleBackdrop={onToggleBackdrop} />
+            </Section>
+          </div>
+        ) : null}
+        {hasPeopleDestinations ? (
+          <div id="people">
+            <Section title="People">
+              <p className="movie-import-modal__section-help">Choose whether each director and actor should reuse an existing Person record or create a new draft.</p>
+              <p className="movie-import-modal__section-impact">{formatPeopleImpact(peopleToCreateCount, peopleToReuseCount)}</p>
+              <PersonResolutionList people={people} enabledRoles={enabledPersonRoles} onResolve={onResolvePerson} />
+            </Section>
+          </div>
+        ) : null}
       </div>
       <div className="movie-import-modal__actions movie-import-modal__actions--sticky">
         <p className="movie-import-modal__action-summary" aria-label={`${selectedFieldCount} ${pluralize(selectedFieldCount, 'field')} selected, ${selectedImageCount} ${pluralize(selectedImageCount, 'image')} selected, ${peopleToCreateCount} new ${pluralize(peopleToCreateCount, 'person', 'people')}, ${peopleToReuseCount} reused ${pluralize(peopleToReuseCount, 'person', 'people')}`}>
@@ -143,6 +160,55 @@ function countSelectedImages(selection: ImageSelection) {
   }
 
   return keys.size;
+}
+
+function countSelectedImageDestinations(selection: ImageSelection) {
+  return {
+    poster: selection.poster ? 1 : 0,
+    heroImage: selection.heroImage ? 1 : 0,
+    otherImages: selection.backdrops.length,
+  };
+}
+
+function formatImageImpact(counts: ReturnType<typeof countSelectedImageDestinations>) {
+  if (counts.poster === 0 && counts.heroImage === 0 && counts.otherImages === 0) {
+    return 'No image destinations selected.';
+  }
+
+  const parts = [
+    counts.poster > 0 ? '1 poster' : null,
+    counts.heroImage > 0 ? '1 Hero image' : null,
+    counts.otherImages > 0 ? `${counts.otherImages} Other ${pluralize(counts.otherImages, 'image')}` : null,
+  ].filter(Boolean);
+
+  return `${formatList(parts)} selected for import.`;
+}
+
+function formatPeopleImpact(createCount: number, reuseCount: number) {
+  if (createCount === 0 && reuseCount === 0) {
+    return 'No Person records will be created or reused.';
+  }
+
+  const parts = [
+    createCount > 0 ? `${createCount} draft ${pluralize(createCount, 'Person record')}` : null,
+    reuseCount > 0 ? `${reuseCount} existing ${pluralize(reuseCount, 'Person record')}` : null,
+  ].filter(Boolean);
+
+  return `${formatList(parts)} will be prepared after confirmation.`;
+}
+
+function formatList(parts: Array<string | null>) {
+  const values = parts.filter((part): part is string => Boolean(part));
+
+  if (values.length <= 1) {
+    return values[0] ?? '';
+  }
+
+  if (values.length === 2) {
+    return `${values[0]} and ${values[1]}`;
+  }
+
+  return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
 }
 
 function pluralize(count: number, singular: string, plural = `${singular}s`) {
