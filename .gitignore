@@ -1,5 +1,8 @@
 .superpowers/
 .worktrees/
+.impeccable/
+.playwright-cli/
+output/
 node_modules/
 dist/
 coverage/
