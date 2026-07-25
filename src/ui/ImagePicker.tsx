@@ -75,7 +75,7 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
       {allowHeroImage || allowOtherImages ? <div className="movie-import-modal__asset-group">
         <div className="movie-import-modal__asset-copy">
           <h4>Backdrop images</h4>
-          <p>Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.</p>
+          <p>{backdropHelperCopy(allowHeroImage, allowOtherImages)}</p>
         </div>
         {backdrops.length > 0 ? (
           <div className="movie-import-modal__destination-stack">
@@ -242,6 +242,18 @@ function accessibleSecondaryStatus(status: string) {
   if (status === 'Also in Other Images') return 'also selected for Other Images';
   if (status === 'Also Hero Image') return 'also selected as Hero Image';
   return status;
+}
+
+function backdropHelperCopy(allowHeroImage: boolean, allowOtherImages: boolean) {
+  if (allowHeroImage && allowOtherImages) {
+    return 'Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.';
+  }
+
+  if (allowHeroImage) {
+    return 'Choose one backdrop to upload to the Hero Image field, or skip this destination.';
+  }
+
+  return 'Select any backdrops to upload to the Other Images gallery field.';
 }
 
 function capitalize(value: string) {

@@ -347,6 +347,22 @@ describe('ImportModal data flow', () => {
     expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-1.jpg', '/backdrop-2.jpg']);
   });
 
+  it('describes the backdrop picker as hero-only when only the hero image field is mapped', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: null }} mappedFields={['title', 'heroImage']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={vi.fn()} />);
+
+    await reachReview();
+    expect(screen.getByText('Choose one backdrop to upload to the Hero Image field, or skip this destination.')).toBeInTheDocument();
+    expect(screen.queryByText('Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.')).not.toBeInTheDocument();
+  });
+
+  it('describes the backdrop picker as other-images-only when only the other images field is mapped', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', backdrops: [] }} mappedFields={['title', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={vi.fn()} />);
+
+    await reachReview();
+    expect(screen.getByText('Select any backdrops to upload to the Other Images gallery field.')).toBeInTheDocument();
+    expect(screen.queryByText('Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.')).not.toBeInTheDocument();
+  });
+
   it('keeps an existing hero image untouched when only other images are selected', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: { upload_id: 'existing-hero' }, backdrops: [] }} mappedFields={['title', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={execute} />);
