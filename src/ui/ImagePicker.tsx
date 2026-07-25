@@ -11,7 +11,7 @@ type ImagePickerProps = {
   allowHeroImage: boolean;
   allowOtherImages: boolean;
   onTogglePoster: (image: NormalizedImageCandidate) => void;
-  onSelectHeroImage: (image: NormalizedImageCandidate) => void;
+  onSelectHeroImage: (image: NormalizedImageCandidate | null) => void;
   onToggleBackdrop: (image: NormalizedImageCandidate) => void;
 };
 
@@ -31,19 +31,37 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
     />
   ));
 
-  const heroOptions = backdrops.map((image, index) => (
-        <BackdropImageOption
-          key={`${image.providerKey}:${image.providerImageId}:hero`}
-          image={image}
-          index={index}
-          allowHeroImage={allowHeroImage}
-          allowOtherImages={allowOtherImages}
-          heroSelected={Boolean(selection.heroImage && sameImage(selection.heroImage, image))}
-          otherSelected={selection.backdrops.some((selected) => sameImage(selected, image))}
-      onSelectHero={() => onSelectHeroImage(image)}
-      onToggleOther={() => onToggleBackdrop(image)}
-    />
-  ));
+  const heroOptions = backdrops.map((image, index) => {
+    const otherSelected = selection.backdrops.some((selected) => sameImage(selected, image));
+
+    return (
+      <BackdropDestinationOption
+        key={`${image.providerKey}:${image.providerImageId}:hero`}
+        image={image}
+        index={index}
+        destination="hero"
+        selected={Boolean(selection.heroImage && sameImage(selection.heroImage, image))}
+        secondaryStatus={otherSelected ? 'Also in Other Images' : null}
+        onChange={() => onSelectHeroImage(image)}
+      />
+    );
+  });
+
+  const otherImageOptions = backdrops.map((image, index) => {
+    const heroSelected = Boolean(selection.heroImage && sameImage(selection.heroImage, image));
+
+    return (
+      <BackdropDestinationOption
+        key={`${image.providerKey}:${image.providerImageId}:other`}
+        image={image}
+        index={index}
+        destination="other"
+        selected={selection.backdrops.some((selected) => sameImage(selected, image))}
+        secondaryStatus={heroSelected ? 'Also Hero Image' : null}
+        onChange={() => onToggleBackdrop(image)}
+      />
+    );
+  });
 
   return (
     <div className="movie-import-modal__review-list">
@@ -57,9 +75,33 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
       {allowHeroImage || allowOtherImages ? <div className="movie-import-modal__asset-group">
         <div className="movie-import-modal__asset-copy">
           <h4>Backdrop images</h4>
-          <p>Choose where each backdrop should go: Hero image, Other images, or both.</p>
+          <p>Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.</p>
         </div>
-        {backdrops.length > 0 ? <div className="movie-import-modal__image-grid">{heroOptions}</div> : <p className="movie-import-modal__empty">TMDB did not return any backdrop candidates.</p>}
+        {backdrops.length > 0 ? (
+          <div className="movie-import-modal__destination-stack">
+            {allowHeroImage ? (
+              <div className="movie-import-modal__destination-lane">
+                <div className="movie-import-modal__destination-heading">
+                  <h5>Hero Image</h5>
+                  <p>Choose one backdrop for the Hero Image field, or skip this destination.</p>
+                </div>
+                <div className="movie-import-modal__image-grid">
+                  <NoHeroImageOption selected={selection.heroImage === null} onChange={() => onSelectHeroImage(null)} />
+                  {heroOptions}
+                </div>
+              </div>
+            ) : null}
+            {allowOtherImages ? (
+              <div className="movie-import-modal__destination-lane">
+                <div className="movie-import-modal__destination-heading">
+                  <h5>Other Images</h5>
+                  <p>Select every backdrop to upload to the Other Images gallery field.</p>
+                </div>
+                <div className="movie-import-modal__image-grid">{otherImageOptions}</div>
+              </div>
+            ) : null}
+          </div>
+        ) : <p className="movie-import-modal__empty">TMDB did not return any backdrop candidates.</p>}
       </div> : null}
     </div>
   );
@@ -81,7 +123,7 @@ function ImageOption({ image, index, inputType, inputName, label, selected, onCh
   const optionNumber = index + 1;
   const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
   const provider = image.attribution ?? image.providerKey.toUpperCase();
-  const language = image.language ? image.language.toUpperCase() : 'No language tag';
+  const language = image.language ? image.language.toUpperCase() : 'No language metadata';
   const ariaLabel = `${label}: ${imageKind} option ${optionNumber}`;
 
   return (
@@ -112,27 +154,60 @@ function ImageOption({ image, index, inputType, inputName, label, selected, onCh
   );
 }
 
-type BackdropImageOptionProps = {
-  image: NormalizedImageCandidate;
-  index: number;
-  allowHeroImage: boolean;
-  allowOtherImages: boolean;
-  heroSelected: boolean;
-  otherSelected: boolean;
-  onSelectHero: () => void;
-  onToggleOther: () => void;
+type NoHeroImageOptionProps = {
+  selected: boolean;
+  onChange: () => void;
 };
 
-function BackdropImageOption({ image, index, allowHeroImage, allowOtherImages, heroSelected, otherSelected, onSelectHero, onToggleOther }: BackdropImageOptionProps) {
+function NoHeroImageOption({ selected, onChange }: NoHeroImageOptionProps) {
+  return (
+    <label className="movie-import-modal__image-option movie-import-modal__image-option--none" style={touchTargetStyle}>
+      <span className="movie-import-modal__image-preview">
+        <span className="movie-import-modal__image-fallback movie-import-modal__image-fallback--none" aria-hidden="true">
+          No image
+        </span>
+        <span className="movie-import-modal__image-meta">Leave Hero Image unchanged</span>
+      </span>
+      <span className="movie-import-modal__image-footer">
+        <input aria-label="Do not import a Hero Image" type="radio" name="hero-image-selection" checked={selected} onChange={onChange} />
+        <span className="movie-import-modal__image-label">Do not import</span>
+      </span>
+    </label>
+  );
+}
+
+type BackdropDestinationOptionProps = {
+  image: NormalizedImageCandidate;
+  index: number;
+  destination: 'hero' | 'other';
+  selected: boolean;
+  secondaryStatus: string | null;
+  onChange: () => void;
+};
+
+function BackdropDestinationOption({ image, index, destination, selected, secondaryStatus, onChange }: BackdropDestinationOptionProps) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const optionNumber = index + 1;
   const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
   const provider = image.attribution ?? image.providerKey.toUpperCase();
-  const language = image.language ? image.language.toUpperCase() : 'No language tag';
+  const language = image.language ? image.language.toUpperCase() : 'No language metadata';
+  const isHeroDestination = destination === 'hero';
+  const inputType = isHeroDestination ? 'radio' : 'checkbox';
+  const inputName = isHeroDestination ? 'hero-image-selection' : undefined;
+  const label = isHeroDestination ? 'Use as Hero Image' : 'Add to Other Images';
+  const selectedStatus = isHeroDestination ? 'Hero Image' : 'Other Images';
+  const statusParts = [
+    selected ? `selected for ${selectedStatus}` : `not selected for ${selectedStatus}`,
+    secondaryStatus ? accessibleSecondaryStatus(secondaryStatus) : null,
+  ].filter(Boolean);
+  const ariaLabel = `${label}: backdrop option ${optionNumber}, ${provider}, ${dimensions}, ${language}. Current status: ${statusParts.join('; ')}.`;
 
   return (
-    <fieldset className="movie-import-modal__image-option movie-import-modal__image-option--multi" style={touchTargetStyle}>
-      <legend className="movie-import-modal__visually-hidden">Backdrop option {optionNumber}</legend>
+    <label className="movie-import-modal__image-option" style={touchTargetStyle}>
+      <span className="movie-import-modal__image-status" aria-hidden="true">
+        {selected ? <span className="movie-import-modal__image-chip">{selectedStatus}</span> : null}
+        {secondaryStatus ? <span className="movie-import-modal__image-chip movie-import-modal__image-chip--muted">{secondaryStatus}</span> : null}
+      </span>
       <span className="movie-import-modal__image-preview">
         {!previewFailed ? (
           <img
@@ -151,22 +226,22 @@ function BackdropImageOption({ image, index, allowHeroImage, allowOtherImages, h
         )}
         <span className="movie-import-modal__image-meta">{provider} · {dimensions} · {language}</span>
       </span>
-      <span className="movie-import-modal__image-footer movie-import-modal__image-footer--stacked">
-        {allowHeroImage ? <label>
-          <input aria-label={`Use as Hero image: backdrop option ${optionNumber}`} type="radio" name="hero-image-selection" checked={heroSelected} onChange={onSelectHero} />
-          <span className="movie-import-modal__image-label">Hero</span>
-        </label> : null}
-        {allowOtherImages ? <label>
-          <input aria-label={`Add to Other images: backdrop option ${optionNumber}`} type="checkbox" checked={otherSelected} onChange={onToggleOther} />
-          <span className="movie-import-modal__image-label">Other images</span>
-        </label> : null}
+      <span className="movie-import-modal__image-footer">
+        <input aria-label={ariaLabel} type={inputType} name={inputName} checked={selected} onChange={onChange} />
+        <span className="movie-import-modal__image-label">{label}</span>
       </span>
-    </fieldset>
+    </label>
   );
 }
 
 function sameImage(left: NormalizedImageCandidate, right: NormalizedImageCandidate) {
   return left.providerKey === right.providerKey && left.providerImageId === right.providerImageId;
+}
+
+function accessibleSecondaryStatus(status: string) {
+  if (status === 'Also in Other Images') return 'also selected for Other Images';
+  if (status === 'Also Hero Image') return 'also selected as Hero Image';
+  return status;
 }
 
 function capitalize(value: string) {

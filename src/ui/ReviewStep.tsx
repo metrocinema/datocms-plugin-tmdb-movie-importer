@@ -26,7 +26,7 @@ type ReviewStepProps = {
   images: NormalizedImageCandidate[];
   imageSelection: ImageSelection;
   onTogglePoster: (image: NormalizedImageCandidate) => void;
-  onSelectHeroImage: (image: NormalizedImageCandidate) => void;
+  onSelectHeroImage: (image: NormalizedImageCandidate | null) => void;
   onToggleBackdrop: (image: NormalizedImageCandidate) => void;
 };
 
@@ -116,7 +116,7 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
         {hasImageDestinations ? (
           <div id="images">
             <Section title="Images">
-              <p className="movie-import-modal__section-help">Choose image destinations. A backdrop can be used for Hero image, Other images, or both.</p>
+              <p className="movie-import-modal__section-help">Choose exactly which TMDB artwork destinations to import.</p>
               <p className="movie-import-modal__section-impact">{formatImageImpact(imageDestinationCounts)}</p>
               <ImagePicker images={images} selection={imageSelection} allowPoster={hasPosterDestination} allowHeroImage={hasHeroDestination} allowOtherImages={hasOtherImagesDestination} onTogglePoster={onTogglePoster} onSelectHeroImage={onSelectHeroImage} onToggleBackdrop={onToggleBackdrop} />
             </Section>
@@ -177,8 +177,8 @@ function formatImageImpact(counts: ReturnType<typeof countSelectedImageDestinati
 
   const parts = [
     counts.poster > 0 ? '1 poster' : null,
-    counts.heroImage > 0 ? '1 Hero image' : null,
-    counts.otherImages > 0 ? `${counts.otherImages} Other ${pluralize(counts.otherImages, 'image')}` : null,
+    counts.heroImage > 0 ? '1 Hero Image' : null,
+    counts.otherImages > 0 ? `${counts.otherImages} Other ${pluralize(counts.otherImages, 'Image')}` : null,
   ].filter(Boolean);
 
   return `${formatList(parts)} selected for import.`;
