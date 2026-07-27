@@ -54,7 +54,7 @@ function render(screen: PluginScreen, ctx: unknown) {
   root.render(
     <React.StrictMode>
       <PluginErrorBoundary>
-        <Canvas ctx={ctx as never}>
+        <Canvas ctx={ctx as never} noAutoResizer={screen.type === 'modal'}>
           <App screen={screen} />
         </Canvas>
       </PluginErrorBoundary>
@@ -102,7 +102,8 @@ connect({
           const plan = await ctx.openModal({
             id: 'tmdbMovieImport',
             title: mode === 'refresh' ? 'Refresh from TMDB' : 'Find movie',
-            width: 'l',
+            width: 'fullWidth',
+            initialHeight: 860,
             parameters: {
               mode,
               currentValues,

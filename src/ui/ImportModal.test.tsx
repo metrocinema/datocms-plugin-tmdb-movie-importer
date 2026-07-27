@@ -97,6 +97,8 @@ describe('ImportModal', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Find movie' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Find movie' }).closest('.movie-import-modal__chrome-header')).toBeInTheDocument();
+    expect(screen.getByText('Search by title and year').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Search TMDB and choose the record that matches this DatoCMS movie.')).toBeInTheDocument();
     expect(screen.getByText('Review changes')).toBeInTheDocument();
     expect(screen.getByText('Confirm import')).toBeInTheDocument();
@@ -240,6 +242,8 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: /Example Movie/i }));
 
     expect(screen.getByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Review changes' }).closest('.movie-import-modal__chrome-header')).toBeInTheDocument();
+    expect(screen.getByText('Field changes').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(execute).not.toHaveBeenCalled();
 
     document.documentElement.scrollTop = 240;
@@ -247,6 +251,8 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     const confirmHeading = screen.getByRole('heading', { name: 'Confirm import' });
     expect(confirmHeading).toBeInTheDocument();
+    expect(confirmHeading.closest('.movie-import-modal__chrome-header')).toBeInTheDocument();
+    expect(screen.getByText('Import summary').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     await waitFor(() => expect(confirmHeading).toHaveFocus());
     await waitFor(() => expect(document.documentElement.scrollTop).toBe(0));
     expect(document.body.scrollTop).toBe(0);
@@ -549,6 +555,86 @@ describe('ImportModal data flow', () => {
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).not.toBeChecked();
     expect(screen.getByText('2 fields available · 0 selected')).toBeInTheDocument();
     expect(screen.getByText('No current values will be overwritten · no empty fields will be filled')).toBeInTheDocument();
+  });
+
+  it('renders a structured-text current description as readable text', async () => {
+    render(
+      <ImportModal
+        initialTitle="Example"
+        initialYear={2024}
+        currentValues={{
+          description: [
+            { type: 'paragraph', children: [{ type: 'span', value: 'Existing overview.' }] },
+            { type: 'paragraph', children: [{ type: 'span', value: 'Second paragraph.' }] },
+          ],
+        }}
+        mappedFields={['description']}
+        searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
+        loadMovie={async () => movie}
+        resolvePeople={async () => []}
+        execute={vi.fn()}
+      />,
+    );
+
+    await reachReview();
+    const descriptionRow = screen.getByRole('checkbox', { name: 'Use proposed Description' }).closest('tr') as HTMLElement;
+    expect(within(descriptionRow).getByText('Existing overview. Second paragraph.')).toBeInTheDocument();
+    expect(within(descriptionRow).queryByText('[object Object],[object Object]')).not.toBeInTheDocument();
+  });
+
+  it('renders a Slate current description from DatoCMS form values as readable text', async () => {
+    render(
+      <ImportModal
+        initialTitle="Example"
+        initialYear={2024}
+        currentValues={{
+          description: [
+            { type: 'paragraph', children: [{ text: 'Existing Slate overview.' }] },
+            { type: 'paragraph', children: [{ text: 'Second Slate paragraph.' }] },
+          ],
+        }}
+        mappedFields={['description']}
+        searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
+        loadMovie={async () => movie}
+        resolvePeople={async () => []}
+        execute={vi.fn()}
+      />,
+    );
+
+    await reachReview();
+    const descriptionRow = screen.getByRole('checkbox', { name: 'Use proposed Description' }).closest('tr') as HTMLElement;
+    expect(within(descriptionRow).getByText('Existing Slate overview. Second Slate paragraph.')).toBeInTheDocument();
+    expect(within(descriptionRow).queryByText('Empty')).not.toBeInTheDocument();
+  });
+
+  it('treats an empty structured-text current description as empty in review', async () => {
+    render(
+      <ImportModal
+        initialTitle="Example"
+        initialYear={2024}
+        currentValues={{
+          description: {
+            schema: 'dast',
+            document: {
+              type: 'root',
+              children: [{ type: 'paragraph', children: [] }],
+            },
+          },
+        }}
+        mappedFields={['description']}
+        searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
+        loadMovie={async () => movie}
+        resolvePeople={async () => []}
+        execute={vi.fn()}
+      />,
+    );
+
+    await reachReview();
+    const descriptionCheckbox = screen.getByRole('checkbox', { name: 'Use proposed Description' });
+    const descriptionRow = descriptionCheckbox.closest('tr') as HTMLElement;
+    expect(descriptionCheckbox).toBeChecked();
+    expect(within(descriptionRow).getByText('Empty')).toHaveClass('movie-import-modal__field-placeholder');
+    expect(within(descriptionRow).queryByText('[object Object]')).not.toBeInTheDocument();
   });
 
   it('lets editors select a field change from the proposed value cell', async () => {

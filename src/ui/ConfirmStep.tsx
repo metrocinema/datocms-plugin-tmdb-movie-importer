@@ -44,39 +44,43 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack, isSubmittingPlan =
   }, []);
 
   return (
-    <section className="movie-import-modal__confirm-step">
-      <ModalStepIndicator activeStep="confirm" />
-      <header className="movie-import-modal__header">
-        <p className="movie-import-modal__eyebrow">TMDB movie importer</p>
-        <h2 ref={headingRef} tabIndex={-1} className="movie-import-modal__title movie-import-modal__title--focus-target">Confirm import</h2>
-        <p className="movie-import-modal__intro">Start the reviewed TMDB import for this movie form. DatoCMS will run the selected creates, uploads, and form updates after this modal closes.</p>
-      </header>
-      <Section title="Import summary">
-        <div className="movie-import-modal__confirm-decision">
-          <div className="movie-import-modal__confirm-target" aria-label="Movie receiving reviewed values">
-            <span className="movie-import-modal__section-kicker">Movie form</span>
-            <strong>{movie.title}</strong>
-            <span>TMDB ID {movie.tmdbId}</span>
-          </div>
-          <dl className="movie-import-modal__confirm-summary">
-            <ConfirmSummaryRow label={`${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} to update`} value={fieldLabels.length > 0 ? formatList(fieldLabels) : 'No field values selected'} />
-            <ConfirmSummaryRow label={`${summary.peopleToCreate} draft ${pluralize(summary.peopleToCreate, 'Person record')} to create`} value={plan.peopleToCreate.length > 0 ? formatPeopleNames(plan.peopleToCreate) : 'No draft Person records'} />
-            <ConfirmSummaryRow label={`${summary.peopleToReuse} existing ${pluralize(summary.peopleToReuse, 'Person record')} to link`} value={plan.peopleToReuse.length > 0 ? formatPeopleNames(plan.peopleToReuse) : 'No existing Person records'} />
-            <ConfirmSummaryRow label={`${summary.imagesToUpload} unique ${pluralize(summary.imagesToUpload, 'image')} to upload`} value={imageDestinations} />
-          </dl>
-        </div>
-      </Section>
-      <div className="movie-import-modal__next-steps" aria-label="What happens after you start">
-        <h3>What happens after you start</h3>
-        <ol>
-          <li>Create selected draft Person records in DatoCMS.</li>
-          <li>Upload selected poster and backdrop images.</li>
-          <li>Apply selected TMDB values to the unsaved movie form.</li>
-        </ol>
-        <p>The movie record will remain unsaved until you save it in DatoCMS.</p>
-        <p className="movie-import-modal__next-warning">If something fails after people or images are created, those drafts or uploads may remain in DatoCMS.</p>
+    <section className="movie-import-modal__confirm-step movie-import-modal__step-frame">
+      <div className="movie-import-modal__chrome-header">
+        <ModalStepIndicator activeStep="confirm" />
+        <header className="movie-import-modal__header">
+          <p className="movie-import-modal__eyebrow">TMDB movie importer</p>
+          <h2 ref={headingRef} tabIndex={-1} className="movie-import-modal__title movie-import-modal__title--focus-target">Confirm import</h2>
+          <p className="movie-import-modal__intro">Start the reviewed TMDB import for this movie form. DatoCMS will run the selected creates, uploads, and form updates after this modal closes.</p>
+        </header>
       </div>
-      <div className="movie-import-modal__actions movie-import-modal__actions--confirm">
+      <div className="movie-import-modal__scroll-body">
+        <Section title="Import summary">
+          <div className="movie-import-modal__confirm-decision">
+            <div className="movie-import-modal__confirm-target" aria-label="Movie receiving reviewed values">
+              <span className="movie-import-modal__section-kicker">Movie form</span>
+              <strong>{movie.title}</strong>
+              <span>TMDB ID {movie.tmdbId}</span>
+            </div>
+            <dl className="movie-import-modal__confirm-summary">
+              <ConfirmSummaryRow label={`${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} to update`} value={fieldLabels.length > 0 ? formatList(fieldLabels) : 'No field values selected'} />
+              <ConfirmSummaryRow label={`${summary.peopleToCreate} draft ${pluralize(summary.peopleToCreate, 'Person record')} to create`} value={plan.peopleToCreate.length > 0 ? formatPeopleNames(plan.peopleToCreate) : 'No draft Person records'} />
+              <ConfirmSummaryRow label={`${summary.peopleToReuse} existing ${pluralize(summary.peopleToReuse, 'Person record')} to link`} value={plan.peopleToReuse.length > 0 ? formatPeopleNames(plan.peopleToReuse) : 'No existing Person records'} />
+              <ConfirmSummaryRow label={`${summary.imagesToUpload} unique ${pluralize(summary.imagesToUpload, 'image')} to upload`} value={imageDestinations} />
+            </dl>
+          </div>
+        </Section>
+        <div className="movie-import-modal__next-steps" aria-label="What happens after you start">
+          <h3>What happens after you start</h3>
+          <ol>
+            <li>Create selected draft Person records in DatoCMS.</li>
+            <li>Upload selected poster and backdrop images.</li>
+            <li>Apply selected TMDB values to the unsaved movie form.</li>
+          </ol>
+          <p>The movie record will remain unsaved until you save it in DatoCMS.</p>
+          <p className="movie-import-modal__next-warning">If something fails after people or images are created, those drafts or uploads may remain in DatoCMS.</p>
+        </div>
+      </div>
+      <div className="movie-import-modal__actions movie-import-modal__actions--sticky movie-import-modal__actions--confirm">
         <Button type="button" onClick={onBack} disabled={isSubmittingPlan}>
           Back to review
         </Button>

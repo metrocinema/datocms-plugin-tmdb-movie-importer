@@ -79,58 +79,62 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
   }, []);
 
   return (
-    <section>
-      <ModalStepIndicator activeStep="review" />
-      <header className="movie-import-modal__header">
-        <h2 className="movie-import-modal__title">Review changes</h2>
-        <p className="movie-import-modal__intro">Choose which TMDB values to prepare. Nothing is saved or published until you save the DatoCMS movie.</p>
-      </header>
-      <details className="movie-import-modal__summary-disclosure" open={selectedMovieOpen} onToggle={(event) => setSelectedMovieOpen(event.currentTarget.open)}>
-        <summary className="movie-import-modal__summary-toggle">
-          <span>Selected movie</span>
-          <strong>{selectedMovieSummary}</strong>
-        </summary>
-        <article aria-label="Selected movie" className="movie-import-modal__summary">
-          {poster ? <img className="movie-import-modal__poster" src={poster.previewUrl ?? poster.originalUrl} alt={`${movie.title} poster`} /> : null}
-          <div className="movie-import-modal__summary-content">
-            <div className="movie-import-modal__summary-heading">
-              <p className="movie-import-modal__section-kicker">Selected movie</p>
-              <h3 className="movie-import-modal__summary-title">{movie.title}</h3>
+    <section className="movie-import-modal__step-frame">
+      <div className="movie-import-modal__chrome-header">
+        <ModalStepIndicator activeStep="review" />
+        <header className="movie-import-modal__header">
+          <h2 className="movie-import-modal__title">Review changes</h2>
+          <p className="movie-import-modal__intro">Choose which TMDB values to prepare. Nothing is saved or published until you save the DatoCMS movie.</p>
+        </header>
+      </div>
+      <div className="movie-import-modal__scroll-body">
+        <details className="movie-import-modal__summary-disclosure" open={selectedMovieOpen} onToggle={(event) => setSelectedMovieOpen(event.currentTarget.open)}>
+          <summary className="movie-import-modal__summary-toggle">
+            <span>Selected movie</span>
+            <strong>{selectedMovieSummary}</strong>
+          </summary>
+          <article aria-label="Selected movie" className="movie-import-modal__summary">
+            {poster ? <img className="movie-import-modal__poster" src={poster.previewUrl ?? poster.originalUrl} alt={`${movie.title} poster`} /> : null}
+            <div className="movie-import-modal__summary-content">
+              <div className="movie-import-modal__summary-heading">
+                <p className="movie-import-modal__section-kicker">Selected movie</p>
+                <h3 className="movie-import-modal__summary-title">{movie.title}</h3>
+              </div>
+              <dl className="movie-import-modal__summary-list">
+                <div><dt>Year</dt><dd>{formatYear(movie.yearReleased)}</dd></div>
+                <div><dt>Rating</dt><dd>{movie.mpaaRating ?? 'Not available'}</dd></div>
+                <div><dt>Runtime</dt><dd>{formatRuntime(movie.runtime)}</dd></div>
+                <div><dt>TMDB ID</dt><dd>{movie.tmdbId}</dd></div>
+              </dl>
             </div>
-            <dl className="movie-import-modal__summary-list">
-              <div><dt>Year</dt><dd>{formatYear(movie.yearReleased)}</dd></div>
-              <div><dt>Rating</dt><dd>{movie.mpaaRating ?? 'Not available'}</dd></div>
-              <div><dt>Runtime</dt><dd>{formatRuntime(movie.runtime)}</dd></div>
-              <div><dt>TMDB ID</dt><dd>{movie.tmdbId}</dd></div>
-            </dl>
+          </article>
+        </details>
+        <div className="movie-import-modal__review-stack">
+          <div id="field-changes">
+            <Section title="Field changes">
+              <p className="movie-import-modal__section-help">Choose the proposed TMDB field values to apply to the movie form.</p>
+              <FieldDiffTable comparisons={comparisons} onToggle={onToggle} onSelectAll={onSelectAll} onClearAll={onClearAll} overwriteCount={overwriteCount} emptyFillCount={emptyFillCount} />
+            </Section>
           </div>
-        </article>
-      </details>
-      <div className="movie-import-modal__review-stack">
-        <div id="field-changes">
-          <Section title="Field changes">
-            <p className="movie-import-modal__section-help">Choose the proposed TMDB field values to apply to the movie form.</p>
-            <FieldDiffTable comparisons={comparisons} onToggle={onToggle} onSelectAll={onSelectAll} onClearAll={onClearAll} overwriteCount={overwriteCount} emptyFillCount={emptyFillCount} />
-          </Section>
+          {hasImageDestinations ? (
+            <div id="images">
+              <Section title="Images">
+                <p className="movie-import-modal__section-help">Choose exactly which TMDB artwork destinations to import.</p>
+                <p className="movie-import-modal__section-impact">{formatImageImpact(imageDestinationCounts)}</p>
+                <ImagePicker images={images} selection={imageSelection} allowPoster={hasPosterDestination} allowHeroImage={hasHeroDestination} allowOtherImages={hasOtherImagesDestination} onTogglePoster={onTogglePoster} onSelectHeroImage={onSelectHeroImage} onToggleBackdrop={onToggleBackdrop} />
+              </Section>
+            </div>
+          ) : null}
+          {hasPeopleDestinations ? (
+            <div id="people">
+              <Section title="People">
+                <p className="movie-import-modal__section-help">Choose whether each director and actor should reuse an existing Person record or create a new draft.</p>
+                <p className="movie-import-modal__section-impact">{formatPeopleImpact(peopleToCreateCount, peopleToReuseCount)}</p>
+                <PersonResolutionList people={people} enabledRoles={enabledPersonRoles} onResolve={onResolvePerson} />
+              </Section>
+            </div>
+          ) : null}
         </div>
-        {hasImageDestinations ? (
-          <div id="images">
-            <Section title="Images">
-              <p className="movie-import-modal__section-help">Choose exactly which TMDB artwork destinations to import.</p>
-              <p className="movie-import-modal__section-impact">{formatImageImpact(imageDestinationCounts)}</p>
-              <ImagePicker images={images} selection={imageSelection} allowPoster={hasPosterDestination} allowHeroImage={hasHeroDestination} allowOtherImages={hasOtherImagesDestination} onTogglePoster={onTogglePoster} onSelectHeroImage={onSelectHeroImage} onToggleBackdrop={onToggleBackdrop} />
-            </Section>
-          </div>
-        ) : null}
-        {hasPeopleDestinations ? (
-          <div id="people">
-            <Section title="People">
-              <p className="movie-import-modal__section-help">Choose whether each director and actor should reuse an existing Person record or create a new draft.</p>
-              <p className="movie-import-modal__section-impact">{formatPeopleImpact(peopleToCreateCount, peopleToReuseCount)}</p>
-              <PersonResolutionList people={people} enabledRoles={enabledPersonRoles} onResolve={onResolvePerson} />
-            </Section>
-          </div>
-        ) : null}
       </div>
       <div className="movie-import-modal__actions movie-import-modal__actions--sticky">
         <p className="movie-import-modal__action-summary" aria-label={`${selectedFieldCount} ${pluralize(selectedFieldCount, 'field')} selected, ${selectedImageCount} ${pluralize(selectedImageCount, 'image')} selected, ${peopleToCreateCount} new ${pluralize(peopleToCreateCount, 'person', 'people')}, ${peopleToReuseCount} reused ${pluralize(peopleToReuseCount, 'person', 'people')}`}>
