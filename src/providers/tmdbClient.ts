@@ -4,6 +4,7 @@ export class TmdbError extends Error {
   constructor(
     message: string,
     readonly code: 'auth' | 'rate_limit' | 'network' | 'not_found' | 'unknown',
+    readonly details?: { name: string; message: string },
   ) {
     super(message);
   }
@@ -18,7 +19,7 @@ export class TmdbClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly options: TmdbClientOptions) {
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
   }
 
   async searchMovies(query: TmdbSearchQuery): Promise<TmdbSearchResult[]> {
@@ -60,8 +61,8 @@ export class TmdbClient {
           Accept: 'application/json',
         },
       });
-    } catch {
-      throw new TmdbError('TMDB network request failed.', 'network');
+    } catch (error) {
+      throw new TmdbError('TMDB network request failed.', 'network', tokenSafeNetworkDetails(error));
     }
 
     if (response.status === 401 || response.status === 403) {
@@ -86,4 +87,12 @@ export class TmdbClient {
       throw new TmdbError('TMDB response could not be parsed.', 'unknown');
     }
   }
+}
+
+function tokenSafeNetworkDetails(error: unknown) {
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message };
+  }
+
+  return { name: 'UnknownError', message: String(error) };
 }

@@ -12,6 +12,7 @@ import type { ImportPlan } from './domain/importPlanning';
 import type { MovieFieldKey } from './domain/movie';
 import { parsePluginParameters } from './plugin/parameters';
 import { manualFieldExtensions } from './plugin/fieldExtensions';
+import { modalCurrentValues, modalInitialTitle, modalInitialTmdbId, modalInitialYear, modalMappedFields } from './plugin/modalRuntime';
 import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './plugin/runtimeValidation';
 import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFields } from './plugin/mappedFields';
 import { TmdbClient } from './providers/tmdbClient';
@@ -138,29 +139,32 @@ connect({
   renderModal(_modalId, ctx) {
     const params = parsePluginParameters(ctx.plugin.attributes.parameters);
     const configurationIssues = validateRuntimeConfiguration(params);
-    const mappedFields = modalMappedFields(ctx.parameters.mappedFields);
-    const currentValues = modalCurrentValues(ctx.parameters.currentValues);
+    const mappedFields = modalMappedFields(ctx.parameters);
+    const currentValues = modalCurrentValues(ctx.parameters);
     const tmdb = new TmdbClient({ readToken: params.tmdbReadToken });
-    const gateway = gatewayFor(ctx, params.targetLocale);
 
     render({
       type: 'modal',
       configurationIssues,
-      initialTitle: typeof ctx.parameters.initialTitle === 'string' ? ctx.parameters.initialTitle : '',
-      initialYear: typeof ctx.parameters.initialYear === 'number' ? ctx.parameters.initialYear : null,
-      initialTmdbId: typeof ctx.parameters.initialTmdbId === 'number' ? ctx.parameters.initialTmdbId : null,
+      initialTitle: modalInitialTitle(ctx.parameters),
+      initialYear: modalInitialYear(ctx.parameters),
+      initialTmdbId: modalInitialTmdbId(ctx.parameters),
       currentValues,
       mappedFields,
       searchMovies: (query) => tmdb.searchMovies(query),
       loadMovie: async (tmdbId) => normalizeTmdbMovie(await tmdb.getMoviePackage(tmdbId), params.actorLimit),
       tmdbIdFieldConfigured: Boolean(params.personTmdbIdFieldApiKey),
-      resolvePeople: (people) => gateway.findPeople({
-        modelApiKey: params.personModelApiKey,
-        nameFieldApiKey: params.personNameFieldApiKey,
-        tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
-        names: people.map((person) => person.name),
-        tmdbIds: people.map((person) => person.tmdbId),
-      }),
+      resolvePeople: (people) => {
+        const gateway = gatewayFor(ctx, params.targetLocale);
+
+        return gateway.findPeople({
+          modelApiKey: params.personModelApiKey,
+          nameFieldApiKey: params.personNameFieldApiKey,
+          tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
+          names: people.map((person) => person.name),
+          tmdbIds: people.map((person) => person.tmdbId),
+        });
+      },
       execute: async (plan) => ctx.resolve(plan),
     }, ctx);
   },
@@ -187,15 +191,6 @@ function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; 
     ctx,
     targetLocale,
   });
-}
-
-function modalMappedFields(value: unknown): MovieFieldKey[] {
-  const knownKeys: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'];
-  return Array.isArray(value) ? value.filter((key): key is MovieFieldKey => typeof key === 'string' && knownKeys.includes(key as MovieFieldKey)) : [];
-}
-
-function modalCurrentValues(value: unknown): CurrentMovieValues {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as CurrentMovieValues : {};
 }
 
 function isImportPlan(value: unknown): value is ImportPlan {

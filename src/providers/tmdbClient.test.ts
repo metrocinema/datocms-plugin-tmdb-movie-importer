@@ -5,6 +5,26 @@ function response(status: number, body: unknown): Response {
 }
 
 describe('TmdbClient', () => {
+  it('binds the browser fetch implementation to the global object', async () => {
+    const originalFetch = globalThis.fetch;
+    const fetchImpl = vi.fn(function (this: unknown) {
+      if (this !== globalThis) {
+        throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+      }
+
+      return Promise.resolve(response(200, { results: [] }));
+    }) as unknown as typeof fetch;
+    globalThis.fetch = fetchImpl;
+
+    try {
+      const client = new TmdbClient({ readToken: 'test-read-token' });
+
+      await expect(client.searchMovies({ title: 'The Matrix' })).resolves.toEqual([]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('constructs search requests with fixed locale parameters and a bearer token', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(response(200, {
       results: [{ id: 1, title: 'The Matrix', release_date: '1999-03-30', overview: 'A', poster_path: '/poster.jpg' }],
@@ -48,6 +68,21 @@ describe('TmdbClient', () => {
     const client = new TmdbClient({ readToken: 'test-read-token', fetchImpl: vi.fn<typeof fetch>().mockRejectedValue(new Error('connection reset')) });
 
     await expect(client.searchMovies({ title: 'The Matrix' })).rejects.toMatchObject({ code: 'network' });
+  });
+
+  it('preserves token-safe browser network failure details', async () => {
+    const client = new TmdbClient({
+      readToken: 'secret-read-token',
+      fetchImpl: vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Failed to fetch')),
+    });
+
+    await expect(client.searchMovies({ title: 'The Matrix' })).rejects.toMatchObject({
+      code: 'network',
+      details: { name: 'TypeError', message: 'Failed to fetch' },
+    });
+    await expect(client.searchMovies({ title: 'The Matrix' })).rejects.not.toMatchObject({
+      details: expect.objectContaining({ message: expect.stringContaining('secret-read-token') }),
+    });
   });
 
   it('maps malformed JSON to a token-safe unknown error', async () => {
