@@ -5,10 +5,15 @@ import { App, type PluginScreen } from './App';
 import type { NormalizedMovie } from './domain/movie';
 
 type HarnessMode = 'modal' | 'config' | 'field';
-type HarnessTheme = 'light' | 'dark';
+type HarnessTheme = 'light' | 'dark' | 'dato-dark';
+type HarnessScenario = 'default' | 'odyssey-existing';
 
-export function isDevHarnessRequest(url = window.location.href) {
+export function isDevHarnessRequest(url = window.location.href, isEmbedded = window.parent !== window) {
   if (!import.meta.env.DEV) {
+    return false;
+  }
+
+  if (isEmbedded) {
     return false;
   }
 
@@ -17,16 +22,18 @@ export function isDevHarnessRequest(url = window.location.href) {
 
 export function renderDevHarness() {
   const theme = harnessTheme();
+  const colorScheme = theme === 'dato-dark' ? 'dark' : theme;
   const ctx = mockCanvasContext(theme);
+  const scenario = harnessScenario();
 
-  document.documentElement.dataset.colorScheme = theme;
-  document.documentElement.style.colorScheme = theme;
+  document.documentElement.dataset.colorScheme = colorScheme;
+  document.documentElement.style.colorScheme = colorScheme;
 
   const root = ReactDOM.createRoot(document.getElementById('root')!);
   root.render(
     <React.StrictMode>
       <Canvas ctx={ctx as never} noAutoResizer>
-        <App screen={screenForHarnessMode(harnessMode())} />
+        <App screen={screenForHarnessMode(harnessMode(), scenario)} />
       </Canvas>
     </React.StrictMode>,
   );
@@ -42,13 +49,21 @@ function harnessMode(): HarnessMode {
   return 'modal';
 }
 
-function harnessTheme(): HarnessTheme {
-  const requestedTheme = new URL(window.location.href).searchParams.get('theme');
+export function harnessTheme(url = window.location.href): HarnessTheme {
+  const requestedTheme = new URL(url).searchParams.get('theme');
 
-  return requestedTheme === 'dark' ? 'dark' : 'light';
+  if (requestedTheme === 'dark' || requestedTheme === 'dato-dark') {
+    return requestedTheme;
+  }
+
+  return 'light';
 }
 
-function screenForHarnessMode(mode: HarnessMode): PluginScreen {
+export function harnessScenario(url = window.location.href): HarnessScenario {
+  return new URL(url).searchParams.get('scenario') === 'odyssey-existing' ? 'odyssey-existing' : 'default';
+}
+
+export function screenForHarnessMode(mode: HarnessMode, scenario: HarnessScenario = 'default'): PluginScreen {
   if (mode === 'config') {
     return {
       type: 'config',
@@ -87,12 +102,57 @@ function screenForHarnessMode(mode: HarnessMode): PluginScreen {
     };
   }
 
+  const modalScenario = modalScenarioFor(scenario);
+
   return {
     type: 'modal',
     configurationIssues: [],
+    initialTitle: modalScenario.initialTitle,
+    initialYear: modalScenario.initialYear,
+    initialTmdbId: null,
+    currentValues: modalScenario.currentValues,
+    mappedFields: ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'],
+    searchMovies: async () => modalScenario.searchResults,
+    loadMovie: async () => modalScenario.movie,
+    tmdbIdFieldConfigured: true,
+    resolvePeople: async () => modalScenario.people,
+    execute: async (plan) => {
+      console.info('Impeccable harness import plan', plan);
+    },
+  };
+}
+
+function modalScenarioFor(scenario: HarnessScenario) {
+  if (scenario === 'odyssey-existing') {
+    return {
+      initialTitle: 'The Odyssey',
+      initialYear: 2026,
+      currentValues: {
+        title: 'The Odyssey',
+        yearReleased: 2026,
+        mpaaRating: 'R',
+        runtime: 172,
+        tmdbId: 1368337,
+        tagline: '',
+        description: 'Christopher Nolan reimagines Homer’s legendary epic, following Odysseus on his perilous voyage home after the Trojan War.',
+        poster: { upload_id: 'existing-poster' },
+        heroImage: { upload_id: 'existing-hero' },
+        backdrops: [{ upload_id: 'existing-backdrop' }],
+        directors: [{ id: 'existing-director-christopher-nolan' }],
+        actors: [{ id: 'existing-actor-matt-damon' }],
+      },
+      movie: odysseyFixtureMovie,
+      searchResults: [searchResultForMovie(odysseyFixtureMovie)],
+      people: [
+        { id: 'person-christopher-nolan', name: 'Christopher Nolan', tmdbId: 525 },
+        { id: 'person-matt-damon', name: 'Matt Damon', tmdbId: 1892 },
+      ],
+    };
+  }
+
+  return {
     initialTitle: 'In the Mood for Love',
     initialYear: 2000,
-    initialTmdbId: null,
     currentValues: {
       title: '',
       yearReleased: null,
@@ -107,18 +167,9 @@ function screenForHarnessMode(mode: HarnessMode): PluginScreen {
       directors: [],
       actors: [],
     },
-    mappedFields: ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'],
-    searchMovies: async () => [
-      {
-        tmdbId: fixtureMovie.tmdbId,
-        id: fixtureMovie.tmdbId,
-        title: fixtureMovie.title,
-        releaseDate: fixtureMovie.primaryReleaseDate,
-        yearReleased: fixtureMovie.yearReleased,
-        posterPath: fixtureMovie.images[0]?.providerImageId ?? null,
-        posterUrl: fixtureMovie.images[0]?.originalUrl ?? null,
-        overview: fixtureMovie.description,
-      },
+    movie: fixtureMovie,
+    searchResults: [
+      searchResultForMovie(fixtureMovie),
       {
         tmdbId: 194,
         id: 194,
@@ -130,14 +181,22 @@ function screenForHarnessMode(mode: HarnessMode): PluginScreen {
         overview: 'A shy Parisian waitress gently changes the lives of the people around her.',
       },
     ],
-    loadMovie: async () => fixtureMovie,
-    tmdbIdFieldConfigured: true,
-    resolvePeople: async () => [
+    people: [
       { id: 'person-tony-leung', name: 'Tony Leung Chiu-wai', tmdbId: 1337 },
     ],
-    execute: async (plan) => {
-      console.info('Impeccable harness import plan', plan);
-    },
+  };
+}
+
+function searchResultForMovie(movie: NormalizedMovie) {
+  return {
+    tmdbId: movie.tmdbId,
+    id: movie.tmdbId,
+    title: movie.title,
+    releaseDate: movie.primaryReleaseDate,
+    yearReleased: movie.yearReleased,
+    posterPath: movie.images.find((image) => image.type === 'poster')?.providerImageId ?? null,
+    posterUrl: movie.images.find((image) => image.type === 'poster')?.previewUrl ?? movie.images.find((image) => image.type === 'poster')?.originalUrl ?? null,
+    overview: movie.description,
   };
 }
 
@@ -197,6 +256,67 @@ const fixtureMovie: NormalizedMovie = {
     },
   ],
 };
+
+const odysseyFixtureMovie: NormalizedMovie = {
+  tmdbId: 1368337,
+  title: 'The Odyssey',
+  primaryReleaseDate: '2026-07-17',
+  yearReleased: 2026,
+  mpaaRating: 'R',
+  runtime: 173,
+  tagline: 'Defy the gods.',
+  description: 'Odysseus, the legendary King of Ithaca, embarks on a long and perilous journey home after the Trojan War.',
+  directors: [{ tmdbId: 525, name: 'Christopher Nolan', order: 0, role: 'director' }],
+  actors: [
+    { tmdbId: 1892, name: 'Matt Damon', order: 0, role: 'actor' },
+    { tmdbId: 500, name: 'Tom Holland', order: 1, role: 'actor' },
+    { tmdbId: 10882, name: 'Zendaya', order: 2, role: 'actor' },
+  ],
+  images: [
+    ...posterCandidatesFor(1368337),
+    ...backdropCandidatesFor(1368337),
+  ],
+};
+
+function posterCandidatesFor(tmdbId: number) {
+  return Array.from({ length: 10 }, (_, index) => {
+    const rank = index + 1;
+    const id = `/odyssey-poster-${rank}.jpg`;
+    return {
+      providerKey: 'tmdb',
+      providerImageId: id,
+      movieIdentity: { providerKey: 'tmdb' as const, tmdbId },
+      type: 'poster' as const,
+      originalUrl: `https://image.tmdb.org/t/p/original${id}`,
+      previewUrl: `https://image.tmdb.org/t/p/w342${id}`,
+      width: 1000,
+      height: 1500,
+      language: 'en',
+      rank,
+      attribution: 'TMDB',
+    };
+  });
+}
+
+function backdropCandidatesFor(tmdbId: number) {
+  return Array.from({ length: 10 }, (_, index) => {
+    const rank = index + 1;
+    const id = `/odyssey-backdrop-${rank}.jpg`;
+    return {
+      providerKey: 'tmdb',
+      providerImageId: id,
+      movieIdentity: { providerKey: 'tmdb' as const, tmdbId },
+      type: 'backdrop' as const,
+      originalUrl: `https://image.tmdb.org/t/p/original${id}`,
+      previewUrl: `https://image.tmdb.org/t/p/w780${id}`,
+      width: 1920,
+      height: 1080,
+      language: null,
+      rank,
+      attribution: 'TMDB',
+    };
+  });
+}
 
 const lightDesignTokens = {
   '--color--ink': '#1f2933',
@@ -270,12 +390,56 @@ const darkDesignTokens = {
   '--shadow--raised': '0 2px 8px rgb(0 0 0 / 30%)',
 };
 
+const datoDarkDesignTokens = {
+  '--color--ink': 'oklch(1 0 288)',
+  '--color--ink-subtle': 'oklch(0.72 0.012 288)',
+  '--color--ink-muted': 'oklch(0.385 0.012 288)',
+  '--color--ink-placeholder': 'oklch(0.54 0.012 288)',
+  '--color--border': 'oklch(0.385 0.012 288)',
+  '--color--border-hover': 'oklch(0.48 0.012 288)',
+  '--color--surface': 'oklch(0.2028 0.012 288)',
+  '--color--surface-hover': 'oklch(0.24 0.012 288)',
+  '--color--surface-muted': 'oklch(0.245 0.012 288)',
+  '--color--surface-raised': 'oklch(0.2028 0.012 288)',
+  '--color--primary': 'oklch(0.52 0.2 288)',
+  '--color--primary--surface': 'oklch(0.3292 0.1714 288)',
+  '--color--primary--surface-hover': 'oklch(0.39 0.19 288)',
+  '--color--primary--surface-active': 'oklch(0.29 0.16 288)',
+  '--color--primary--surface-secondary': 'oklch(0.3292 0.1714 288)',
+  '--color--primary--ink': 'oklch(1 0 288)',
+  '--color--primary-soft--surface': 'oklch(0.3292 0.1714 288)',
+  '--color--primary-soft--ink': 'oklch(1 0 288)',
+  '--color--selected--surface': 'oklch(0.3292 0.1714 288)',
+  '--color--selected--border': 'oklch(0.52 0.2 288)',
+  '--color--selected--ink': 'oklch(1 0 288)',
+  '--color--focus--border': 'oklch(0.52 0.2 288)',
+  '--color--focus--outline': 'color-mix(in oklch, oklch(0.52 0.2 288) 35%, transparent)',
+  '--color--field-group-media--surface': 'oklch(0.2028 0.012 288)',
+  '--color--field-group-media--ink': 'oklch(1 0 288)',
+  '--color--success-soft--surface': '#12351f',
+  '--color--success-soft--ink': '#86efac',
+  '--color--success-soft--border': '#166534',
+  '--color--warning-soft--surface': 'rgb(59, 34, 0)',
+  '--color--warning-soft--ink': 'rgb(249, 224, 185)',
+  '--color--warning-soft--border': 'rgb(249, 224, 185)',
+  '--color--scrollbar--fill': 'color-mix(in oklch, oklch(0.9462 0.012 288) 30%, transparent)',
+  '--shadow--raised': '0 2px 8px rgb(0 0 0 / 30%)',
+};
+
+export function harnessDesignTokens(colorScheme: HarnessTheme) {
+  if (colorScheme === 'dato-dark') {
+    return datoDarkDesignTokens;
+  }
+
+  return colorScheme === 'dark' ? darkDesignTokens : lightDesignTokens;
+}
+
 function mockCanvasContext(colorScheme: HarnessTheme) {
-  const cssDesignTokens = colorScheme === 'dark' ? darkDesignTokens : lightDesignTokens;
+  const cssDesignTokens = harnessDesignTokens(colorScheme);
 
   return {
     bodyPadding: [24, 24, 24, 24],
-    colorScheme,
+    colorScheme: colorScheme === 'dato-dark' ? 'dark' : colorScheme,
     mode: 'renderModal',
     theme: cssDesignTokens,
     cssDesignTokens,
