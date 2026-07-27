@@ -15,6 +15,26 @@ const movie: NormalizedMovie = {
   images: [],
 };
 
+const emptyStructuredDescription = {
+  schema: 'dast',
+  document: {
+    type: 'root',
+    children: [
+      {
+        type: 'paragraph',
+        children: [],
+      },
+    ],
+  },
+};
+
+const slateStructuredDescription = [
+  {
+    type: 'paragraph',
+    children: [{ text: 'Overview text' }],
+  },
+];
+
 describe('compareMovieFields', () => {
   it('selects empty destination fields by default', () => {
     const [title] = compareMovieFields({ title: '' }, movie, ['title']);
@@ -41,5 +61,19 @@ describe('compareMovieFields', () => {
 
     expect(rating.available).toBe(false);
     expect(rating.selected).toBe(false);
+  });
+
+  it('treats empty structured text descriptions as empty current values', () => {
+    const [description] = compareMovieFields({ description: emptyStructuredDescription }, movie, ['description']);
+
+    expect(description.changed).toBe(true);
+    expect(description.selected).toBe(true);
+  });
+
+  it('matches populated Slate structured text descriptions by their text', () => {
+    const [description] = compareMovieFields({ description: slateStructuredDescription }, movie, ['description']);
+
+    expect(description.changed).toBe(false);
+    expect(description.selected).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import type { ImportPlan } from '../domain/importPlanning';
 import type { MovieFieldKey } from '../domain/movie';
+import { isEmptyStructuredText, structuredTextPlainText } from '../domain/structuredText';
 
 export const movieFieldLabels: Record<MovieFieldKey, string> = {
   title: 'Title',
@@ -39,6 +40,17 @@ export function formatReviewValue(key: MovieFieldKey, value: unknown): string {
 
   if (key === 'yearReleased' && typeof value === 'number') {
     return formatYear(value);
+  }
+
+  if (key === 'description') {
+    if (isEmptyStructuredText(value)) {
+      return 'Empty';
+    }
+
+    const structuredText = structuredTextPlainText(value);
+    if (structuredText) {
+      return structuredText;
+    }
   }
 
   return String(value);

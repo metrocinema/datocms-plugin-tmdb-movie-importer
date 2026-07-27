@@ -1,5 +1,6 @@
 import { Button } from 'datocms-react-ui';
 import type { FieldComparison } from '../domain/fieldComparison';
+import { isEmptyStructuredText } from '../domain/structuredText';
 import { formatReviewValue, movieFieldLabels } from './modalPresentation';
 import { touchTargetStyle } from './touchTargets';
 
@@ -78,7 +79,7 @@ export function FieldDiffTable({ comparisons, onToggle, onSelectAll, onClearAll,
 function ReviewValue({ comparison, value }: { comparison: FieldComparison; value: unknown }) {
   const formattedValue = formatReviewValue(comparison.key, value);
 
-  if (isEmptyValue(value)) {
+  if (isEmptyValue(comparison.key, value)) {
     return <span className="movie-import-modal__field-placeholder">{formattedValue}</span>;
   }
 
@@ -117,7 +118,11 @@ function ProposedFieldCell({
   );
 }
 
-function isEmptyValue(value: unknown) {
+function isEmptyValue(key: FieldComparison['key'], value: unknown) {
+  if (key === 'description' && isEmptyStructuredText(value)) {
+    return true;
+  }
+
   return value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
 }
 

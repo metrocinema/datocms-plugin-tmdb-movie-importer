@@ -2,6 +2,7 @@ import type { ImportPlan } from '../domain/importPlanning';
 import {
   countConfirmSummary,
   formatEmptyValue,
+  formatReviewValue,
   formatRuntime,
   formatYear,
   movieFieldLabels,
@@ -28,6 +29,47 @@ const plan: ImportPlan = {
   ],
 };
 
+const structuredDescription = {
+  schema: 'dast',
+  document: {
+    type: 'root',
+    children: [
+      {
+        type: 'paragraph',
+        children: [{ type: 'span', value: 'Existing overview.' }],
+      },
+      {
+        type: 'paragraph',
+        children: [{ type: 'span', value: 'Second paragraph.' }],
+      },
+    ],
+  },
+};
+
+const slateStructuredDescription = [
+  {
+    type: 'paragraph',
+    children: [{ text: 'Existing Slate overview.' }],
+  },
+  {
+    type: 'paragraph',
+    children: [{ text: 'Second Slate paragraph.' }],
+  },
+];
+
+const emptyStructuredDescription = {
+  schema: 'dast',
+  document: {
+    type: 'root',
+    children: [
+      {
+        type: 'paragraph',
+        children: [],
+      },
+    ],
+  },
+};
+
 describe('modal presentation helpers', () => {
   it('provides human-friendly labels for movie fields', () => {
     expect(movieFieldLabels.yearReleased).toBe('Year released');
@@ -49,6 +91,18 @@ describe('modal presentation helpers', () => {
     expect(formatEmptyValue(null)).toBe('Empty');
     expect(formatEmptyValue('')).toBe('Empty');
     expect(formatEmptyValue('A useful tagline')).toBe('A useful tagline');
+  });
+
+  it('formats production-shaped structured text descriptions as plain text', () => {
+    expect(formatReviewValue('description', structuredDescription)).toBe('Existing overview. Second paragraph.');
+  });
+
+  it('formats DatoCMS form structured text descriptions from Slate text nodes', () => {
+    expect(formatReviewValue('description', slateStructuredDescription)).toBe('Existing Slate overview. Second Slate paragraph.');
+  });
+
+  it('formats empty structured text descriptions as empty values', () => {
+    expect(formatReviewValue('description', emptyStructuredDescription)).toBe('Empty');
   });
 
   it('counts the items shown in the confirmation summary', () => {

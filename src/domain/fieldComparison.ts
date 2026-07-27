@@ -1,4 +1,5 @@
 import type { MovieFieldKey, NormalizedMovie } from './movie';
+import { isEmptyStructuredText, isStructuredTextValue, structuredTextPlainText } from './structuredText';
 
 export type CurrentMovieValues = Partial<Record<MovieFieldKey, unknown>>;
 
@@ -21,13 +22,21 @@ function proposedValue(movie: NormalizedMovie, key: MovieFieldKey): unknown {
   return movie[key as keyof NormalizedMovie];
 }
 
-function isEmpty(value: unknown): boolean {
+function isEmpty(key: MovieFieldKey, value: unknown): boolean {
+  if (key === 'description' && isEmptyStructuredText(value)) {
+    return true;
+  }
+
   return value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
 }
 
 function valuesMatch(key: MovieFieldKey, currentValue: unknown, nextValue: unknown): boolean {
   if (key === 'tmdbId') {
     return String(currentValue ?? '') === String(nextValue ?? '');
+  }
+
+  if (key === 'description' && isStructuredTextValue(currentValue)) {
+    return (structuredTextPlainText(currentValue) ?? '') === String(nextValue ?? '');
   }
 
   return JSON.stringify(currentValue ?? null) === JSON.stringify(nextValue ?? null);
@@ -39,14 +48,14 @@ export function compareMovieFields(current: CurrentMovieValues, movie: Normalize
     .map((key) => {
       const currentValue = current[key];
       const nextValue = proposedValue(movie, key);
-      const available = !isEmpty(nextValue);
+      const available = !isEmpty(key, nextValue);
       const changed = !valuesMatch(key, currentValue, nextValue);
 
       return {
         key,
         currentValue,
         proposedValue: nextValue,
-        selected: available && changed && isEmpty(currentValue),
+        selected: available && changed && isEmpty(key, currentValue),
         available,
         changed,
       };
