@@ -52,6 +52,36 @@ const movieWithProviderCollisionImages: NormalizedMovie = {
   ],
 };
 
+const movieWithManyImages: NormalizedMovie = {
+  ...movie,
+  images: [
+    ...Array.from({ length: 12 }, (_, index): NormalizedMovie['images'][number] => ({
+      providerKey: 'tmdb',
+      providerImageId: `/poster-${index + 1}.jpg`,
+      movieIdentity: { providerKey: 'tmdb', tmdbId: 123 },
+      type: 'poster',
+      originalUrl: `https://image.tmdb.org/t/p/original/poster-${index + 1}.jpg`,
+      width: 100,
+      height: 150,
+      language: 'en',
+      rank: index + 1,
+      attribution: 'TMDB',
+    })),
+    ...Array.from({ length: 12 }, (_, index): NormalizedMovie['images'][number] => ({
+      providerKey: 'tmdb',
+      providerImageId: `/backdrop-${index + 1}.jpg`,
+      movieIdentity: { providerKey: 'tmdb', tmdbId: 123 },
+      type: 'backdrop',
+      originalUrl: `https://image.tmdb.org/t/p/original/backdrop-${index + 1}.jpg`,
+      width: 1920,
+      height: 1080,
+      language: 'en',
+      rank: index + 13,
+      attribution: 'TMDB',
+    })),
+  ],
+};
+
 describe('ImportModal', () => {
   it('presents the find movie workflow and detailed search results', async () => {
     render(
@@ -330,6 +360,17 @@ describe('ImportModal data flow', () => {
     expect(execute.mock.calls[0][0].heroImageToUpload.providerImageId).toBe('/backdrop-2.jpg');
     expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-1.jpg', '/backdrop-2.jpg']);
     expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg', '/backdrop-1.jpg']);
+  });
+
+  it('shows only the first 10 poster candidates and first 10 backdrop candidates', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithManyImages} resolvePeople={async () => []} execute={vi.fn()} />);
+
+    await reachReview();
+    expect(screen.getAllByRole('img', { name: /Poster option/i })).toHaveLength(10);
+    expect(screen.queryByRole('img', { name: 'Poster option 11' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('radio', { name: /Use as Hero Image/i })).toHaveLength(10);
+    expect(screen.getAllByRole('checkbox', { name: /Add to Other Images/i })).toHaveLength(10);
+    expect(screen.queryByRole('img', { name: 'Backdrop option 11' })).not.toBeInTheDocument();
   });
 
   it('allows editors to skip importing a hero image while keeping other image choices', async () => {

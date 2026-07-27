@@ -4,6 +4,8 @@ import type { ImageSelection } from '../providers/imageProvider';
 import { isEnglishPoster } from '../providers/imageProvider';
 import { touchTargetStyle } from './touchTargets';
 
+const MAX_IMAGE_CANDIDATES_PER_TYPE = 10;
+
 type ImagePickerProps = {
   images: NormalizedImageCandidate[];
   selection: ImageSelection;
@@ -16,8 +18,8 @@ type ImagePickerProps = {
 };
 
 export function ImagePicker({ images, selection, allowPoster, allowHeroImage, allowOtherImages, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ImagePickerProps) {
-  const posters = images.filter(isEnglishPoster);
-  const backdrops = images.filter((image) => image.type === 'backdrop');
+  const posters = images.filter(isEnglishPoster).slice(0, MAX_IMAGE_CANDIDATES_PER_TYPE);
+  const backdrops = images.filter((image) => image.type === 'backdrop').slice(0, MAX_IMAGE_CANDIDATES_PER_TYPE);
 
   const posterOptions = posters.map((image, index) => (
     <ImageOption
