@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { ImportModal } from './ImportModal';
 import type { NormalizedMovie } from '../domain/movie';
+import { TmdbError } from '../providers/tmdbClient';
 
 const movie: NormalizedMovie = {
   tmdbId: 123,
@@ -636,6 +637,28 @@ describe('ImportModal data flow', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Review changes' })).toBeInTheDocument());
     expect(loadMovie).toHaveBeenCalledWith(123);
+  });
+
+  it('shows an auth-specific message when TMDB rejects the read token while loading by ID', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={async () => {
+      throw new TmdbError('TMDB read token is invalid or not allowed.', 'auth');
+    }} resolvePeople={async () => []} execute={vi.fn()} />);
+
+    await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
+    await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('TMDB read token is invalid or not allowed.');
+  });
+
+  it('distinguishes person matching failures from TMDB ID loading failures', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => []} loadMovie={async () => movie} resolvePeople={async () => {
+      throw new Error('DatoCMS item list permission is unavailable.');
+    }} execute={vi.fn()} />);
+
+    await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
+    await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The TMDB movie loaded, but Person matching failed.');
   });
 
   it('disables direct TMDB ID loading while loading a movie', async () => {

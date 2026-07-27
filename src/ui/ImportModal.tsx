@@ -4,6 +4,7 @@ import { buildImportPlan, type ImportPlan, type PersonResolution } from '../doma
 import type { MovieFieldKey, NormalizedImageCandidate, NormalizedMovie, PersonCandidate } from '../domain/movie';
 import { matchPerson, type ExistingPersonRecord, type PersonMatchDecision } from '../domain/personMatching';
 import type { TmdbSearchQuery, TmdbSearchResult } from '../providers/tmdbTypes';
+import { TmdbError } from '../providers/tmdbClient';
 import { defaultImageSelection, type ImageSelection } from '../providers/imageProvider';
 import { ConfirmStep } from './ConfirmStep';
 import './ImportModal.css';
@@ -47,14 +48,25 @@ export function ImportModal(props: ImportModalProps) {
       setIsLoadingMovie(true);
       const loaded = await props.loadMovie(tmdbId);
       const peopleCandidates = peopleCandidatesForMappedFields(loaded, props.mappedFields);
-      const records = await props.resolvePeople?.(peopleCandidates) ?? [];
+      let records: ExistingPersonRecord[] = [];
+
+      try {
+        records = await props.resolvePeople?.(peopleCandidates) ?? [];
+      } catch (error) {
+        console.error('MCS Movie Importer person matching failed', error);
+        setError('The TMDB movie loaded, but Person matching failed. Check that this editor can list Person records, then try again.');
+        setStep('search');
+        return;
+      }
+
       setMovie(loaded);
       setComparisons(compareMovieFields(props.currentValues, loaded, props.mappedFields));
       setPeople(peopleCandidates.map((candidate) => ({ candidate, decision: matchPerson(candidate, records, props.tmdbIdFieldConfigured ?? true) })));
       setImageSelection(imageSelectionForMappedFields(defaultImageSelection(props.currentValues, loaded.images), props.mappedFields));
       setStep('review');
-    } catch {
-      setError('The TMDB movie could not be loaded. Search by title and year, or try a different TMDB ID.');
+    } catch (error) {
+      console.error('MCS Movie Importer TMDB movie load failed', tokenSafeErrorDetails(error));
+      setError(messageForTmdbMovieLoadError(error));
       setStep('search');
     } finally {
       setIsLoadingMovie(false);
@@ -81,8 +93,9 @@ export function ImportModal(props: ImportModalProps) {
       setIsSearching(true);
       setResults(await props.searchMovies({ title: trimmedTitle, year }));
       setHasSearched(true);
-    } catch {
-      setError('TMDB search is unavailable right now. Try again in a moment, or load a known TMDB ID.');
+    } catch (error) {
+      console.error('MCS Movie Importer TMDB search failed', tokenSafeErrorDetails(error));
+      setError(messageForTmdbSearchError(error));
     } finally {
       setIsSearching(false);
     }
@@ -190,4 +203,37 @@ function imageSelectionForMappedFields(selection: ImageSelection, mappedFields: 
     heroImage: mappedFields.includes('heroImage') ? selection.heroImage : null,
     backdrops: mappedFields.includes('backdrops') ? selection.backdrops : [],
   };
+}
+
+function messageForTmdbSearchError(error: unknown) {
+  if (error instanceof TmdbError) {
+    if (error.code === 'auth') return 'TMDB read token is invalid or not allowed. Check the plugin settings and try again.';
+    if (error.code === 'rate_limit') return 'TMDB rate limit reached. Try again shortly, or load a known TMDB ID.';
+    if (error.code === 'network') return 'TMDB search could not be reached from this browser. Check your connection and try again.';
+  }
+
+  return 'TMDB search is unavailable right now. Try again in a moment, or load a known TMDB ID.';
+}
+
+function messageForTmdbMovieLoadError(error: unknown) {
+  if (error instanceof TmdbError) {
+    if (error.code === 'auth') return 'TMDB read token is invalid or not allowed. Check the plugin settings and try again.';
+    if (error.code === 'not_found') return 'No TMDB movie was found for that ID. Check the ID and try again.';
+    if (error.code === 'rate_limit') return 'TMDB rate limit reached. Try again shortly.';
+    if (error.code === 'network') return 'TMDB could not be reached from this browser. Check your connection and try again.';
+  }
+
+  return 'The TMDB movie could not be loaded. Search by title and year, or try a different TMDB ID.';
+}
+
+function tokenSafeErrorDetails(error: unknown) {
+  if (error instanceof TmdbError) {
+    return { name: error.name, code: error.code, message: error.message, details: error.details };
+  }
+
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message };
+  }
+
+  return { message: String(error) };
 }
