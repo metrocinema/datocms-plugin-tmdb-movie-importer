@@ -788,6 +788,36 @@ describe('ImportModal data flow', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('The TMDB movie loaded, but Person matching failed.');
   });
 
+  it('logs token-safe details when person matching fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const richError = {
+      name: 'DatoCmsClientError',
+      message: 'Person list failed',
+      request: {
+        headers: {
+          authorization: 'Bearer secret-current-user-token',
+        },
+      },
+    };
+
+    try {
+      render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => []} loadMovie={async () => movie} resolvePeople={async () => {
+        throw richError;
+      }} execute={vi.fn()} />);
+
+      await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
+      await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
+
+      await waitFor(() => expect(consoleError).toHaveBeenCalledWith(
+        'MCS Movie Importer person matching failed',
+        { message: '[object Object]' },
+      ));
+      expect(JSON.stringify(consoleError.mock.calls)).not.toContain('secret-current-user-token');
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it('disables direct TMDB ID loading while loading a movie', async () => {
     let finishLoad: ((value: NormalizedMovie) => void) | undefined;
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={() => new Promise((resolve) => {

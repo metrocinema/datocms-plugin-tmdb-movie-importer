@@ -53,7 +53,7 @@ export function ImportModal(props: ImportModalProps) {
       try {
         records = await props.resolvePeople?.(peopleCandidates) ?? [];
       } catch (error) {
-        console.error('MCS Movie Importer person matching failed', error);
+        console.error('MCS Movie Importer person matching failed', tokenSafeErrorDetails(error));
         setError('The TMDB movie loaded, but Person matching failed. Check that this editor can list Person records, then try again.');
         setStep('search');
         return;
