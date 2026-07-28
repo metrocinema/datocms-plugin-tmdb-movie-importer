@@ -60,7 +60,7 @@ describe('import flow integration', () => {
     expect(result.status).toBe('success');
     expect(applied).toEqual([
       { fieldPath: 'title', value: 'Example Movie' },
-      { fieldPath: 'directors', value: [{ type: 'item', id: 'person-1' }] },
+      { fieldPath: 'directors', value: ['person-1'] },
     ]);
     expect(applied.map((change) => change.fieldPath)).not.toContain('runtime');
     expect(applied.map((change) => change.fieldPath)).not.toContain('mpaaRating');

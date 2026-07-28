@@ -1,4 +1,4 @@
-import { parsePluginParameters, validatePluginParameters } from './parameters';
+import { activeTargetLocale, parsePluginParameters, validatePluginParameters } from './parameters';
 
 describe('plugin parameters', () => {
   it('fills safe defaults for a new install', () => {
@@ -21,5 +21,11 @@ describe('plugin parameters', () => {
     const params = parsePluginParameters({ actorLimit: '7' });
 
     expect(params.actorLimit).toBe(7);
+  });
+
+  it('uses the active Dato editor locale for live form updates', () => {
+    const params = parsePluginParameters({});
+
+    expect(activeTargetLocale(params, 'en-US')).toBe('en-US');
   });
 });

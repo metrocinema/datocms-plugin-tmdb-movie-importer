@@ -1,4 +1,4 @@
-import { FormValuesApplyError, type DatoGateway } from './datoGateway';
+import { DuplicatePersonNameError, FormValuesApplyError, type DatoGateway } from './datoGateway';
 import type { ImportPlan } from '../domain/importPlanning';
 import type { MovieFieldKey, NormalizedImageCandidate } from '../domain/movie';
 import type { PluginParameters } from '../plugin/parameters';
@@ -13,11 +13,17 @@ export type ImportResult =
 export type ImportExecutorOptions = {
   localizedMovieFields?: Partial<Record<MovieFieldKey, boolean>>;
   movieFieldTypes?: Partial<Record<MovieFieldKey, string>>;
+  personModelId?: string;
 };
 
 type UploadedAsset = {
   image: NormalizedImageCandidate;
   id: string;
+};
+
+type PersonDraftResult = {
+  id: string;
+  created: boolean;
 };
 
 export async function executeImportPlan(
@@ -69,14 +75,10 @@ export async function executeImportPlan(
         }
       }
 
-      const record = await gateway.createPersonDraft({
-        modelApiKey: params.personModelApiKey,
-        nameFieldApiKey: params.personNameFieldApiKey,
-        tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
-        name: person.name,
-        tmdbId: person.candidateTmdbId,
-      });
-      createdPeople.push(record.id);
+      const record = await createPersonDraftOrReuseDuplicate(person, params, gateway, options);
+      if (record.created) {
+        createdPeople.push(record.id);
+      }
       personIdsByCandidate.set(personKey(person), record.id);
       if (person.source === 'auto') {
         autoPersonIdsByTmdb.set(person.candidateTmdbId, record.id);
@@ -169,6 +171,48 @@ export async function executeImportPlan(
     uploadedAssets,
     appliedFields: changes.map((change) => change.fieldPath),
   };
+}
+
+async function createPersonDraftOrReuseDuplicate(
+  person: ImportPlan['peopleToCreate'][number],
+  params: PluginParameters,
+  gateway: DatoGateway,
+  options: ImportExecutorOptions,
+): Promise<PersonDraftResult> {
+  try {
+    const record = await gateway.createPersonDraft({
+      modelApiKey: params.personModelApiKey,
+      modelId: options.personModelId,
+      nameFieldApiKey: params.personNameFieldApiKey,
+      tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
+      name: person.name,
+      tmdbId: person.candidateTmdbId,
+    });
+    return { id: record.id, created: true };
+  } catch (error) {
+    if (!(error instanceof DuplicatePersonNameError)) {
+      throw error;
+    }
+
+    const records = await gateway.findPeople({
+      modelApiKey: params.personModelApiKey,
+      nameFieldApiKey: params.personNameFieldApiKey,
+      tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
+      names: [person.name],
+      tmdbIds: [person.candidateTmdbId],
+    });
+    const decision = matchPerson(
+      { tmdbId: person.candidateTmdbId, name: person.name, order: 0, role: person.candidateRole },
+      records,
+      Boolean(params.personTmdbIdFieldApiKey),
+    );
+
+    if (decision.type === 'reuse') {
+      return { id: decision.recordId, created: false };
+    }
+
+    throw error;
+  }
 }
 
 function sameImage(left: NormalizedImageCandidate, right: NormalizedImageCandidate) {

@@ -178,8 +178,8 @@ describe('validateFieldMappings', () => {
 });
 
 describe('form value helpers', () => {
-  it('targets English for localized fields', () => {
-    expect(fieldPathForMovieField('title', true, 'en')).toBe('title.en');
+  it('targets the active editor locale for localized fields', () => {
+    expect(fieldPathForMovieField('title', true, 'en-US')).toBe('title.en-US');
   });
 
   it('targets raw field path for non-localized fields', () => {
@@ -187,7 +187,14 @@ describe('form value helpers', () => {
   });
 
   it('builds Dato reference objects', () => {
-    expect(itemReference('person-1')).toEqual({ type: 'item', id: 'person-1' });
-    expect(assetReference('upload-1')).toEqual({ type: 'upload', id: 'upload-1' });
+    expect(itemReference('person-1')).toBe('person-1');
+    expect(assetReference('upload-1')).toEqual({
+      upload_id: 'upload-1',
+      alt: null,
+      title: null,
+      custom_data: {},
+      focal_point: null,
+      poster_time: null,
+    });
   });
 });

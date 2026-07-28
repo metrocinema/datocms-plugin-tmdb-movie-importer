@@ -1,5 +1,4 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
 import { buildClient } from '@datocms/cma-client';
 import { connect } from 'datocms-plugin-sdk';
 import { Canvas } from 'datocms-react-ui';
@@ -10,7 +9,7 @@ import { createDatoGateway, type GatewayClient } from './dato/datoGateway';
 import type { CurrentMovieValues } from './domain/fieldComparison';
 import type { ImportPlan } from './domain/importPlanning';
 import type { MovieFieldKey } from './domain/movie';
-import { parsePluginParameters } from './plugin/parameters';
+import { activeTargetLocale, parsePluginParameters } from './plugin/parameters';
 import { manualFieldExtensions } from './plugin/fieldExtensions';
 import { modalCurrentValues, modalInitialTitle, modalInitialTmdbId, modalInitialYear, modalMappedFields } from './plugin/modalRuntime';
 import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './plugin/runtimeValidation';
@@ -18,6 +17,7 @@ import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFie
 import { TmdbClient } from './providers/tmdbClient';
 import { normalizeTmdbMovie } from './providers/tmdbNormalizer';
 import { isDevHarnessRequest, renderDevHarness } from './devHarness';
+import { renderIntoRoot } from './reactRoot';
 
 type ErrorBoundaryState = {
   error: Error | null;
@@ -50,8 +50,8 @@ class PluginErrorBoundary extends React.Component<{ children: React.ReactNode },
 }
 
 function render(screen: PluginScreen, ctx: unknown) {
-  const root = ReactDOM.createRoot(document.getElementById('root')!);
-  root.render(
+  renderIntoRoot(
+    document.getElementById('root')!,
     <React.StrictMode>
       <PluginErrorBoundary>
         <Canvas ctx={ctx as never} noAutoResizer={screen.type === 'modal'}>
@@ -96,9 +96,10 @@ connect({
             ctx.alert(`Configure the importer before using it: ${currentIssues.map((issue) => issue.message).join(' ')}`);
             return;
           }
+          const targetLocale = activeTargetLocale(params, ctx.locale);
           const fieldMetadata = mappedFieldMetadata(params.movieFields, ctx.fields);
           const mappedFields = fieldMetadata.map((field) => field.key);
-          const currentValues = valuesForMappedFields(ctx.formValues, params.targetLocale, fieldMetadata);
+          const currentValues = valuesForMappedFields(ctx.formValues, targetLocale, fieldMetadata);
           const plan = await ctx.openModal({
             id: 'tmdbMovieImport',
             title: mode === 'refresh' ? 'Refresh from TMDB' : 'Find movie',
@@ -126,7 +127,17 @@ connect({
             return;
           }
 
-          const result = await executeImportPlan(plan, latestParams, gatewayFor(ctx, latestParams.targetLocale), executorOptionsForMappedFields(fieldMetadata));
+          const executionLocale = activeTargetLocale(latestParams, ctx.locale);
+          const latestFieldMetadata = mappedFieldMetadata(latestParams.movieFields, ctx.fields);
+          const result = await executeImportPlan(
+            plan,
+            { ...latestParams, targetLocale: executionLocale },
+            gatewayFor(ctx, executionLocale),
+            {
+              ...executorOptionsForMappedFields(latestFieldMetadata),
+              personModelId: latestSchema?.models[latestParams.personModelApiKey]?.id,
+            },
+          );
           if (result.status === 'success') {
             ctx.notice('TMDB import applied to the unsaved movie.');
           } else {
@@ -172,7 +183,7 @@ connect({
 });
 }
 
-function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; environment: string; setFieldValue?: (path: string, value: unknown) => Promise<void> }, targetLocale: 'en') {
+function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; environment: string; setFieldValue?: (path: string, value: unknown) => Promise<void> }, targetLocale: string) {
   const client = buildClient({
     apiToken: ctx.currentUserAccessToken ?? null,
     baseUrl: ctx.cmaBaseUrl,
@@ -184,9 +195,13 @@ function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; 
       items: {
         create: async (payload) => client.items.create(payload as never),
         list: async (query) => client.items.list(query as never) as Promise<Array<Record<string, unknown>>>,
+        listPagedIterator: (query, options) => client.items.listPagedIterator(query as never, options) as AsyncIterable<Record<string, unknown>>,
       },
       uploads: {
-        createFromUrl: async ({ url, default_field_metadata }) => client.uploads.create({ path: url, default_field_metadata: default_field_metadata as never }),
+        create: async ({ path, default_field_metadata }) => client.uploads.create({ path, default_field_metadata: default_field_metadata as never }),
+      },
+      uploadRequest: {
+        create: async (payload) => client.uploadRequest.create(payload as never),
       },
     } satisfies GatewayClient,
     ctx,

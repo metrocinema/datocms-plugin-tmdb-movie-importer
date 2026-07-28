@@ -85,14 +85,21 @@ export function validateFieldMappings(params: PluginParameters, schema: DatoSche
   return issues;
 }
 
-export function fieldPathForMovieField(fieldApiKey: string, localized: boolean, locale: 'en'): string {
+export function fieldPathForMovieField(fieldApiKey: string, localized: boolean, locale: string): string {
   return localized ? `${fieldApiKey}.${locale}` : fieldApiKey;
 }
 
-export function itemReference(id: string): { type: 'item'; id: string } {
-  return { type: 'item', id };
+export function itemReference(id: string): string {
+  return id;
 }
 
-export function assetReference(id: string): { type: 'upload'; id: string } {
-  return { type: 'upload', id };
+export function assetReference(id: string): { upload_id: string; alt: null; title: null; custom_data: Record<string, never>; focal_point: null; poster_time: null } {
+  return {
+    upload_id: id,
+    alt: null,
+    title: null,
+    custom_data: {},
+    focal_point: null,
+    poster_time: null,
+  };
 }

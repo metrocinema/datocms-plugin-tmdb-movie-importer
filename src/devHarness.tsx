@@ -1,8 +1,8 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
 import { Canvas } from 'datocms-react-ui';
 import { App, type PluginScreen } from './App';
 import type { NormalizedMovie } from './domain/movie';
+import { renderIntoRoot } from './reactRoot';
 
 type HarnessMode = 'modal' | 'config' | 'field';
 type HarnessTheme = 'light' | 'dark' | 'dato-dark';
@@ -29,8 +29,8 @@ export function renderDevHarness() {
   document.documentElement.dataset.colorScheme = colorScheme;
   document.documentElement.style.colorScheme = colorScheme;
 
-  const root = ReactDOM.createRoot(document.getElementById('root')!);
-  root.render(
+  renderIntoRoot(
+    document.getElementById('root')!,
     <React.StrictMode>
       <Canvas ctx={ctx as never} noAutoResizer>
         <App screen={screenForHarnessMode(harnessMode(), scenario)} />

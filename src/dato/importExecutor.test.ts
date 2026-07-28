@@ -1,6 +1,7 @@
 import { executeImportPlan } from './importExecutor';
-import { FormValuesApplyError } from './datoGateway';
+import { DuplicatePersonNameError, FormValuesApplyError } from './datoGateway';
 import type { ImportPlan } from '../domain/importPlanning';
+import { assetReference } from '../plugin/datoFieldMapping';
 import type { PluginParameters } from '../plugin/parameters';
 
 const params: PluginParameters = {
@@ -66,11 +67,40 @@ describe('executeImportPlan', () => {
     expect(order).toEqual(['person', 'person', 'upload', 'upload', 'form']);
     expect(appliedChanges).toEqual([
       { fieldPath: 'title', value: 'Example Movie' },
-      { fieldPath: 'directors', value: [{ type: 'item', id: 'person-1' }] },
-      { fieldPath: 'actors', value: [{ type: 'item', id: 'person-2' }] },
-      { fieldPath: 'poster', value: { type: 'upload', id: 'upload-1' } },
-      { fieldPath: 'backdrops', value: [{ type: 'upload', id: 'upload-2' }] },
+      { fieldPath: 'directors', value: ['person-1'] },
+      { fieldPath: 'actors', value: ['person-2'] },
+      { fieldPath: 'poster', value: assetReference('upload-1') },
+      { fieldPath: 'backdrops', value: [assetReference('upload-2')] },
     ]);
+  });
+
+  it('passes the resolved Person model ID when creating draft people', async () => {
+    const createPersonDraft = vi.fn(async () => ({ id: 'person-1' }));
+
+    const result = await executeImportPlan({
+      ...plan,
+      directors: [{ tmdbId: 10, name: 'Director Name', order: 0, role: 'director' }],
+      actors: [],
+      peopleToCreate: [{ candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' }],
+      assetsToUpload: [],
+    }, params, {
+      async findPeople() {
+        return [];
+      },
+      createPersonDraft,
+      async uploadImage() {
+        return { id: 'upload-1' };
+      },
+      async applyFormValues() {
+        return undefined;
+      },
+    }, { personModelId: 'person-id' });
+
+    expect(result.status).toBe('success');
+    expect(createPersonDraft).toHaveBeenCalledWith(expect.objectContaining({
+      modelApiKey: 'person',
+      modelId: 'person-id',
+    }));
   });
 
   it('stops before form updates when a dependency write fails', async () => {
@@ -118,7 +148,7 @@ describe('executeImportPlan', () => {
       },
     });
 
-    expect(appliedChanges).toContainEqual({ fieldPath: 'backdrops', value: [{ type: 'upload', id: 'backdrop-upload' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'backdrops', value: [assetReference('backdrop-upload')] });
     expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('poster');
   });
 
@@ -143,7 +173,7 @@ describe('executeImportPlan', () => {
       },
     );
 
-    expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: { type: 'upload', id: 'backdrop-upload' } });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: assetReference('backdrop-upload') });
     expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('other_images');
   });
 
@@ -168,7 +198,7 @@ describe('executeImportPlan', () => {
       },
     );
 
-    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [{ type: 'upload', id: 'backdrop-upload' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [assetReference('backdrop-upload')] });
     expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('hero_image');
   });
 
@@ -204,13 +234,13 @@ describe('executeImportPlan', () => {
       },
     );
 
-    expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: { type: 'upload', id: 'future-upload' } });
-    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [{ type: 'upload', id: 'tmdb-upload' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: assetReference('future-upload') });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [assetReference('tmdb-upload')] });
   });
 
-  it('uses the English path for configured localized fields', async () => {
+  it('uses the active editor locale path for configured localized fields', async () => {
     const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
-    await executeImportPlan({ ...plan, directors: [], actors: [], peopleToCreate: [], assetsToUpload: [] }, params, {
+    await executeImportPlan({ ...plan, directors: [], actors: [], peopleToCreate: [], assetsToUpload: [] }, { ...params, targetLocale: 'en-US' }, {
       async findPeople() {
         return [];
       },
@@ -225,7 +255,7 @@ describe('executeImportPlan', () => {
       },
     }, { localizedMovieFields: { title: true } });
 
-    expect(appliedChanges).toEqual([{ fieldPath: 'title.en', value: 'Example Movie' }]);
+    expect(appliedChanges).toEqual([{ fieldPath: 'title.en-US', value: 'Example Movie' }]);
   });
 
   it('writes description as a structured text document when configured field type is structured_text', async () => {
@@ -320,7 +350,7 @@ describe('executeImportPlan', () => {
 
     expect(result.status).toBe('success');
     expect(createPersonDraft).not.toHaveBeenCalled();
-    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: [{ type: 'item', id: 'person-existing' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: ['person-existing'] });
   });
 
   it('keeps manual create and reuse decisions separate for the same TMDB person in different roles', async () => {
@@ -352,8 +382,47 @@ describe('executeImportPlan', () => {
     expect(result.status).toBe('success');
     expect(findPeople).not.toHaveBeenCalled();
     expect(createPersonDraft).toHaveBeenCalledTimes(1);
-    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: [{ type: 'item', id: 'created-director' }] });
-    expect(appliedChanges).toContainEqual({ fieldPath: 'actors', value: [{ type: 'item', id: 'existing-actor' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: ['created-director'] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'actors', value: ['existing-actor'] });
+  });
+
+  it('reuses a person found after DatoCMS rejects draft creation for a unique name', async () => {
+    const createPersonDraft = vi.fn(async () => {
+      throw new DuplicatePersonNameError('Director Name');
+    });
+    const findPeople = vi.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'existing-director', name: 'Director Name', tmdbId: null }]);
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [{ tmdbId: 10, name: 'Director Name', order: 0, role: 'director' }],
+        actors: [],
+        peopleToCreate: [{ candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' }],
+        peopleToReuse: [],
+        assetsToUpload: [],
+      },
+      params,
+      {
+        findPeople,
+        createPersonDraft,
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+    );
+
+    if (result.status !== 'success') {
+      throw new Error(`Expected success, got ${result.status}`);
+    }
+    expect(result.createdPeople).toEqual([]);
+    expect(findPeople).toHaveBeenCalledTimes(2);
+    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: ['existing-director'] });
   });
 
   it('creates one automatic draft when the same TMDB person appears in multiple roles', async () => {
@@ -388,8 +457,8 @@ describe('executeImportPlan', () => {
 
     expect(result.status).toBe('success');
     expect(createPersonDraft).toHaveBeenCalledTimes(1);
-    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: [{ type: 'item', id: 'created-person' }] });
-    expect(appliedChanges).toContainEqual({ fieldPath: 'actors', value: [{ type: 'item', id: 'created-person' }] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'directors', value: ['created-person'] });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'actors', value: ['created-person'] });
   });
 
   it('reports fields applied before a form update fails', async () => {

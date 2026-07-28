@@ -5,7 +5,7 @@ export type MovieFieldMappings = Partial<Record<MovieFieldKey, string>>;
 export type PluginParameters = {
   tmdbReadToken: string;
   movieModelApiKey: string;
-  targetLocale: 'en';
+  targetLocale: string;
   movieFields: MovieFieldMappings;
   personModelApiKey: string;
   personNameFieldApiKey: string;
@@ -75,4 +75,8 @@ export function validatePluginParameters(params: PluginParameters): ValidationIs
   }
 
   return issues;
+}
+
+export function activeTargetLocale(params: PluginParameters, editorLocale: unknown): string {
+  return typeof editorLocale === 'string' && editorLocale.trim().length > 0 ? editorLocale : params.targetLocale;
 }
