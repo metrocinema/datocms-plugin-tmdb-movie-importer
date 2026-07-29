@@ -1,7 +1,103 @@
 import { describe, expect, it } from 'vitest';
 import { harnessDesignTokens, harnessProgress, harnessScenario, harnessTheme, isDevHarnessRequest, screenForHarnessMode } from './devHarness';
+import type { ImportPlan } from './domain/importPlanning';
+import type { NormalizedImageCandidate } from './domain/movie';
+import { defaultImageSelection } from './providers/imageProvider';
+
+const harnessPlan: ImportPlan = {
+  fieldChanges: [{ key: 'title', value: 'Harness movie' }],
+  directors: [],
+  actors: [],
+  peopleToCreate: [
+    { candidateTmdbId: 1, candidateRole: 'director', name: 'First Person', source: 'auto' },
+    { candidateTmdbId: 2, candidateRole: 'actor', name: 'Second Person', source: 'auto' },
+    { candidateTmdbId: 3, candidateRole: 'actor', name: 'Third Person', source: 'auto' },
+  ],
+  peopleToReuse: [],
+  heroImageToUpload: null,
+  otherImagesToUpload: [],
+  assetsToUpload: Array.from({ length: 5 }, (_, index) => harnessImage(index + 1)),
+};
+
+function harnessImage(index: number): NormalizedImageCandidate {
+  return {
+    providerKey: 'tmdb',
+    providerImageId: `/harness-${index}.jpg`,
+    movieIdentity: { providerKey: 'tmdb', tmdbId: 843 },
+    type: index === 1 ? 'poster' : 'backdrop',
+    originalUrl: `https://image.tmdb.org/t/p/original/harness-${index}.jpg`,
+    previewUrl: `https://image.tmdb.org/t/p/w780/harness-${index}.jpg`,
+    width: 1920,
+    height: 1080,
+    language: 'en',
+    rank: index,
+    attribution: 'TMDB',
+  };
+}
 
 describe('devHarness', () => {
+  it('uses an import fixture with five unique default-selected assets', async () => {
+    const screen = screenForHarnessMode('modal', 'default', 'import');
+    expect(screen.type).toBe('modal');
+    if (screen.type !== 'modal') return;
+    const movie = await screen.loadMovie(843);
+    const selection = defaultImageSelection(screen.currentValues, movie.images);
+    const selectedAssets = [selection.poster, selection.heroImage, ...selection.backdrops]
+      .filter((image): image is NormalizedImageCandidate => image !== null);
+
+    expect(new Set(selectedAssets.map((image) => `${image.providerKey}:${image.providerImageId}`)).size).toBe(5);
+  });
+
+  it('derives pending import progress totals from the plan', async () => {
+    const screen = screenForHarnessMode('modal', 'default', 'import');
+    expect(screen.type).toBe('modal');
+    if (screen.type !== 'modal') return;
+    const progress = vi.fn();
+
+    const outcome = await Promise.race([
+      screen.prepare(harnessPlan, progress),
+      Promise.resolve('pending'),
+    ]);
+
+    expect(outcome).toBe('pending');
+    expect(progress).toHaveBeenCalledWith({ phase: 'people_create', state: 'active', completed: 1, total: 3 });
+    expect(progress).toHaveBeenCalledWith({ phase: 'images', state: 'active', completed: 2, total: 5 });
+  });
+
+  it('completes default preparation with sanitized deterministic references', async () => {
+    const screen = screenForHarnessMode('modal');
+    expect(screen.type).toBe('modal');
+    if (screen.type !== 'modal') return;
+
+    const result = await screen.prepare(harnessPlan, vi.fn());
+
+    expect(result).toMatchObject({
+      status: 'success',
+      prepared: {
+        createdPeople: ['harness-person-1', 'harness-person-2', 'harness-person-3'],
+        uploadedAssets: ['harness-upload-1', 'harness-upload-2', 'harness-upload-3', 'harness-upload-4', 'harness-upload-5'],
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain('https://');
+  });
+
+  it('reports dependency failure counts from the plan', async () => {
+    const screen = screenForHarnessMode('modal', 'default', 'failure');
+    expect(screen.type).toBe('modal');
+    if (screen.type !== 'modal') return;
+    const progress = vi.fn();
+
+    const result = await screen.prepare(harnessPlan, progress);
+
+    expect(result).toMatchObject({
+      status: 'dependency_failed',
+      createdPeople: ['harness-person-1'],
+      uploadedAssets: ['harness-upload-1'],
+    });
+    expect(progress).toHaveBeenCalledWith({ phase: 'people_create', state: 'complete', completed: 1, total: 3 });
+    expect(progress).toHaveBeenCalledWith(expect.objectContaining({ phase: 'images', state: 'failed', completed: 1, total: 5 }));
+  });
+
   it.each([
     ['search', 'search'],
     ['import', 'import'],

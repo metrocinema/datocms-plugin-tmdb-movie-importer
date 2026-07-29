@@ -1,7 +1,7 @@
 import React from 'react';
 import { Canvas } from 'datocms-react-ui';
 import { App, type PluginScreen } from './App';
-import type { ImportProgressEvent, PrepareImportResult } from './dato/importExecutor';
+import type { ImportProgressEvent, PreparedImport, PrepareImportResult } from './dato/importExecutor';
 import type { ImportPlan } from './domain/importPlanning';
 import type { NormalizedMovie } from './domain/movie';
 import { renderIntoRoot } from './reactRoot';
@@ -115,7 +115,7 @@ export function screenForHarnessMode(
     };
   }
 
-  const modalScenario = modalScenarioFor(scenario);
+  const modalScenario = modalScenarioFor(scenario, progress);
 
   return {
     type: 'modal',
@@ -143,34 +143,86 @@ function prepareHarnessImport(
   plan: ImportPlan,
   onProgress: (event: ImportProgressEvent) => void,
 ): Promise<PrepareImportResult> {
-  console.info('Impeccable harness import plan', plan);
+  const peopleTotal = plan.peopleToCreate.length;
+  const imageTotal = plan.assetsToUpload.length;
 
   if (progress === 'import') {
-    onProgress({ phase: 'people_create', state: 'active', completed: 1, total: 2 });
-    onProgress({ phase: 'images', state: 'active', completed: 2, total: 5 });
+    onProgress({ phase: 'people_create', state: 'active', completed: Math.min(1, peopleTotal), total: peopleTotal });
+    onProgress({ phase: 'images', state: 'active', completed: Math.min(2, imageTotal), total: imageTotal });
     return pendingHarnessPromise();
   }
 
   if (progress === 'failure') {
-    onProgress({ phase: 'people_create', state: 'complete', completed: 1, total: 1 });
-    onProgress({ phase: 'images', state: 'failed', completed: 1, total: 2, message: 'The second image could not be uploaded.' });
+    const createdPeople = deterministicPersonIds(plan).slice(0, 1);
+    const uploadedAssets = deterministicUploadIds(plan).slice(0, 1);
+    onProgress({ phase: 'people_create', state: 'complete', completed: createdPeople.length, total: peopleTotal });
+    onProgress({ phase: 'images', state: 'failed', completed: uploadedAssets.length, total: imageTotal, message: 'The next image could not be uploaded.' });
     return Promise.resolve({
       status: 'dependency_failed' as const,
       failedPhase: 'images' as const,
-      message: 'The second image could not be uploaded.',
-      createdPeople: ['person-wong-kar-wai'],
-      uploadedAssets: ['upload-poster'],
+      message: 'The next image could not be uploaded.',
+      createdPeople,
+      uploadedAssets,
     });
   }
 
-  return pendingHarnessPromise();
+  onProgress({ phase: 'people_create', state: 'complete', completed: peopleTotal, total: peopleTotal });
+  onProgress({ phase: 'images', state: 'complete', completed: imageTotal, total: imageTotal });
+  onProgress({ phase: 'fields_prepare', state: 'complete', completed: 1, total: 1 });
+  return Promise.resolve({ status: 'success', prepared: preparedHarnessImport(plan) });
 }
 
 function pendingHarnessPromise<T = never>(): Promise<T> {
   return new Promise<T>(() => undefined);
 }
 
-function modalScenarioFor(scenario: HarnessScenario) {
+function preparedHarnessImport(plan: ImportPlan): PreparedImport {
+  const createdPeople = deterministicPersonIds(plan);
+  const uploadedAssets = deterministicUploadIds(plan);
+  const people = [
+    ...plan.peopleToReuse.map((person) => ({
+      candidateTmdbId: person.candidateTmdbId,
+      candidateRole: person.candidateRole,
+      recordId: person.recordId,
+    })),
+    ...plan.peopleToCreate.map((person, index) => ({
+      candidateTmdbId: person.candidateTmdbId,
+      candidateRole: person.candidateRole,
+      recordId: createdPeople[index],
+    })),
+  ];
+
+  return {
+    fieldChanges: plan.fieldChanges,
+    directors: plan.directors,
+    actors: plan.actors,
+    people,
+    images: plan.assetsToUpload.map((image, index) => ({
+      providerKey: image.providerKey,
+      providerImageId: image.providerImageId,
+      type: image.type,
+      uploadId: uploadedAssets[index],
+    })),
+    heroImage: plan.heroImageToUpload ? imageIdentity(plan.heroImageToUpload) : null,
+    otherImages: plan.otherImagesToUpload.map(imageIdentity),
+    createdPeople,
+    uploadedAssets,
+  };
+}
+
+function deterministicPersonIds(plan: ImportPlan) {
+  return plan.peopleToCreate.map((_, index) => `harness-person-${index + 1}`);
+}
+
+function deterministicUploadIds(plan: ImportPlan) {
+  return plan.assetsToUpload.map((_, index) => `harness-upload-${index + 1}`);
+}
+
+function imageIdentity(image: NormalizedMovie['images'][number]) {
+  return { providerKey: image.providerKey, providerImageId: image.providerImageId };
+}
+
+function modalScenarioFor(scenario: HarnessScenario, progress: HarnessProgress) {
   if (scenario === 'odyssey-existing') {
     return {
       initialTitle: 'The Odyssey',
@@ -198,7 +250,7 @@ function modalScenarioFor(scenario: HarnessScenario) {
     };
   }
 
-  return {
+  const defaultScenario = {
     initialTitle: 'In the Mood for Love',
     initialYear: 2000,
     currentValues: {
@@ -233,6 +285,14 @@ function modalScenarioFor(scenario: HarnessScenario) {
       { id: 'person-tony-leung', name: 'Tony Leung Chiu-wai', tmdbId: 1337 },
     ],
   };
+
+  return progress === 'import'
+    ? {
+      ...defaultScenario,
+      movie: importProgressFixtureMovie,
+      searchResults: [searchResultForMovie(importProgressFixtureMovie)],
+    }
+    : defaultScenario;
 }
 
 function searchResultForMovie(movie: NormalizedMovie) {
@@ -302,6 +362,14 @@ const fixtureMovie: NormalizedMovie = {
       rank: 2,
       attribution: 'TMDB',
     },
+  ],
+};
+
+const importProgressFixtureMovie: NormalizedMovie = {
+  ...fixtureMovie,
+  images: [
+    fixtureMovie.images[0],
+    ...backdropCandidatesFor(fixtureMovie.tmdbId).slice(0, 4),
   ],
 };
 
