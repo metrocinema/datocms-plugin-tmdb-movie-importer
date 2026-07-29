@@ -463,7 +463,13 @@ function reportProgress(
   event: ImportProgressEvent,
 ) {
   try {
-    options.onProgress?.(event);
+    const callback = options.onProgress as ((progressEvent: ImportProgressEvent) => unknown) | undefined;
+    const result = callback?.(event);
+    if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+      void Promise.resolve(result).catch(() => {
+        // Presentation feedback must never interrupt an import.
+      });
+    }
   } catch {
     // Presentation feedback must never interrupt an import.
   }

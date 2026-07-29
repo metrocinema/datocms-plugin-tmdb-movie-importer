@@ -130,6 +130,44 @@ describe('executeImportPlan', () => {
     expect(result.status).toBe('success');
   });
 
+  it('continues preparation when an async progress observer rejects', async () => {
+    const result = await prepareImport(
+      {
+        ...plan,
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        assetsToUpload: [plan.assetsToUpload[0]],
+        heroImageToUpload: null,
+        otherImagesToUpload: [],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues() {
+          return undefined;
+        },
+      },
+      {
+        onProgress: async () => {
+          throw new Error('async observer failed');
+        },
+      },
+    );
+
+    await Promise.resolve();
+
+    expect(result.status).toBe('success');
+  });
+
   it('reports safe phase timings for Person lookup, Person creation, images, fields, and total work', async () => {
     const timings: ImportPhaseTiming[] = [];
 
