@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ImportModal } from './ImportModal';
 import type { NormalizedMovie } from '../domain/movie';
@@ -408,9 +408,12 @@ describe('ImportModal', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Preparing your TMDB import');
     expect(screen.queryByRole('button', { name: 'Back to review' })).not.toBeInTheDocument();
 
-    reportProgress?.({ phase: 'images', state: 'active', completed: 3, total: 5 });
+    await act(async () => {
+      reportProgress?.({ phase: 'images', state: 'active', completed: 3, total: 5 });
+    });
 
     expect(await screen.findByText('3 of 5 images uploaded')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Uploading images: 3 of 5 images uploaded.'));
     expect(screen.getByText('1 field selected')).toBeInTheDocument();
     expect(resolve).not.toHaveBeenCalled();
 
@@ -460,11 +463,15 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
-    reportProgress?.({ phase: 'people_create', state: 'active', completed: 1, total: 2 });
-    reportProgress?.({ phase: 'images', state: 'active', completed: 3, total: 5 });
+    await act(async () => {
+      reportProgress?.({ phase: 'people_create', state: 'active', completed: 1, total: 2 });
+      reportProgress?.({ phase: 'images', state: 'active', completed: 3, total: 5 });
+    });
 
     expect(await screen.findByText('1 of 2 complete')).toBeInTheDocument();
     expect(screen.getByText('3 of 5 images uploaded')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Creating draft people: 1 of 2 complete.'));
+    expect(screen.getByRole('status')).toHaveTextContent('Uploading images: 3 of 5 images uploaded.');
     expect(screen.getByText('Creating draft people').closest('li')).toHaveClass('movie-import-modal__progress-phase--active');
     expect(screen.getByText('Uploading images').closest('li')).toHaveClass('movie-import-modal__progress-phase--active');
   });

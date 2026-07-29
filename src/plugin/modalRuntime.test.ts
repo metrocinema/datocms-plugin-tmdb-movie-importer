@@ -17,6 +17,45 @@ describe('modalRuntime', () => {
     })).toBe(true);
   });
 
+  it('rejects unexpected top-level payload fields', () => {
+    expect(isPreparedImport({
+      ...validPreparedImport(),
+      originalPlan: { secret: 'should not cross the modal boundary' },
+    })).toBe(false);
+  });
+
+  it.each([
+    {
+      name: 'a director without a prepared Person reference',
+      change: { people: [{ candidateTmdbId: 20, candidateRole: 'actor', recordId: 'person-2' }], createdPeople: ['person-2'] },
+    },
+    {
+      name: 'a created Person ID without a prepared Person reference',
+      change: { createdPeople: ['person-missing'] },
+    },
+    {
+      name: 'an image without a recorded upload',
+      change: { uploadedAssets: ['upload-2', 'upload-3'] },
+    },
+    {
+      name: 'an uploaded asset without a prepared image',
+      change: { uploadedAssets: ['upload-1', 'upload-2', 'upload-3', 'upload-extra'] },
+    },
+    {
+      name: 'a Hero image without a prepared backdrop',
+      change: { heroImage: { providerKey: 'tmdb', providerImageId: 'backdrop-missing' } },
+    },
+    {
+      name: 'an Other image without a prepared backdrop',
+      change: { otherImages: [{ providerKey: 'tmdb', providerImageId: 'backdrop-missing' }] },
+    },
+  ])('rejects $name', ({ change }) => {
+    expect(isPreparedImport({
+      ...validPreparedImport(),
+      ...change,
+    })).toBe(false);
+  });
+
   it.each([
     'originalUrl',
     'previewUrl',
@@ -160,12 +199,26 @@ function validPreparedImport(): PreparedImport {
         recordId: 'person-2',
       },
     ],
-    images: [{
-      providerKey: 'tmdb',
-      providerImageId: 'poster-1',
-      type: 'poster',
-      uploadId: 'upload-1',
-    }],
+    images: [
+      {
+        providerKey: 'tmdb',
+        providerImageId: 'poster-1',
+        type: 'poster',
+        uploadId: 'upload-1',
+      },
+      {
+        providerKey: 'tmdb',
+        providerImageId: 'backdrop-1',
+        type: 'backdrop',
+        uploadId: 'upload-2',
+      },
+      {
+        providerKey: 'tmdb',
+        providerImageId: 'backdrop-2',
+        type: 'backdrop',
+        uploadId: 'upload-3',
+      },
+    ],
     heroImage: {
       providerKey: 'tmdb',
       providerImageId: 'backdrop-1',
@@ -175,6 +228,6 @@ function validPreparedImport(): PreparedImport {
       providerImageId: 'backdrop-2',
     }],
     createdPeople: ['person-1', 'person-2'],
-    uploadedAssets: ['upload-1'],
+    uploadedAssets: ['upload-1', 'upload-2', 'upload-3'],
   };
 }

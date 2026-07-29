@@ -17,14 +17,18 @@ type FieldAddonProps = {
 export function FieldAddon({ tmdbId, onOpen, configurationIssues = [] }: FieldAddonProps) {
   const [workingStatus, setWorkingStatus] =
     useState<'opening' | 'applying' | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
   const hasTmdbId =
     tmdbId !== null && (typeof tmdbId !== 'string' || tmdbId.trim() !== '');
   const mode = hasTmdbId ? 'refresh' : 'find';
   const openImporter = async () => {
+    setOperationError(null);
     setWorkingStatus('opening');
 
     try {
       await onOpen(mode, setWorkingStatus);
+    } catch {
+      setOperationError('The TMDB importer could not open. Try again.');
     } finally {
       setWorkingStatus(null);
     }
@@ -41,6 +45,7 @@ export function FieldAddon({ tmdbId, onOpen, configurationIssues = [] }: FieldAd
           the update.
         </p>
       ) : null}
+      {operationError ? <p role="alert" className="movie-import-field-addon__alert">{operationError}</p> : null}
       {configurationIssues.length > 0 ? <p role="alert" className="movie-import-field-addon__alert">Finish plugin configuration before using TMDB import: {configurationIssues.join(' ')}</p> : null}
     </div>
   );

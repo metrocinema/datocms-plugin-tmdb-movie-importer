@@ -6,13 +6,11 @@ import 'datocms-react-ui/styles.css';
 import { App, type PluginScreen } from './App';
 import { applyPreparedImport, prepareImport } from './dato/importExecutor';
 import { createDatoGateway, type GatewayClient, type UploadStageTiming } from './dato/datoGateway';
-import type { CurrentMovieValues } from './domain/fieldComparison';
-import type { MovieFieldKey } from './domain/movie';
 import { activeTargetLocale, parsePluginParameters } from './plugin/parameters';
 import { manualFieldExtensions } from './plugin/fieldExtensions';
-import { isPreparedImport, modalCurrentValues, modalInitialTitle, modalInitialTmdbId, modalInitialYear, modalMappedFields } from './plugin/modalRuntime';
+import { modalCurrentValues, modalInitialTitle, modalInitialTmdbId, modalInitialYear, modalMappedFields } from './plugin/modalRuntime';
 import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './plugin/runtimeValidation';
-import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFields } from './plugin/mappedFields';
+import { runFieldExtensionImport } from './plugin/fieldExtensionAdapter';
 import { TmdbClient } from './providers/tmdbClient';
 import { normalizeTmdbMovie } from './providers/tmdbNormalizer';
 import { isDevHarnessRequest, renderDevHarness } from './devHarness';
@@ -87,62 +85,12 @@ connect({
         type: 'fieldAddon',
         tmdbId: ctx.formValues[ctx.fieldPath] as number | string | null,
         configurationIssues,
-        onOpen: async (mode, reportStatus) => {
-          const params = parsePluginParameters(ctx.plugin.attributes.parameters);
-          const schema = await loadSchemaForRuntimeValidation(params, ctx);
-          const currentIssues = validateRuntimeConfiguration(params, schema);
-          if (currentIssues.length > 0) {
-            ctx.alert(`Configure the importer before using it: ${currentIssues.map((issue) => issue.message).join(' ')}`);
-            return;
-          }
-          const targetLocale = activeTargetLocale(params, ctx.locale);
-          const fieldMetadata = mappedFieldMetadata(params.movieFields, ctx.fields);
-          const mappedFields = fieldMetadata.map((field) => field.key);
-          const currentValues = valuesForMappedFields(ctx.formValues, targetLocale, fieldMetadata);
-          const prepared = await ctx.openModal({
-            id: 'tmdbMovieImport',
-            title: mode === 'refresh' ? 'Refresh from TMDB' : 'Find movie',
-            width: 'fullWidth',
-            initialHeight: 860,
-            parameters: {
-              mode,
-              currentValues,
-              mappedFields,
-              targetLocale,
-              initialTitle: typeof currentValues.title === 'string' ? currentValues.title : '',
-              initialYear: typeof currentValues.yearReleased === 'number' ? currentValues.yearReleased : null,
-              initialTmdbId: mode === 'refresh' ? validTmdbId(currentValues.tmdbId) : null,
-            },
-          });
-
-          if (!isPreparedImport(prepared)) {
-            return;
-          }
-
-          const latestParams = parsePluginParameters(ctx.plugin.attributes.parameters);
-          const latestSchema = await loadSchemaForRuntimeValidation(latestParams, ctx);
-          const executionIssues = validateRuntimeConfiguration(latestParams, latestSchema);
-          if (executionIssues.length > 0) {
-            ctx.alert(`Import did not run because the configuration is incomplete: ${executionIssues.map((issue) => issue.message).join(' ')}`);
-            return;
-          }
-
-          const executionLocale = activeTargetLocale(latestParams, ctx.locale);
-          const latestFieldMetadata = mappedFieldMetadata(latestParams.movieFields, ctx.fields);
-          reportStatus('applying');
-
-          const result = await applyPreparedImport(
-            prepared,
-            { ...latestParams, targetLocale: executionLocale },
-            gatewayFor(ctx, executionLocale),
-            executorOptionsForMappedFields(latestFieldMetadata),
-          );
-          if (result.status === 'success') {
-            ctx.notice('TMDB import applied to the unsaved movie.');
-          } else {
-            ctx.alert(result.message);
-          }
-        },
+        onOpen: (mode, reportStatus) =>
+          runFieldExtensionImport(mode, reportStatus, ctx, {
+            createGateway: (_gatewayContext, targetLocale) =>
+              gatewayFor(ctx, targetLocale),
+            applyPrepared: applyPreparedImport,
+          }),
       },
       ctx,
     );
@@ -239,9 +187,4 @@ function gatewayFor(
     targetLocale,
     onUploadStageTiming,
   });
-}
-
-function validTmdbId(value: unknown): number | null {
-  const id = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
 }

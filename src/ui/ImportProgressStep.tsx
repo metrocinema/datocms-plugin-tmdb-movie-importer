@@ -1,5 +1,5 @@
 import { Button, Spinner } from 'datocms-react-ui';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ImportPlan } from '../domain/importPlanning';
 import type { ImportProgressEvent, ImportProgressPhase } from '../dato/importExecutor';
 import { ModalStepIndicator } from './ModalStepIndicator';
@@ -11,6 +11,8 @@ const phaseLabels: Record<ImportProgressPhase, string> = {
   images: 'Uploading images',
   fields_prepare: 'Preparing movie field values',
 };
+
+const phaseOrder: ImportProgressPhase[] = ['people_lookup', 'people_create', 'images', 'fields_prepare'];
 
 type ImportProgressStepProps = {
   plan: ImportPlan;
@@ -32,6 +34,8 @@ export function initialImportProgress(): Record<ImportProgressPhase, ImportProgr
 
 export function ImportProgressStep({ plan, progressEvents, preparationFailure, onClose }: ImportProgressStepProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const previousProgressEventsRef = useRef(progressEvents);
+  const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const summary = countConfirmSummary(plan);
   const impactSummary = [
     `${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} selected`,
@@ -43,6 +47,25 @@ export function ImportProgressStep({ plan, progressEvents, preparationFailure, o
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
   }, []);
+
+  useEffect(() => {
+    const changedAnnouncements = phaseOrder.flatMap((phase) => {
+      const currentEvent = progressEvents[phase];
+      const previousEvent = previousProgressEventsRef.current[phase];
+
+      if (!didProgressEventChange(previousEvent, currentEvent) || currentEvent.state === 'waiting') {
+        return [];
+      }
+
+      return [`${phaseLabels[phase]}: ${progressDetail(currentEvent)}.`];
+    });
+
+    if (changedAnnouncements.length > 0) {
+      setLiveAnnouncement(changedAnnouncements.join(' '));
+    }
+
+    previousProgressEventsRef.current = progressEvents;
+  }, [progressEvents]);
 
   return (
     <section className="movie-import-modal__progress-step movie-import-modal__step-frame">
@@ -63,9 +86,10 @@ export function ImportProgressStep({ plan, progressEvents, preparationFailure, o
             <p>Draft people or uploaded images may already exist in DatoCMS.</p>
           </div>
         ) : (
-          <div className="movie-import-modal__progress-status" role="status" aria-live="polite">
+          <div className="movie-import-modal__progress-status" role="status" aria-live="polite" aria-atomic="true">
             <Spinner size={48} />
             <p>Preparing your TMDB import</p>
+            <span className="movie-import-modal__visually-hidden">{liveAnnouncement}</span>
           </div>
         )}
 
@@ -94,6 +118,13 @@ export function ImportProgressStep({ plan, progressEvents, preparationFailure, o
       </div>
     </section>
   );
+}
+
+function didProgressEventChange(previousEvent: ImportProgressEvent, currentEvent: ImportProgressEvent) {
+  return previousEvent.state !== currentEvent.state
+    || previousEvent.completed !== currentEvent.completed
+    || previousEvent.total !== currentEvent.total
+    || previousEvent.message !== currentEvent.message;
 }
 
 function progressDetail(event: ImportProgressEvent) {

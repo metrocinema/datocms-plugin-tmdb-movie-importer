@@ -39,6 +39,17 @@ export function isPreparedImport(value: unknown): value is PreparedImport {
   const candidate = value;
 
   if (!(
+    hasExactOwnKeys(candidate, [
+      'fieldChanges',
+      'directors',
+      'actors',
+      'people',
+      'images',
+      'heroImage',
+      'otherImages',
+      'createdPeople',
+      'uploadedAssets',
+    ]) &&
     Array.isArray(candidate.fieldChanges) &&
     Array.isArray(candidate.directors) &&
     Array.isArray(candidate.actors) &&
@@ -51,7 +62,7 @@ export function isPreparedImport(value: unknown): value is PreparedImport {
     return false;
   }
 
-  return (
+  const isStructurallyValid = (
     candidate.fieldChanges.every(isPreparedFieldChange) &&
     candidate.directors.every((person) => isPreparedPersonCandidate(person, 'director')) &&
     candidate.actors.every((person) => isPreparedPersonCandidate(person, 'actor')) &&
@@ -61,6 +72,19 @@ export function isPreparedImport(value: unknown): value is PreparedImport {
     candidate.otherImages.every(isPreparedImageIdentity) &&
     candidate.createdPeople.every((id) => typeof id === 'string') &&
     candidate.uploadedAssets.every((id) => typeof id === 'string')
+  );
+
+  if (!isStructurallyValid) return false;
+  const prepared = candidate as PreparedImport;
+
+  return (
+    prepared.directors.every((person) => hasPreparedPerson(prepared, person)) &&
+    prepared.actors.every((person) => hasPreparedPerson(prepared, person)) &&
+    prepared.createdPeople.every((recordId) => prepared.people.some((person) => person.recordId === recordId)) &&
+    prepared.images.every((image) => prepared.uploadedAssets.includes(image.uploadId)) &&
+    prepared.uploadedAssets.every((uploadId) => prepared.images.some((image) => image.uploadId === uploadId)) &&
+    (prepared.heroImage === null || hasPreparedBackdrop(prepared, prepared.heroImage)) &&
+    prepared.otherImages.every((image) => hasPreparedBackdrop(prepared, image))
   );
 }
 
@@ -75,6 +99,7 @@ function readModalParameter(parameters: unknown, key: string) {
 function isPreparedFieldChange(value: unknown) {
   return (
     isRecord(value) &&
+    hasExactOwnKeys(value, ['key', 'value']) &&
     typeof value.key === 'string' &&
     knownMovieFieldKeys.includes(value.key as MovieFieldKey) &&
     Object.hasOwn(value, 'value')
@@ -87,6 +112,7 @@ function isPreparedPersonCandidate(
 ) {
   return (
     isRecord(value) &&
+    hasExactOwnKeys(value, ['tmdbId', 'name', 'order', 'role']) &&
     typeof value.tmdbId === 'number' &&
     typeof value.name === 'string' &&
     typeof value.order === 'number' &&
@@ -97,10 +123,36 @@ function isPreparedPersonCandidate(
 function isPreparedPersonReference(value: unknown) {
   return (
     isRecord(value) &&
+    hasExactOwnKeys(value, [
+      'candidateTmdbId',
+      'candidateRole',
+      'recordId',
+    ]) &&
     typeof value.candidateTmdbId === 'number' &&
     (value.candidateRole === 'director' || value.candidateRole === 'actor') &&
     typeof value.recordId === 'string'
   );
+}
+
+function hasPreparedPerson(
+  candidate: PreparedImport,
+  person: PreparedImport['directors'][number] | PreparedImport['actors'][number],
+) {
+  return candidate.people.some((reference) => (
+    reference.candidateTmdbId === person.tmdbId &&
+    reference.candidateRole === person.role
+  ));
+}
+
+function hasPreparedBackdrop(
+  candidate: PreparedImport,
+  identity: PreparedImport['otherImages'][number],
+) {
+  return candidate.images.some((image) => (
+    image.type === 'backdrop' &&
+    image.providerKey === identity.providerKey &&
+    image.providerImageId === identity.providerImageId
+  ));
 }
 
 function isPreparedImageReference(value: unknown) {

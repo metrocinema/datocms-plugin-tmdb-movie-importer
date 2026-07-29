@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { FieldAddon, type FieldAddonStatusReporter } from './FieldAddon';
@@ -69,5 +69,20 @@ describe('FieldAddon', () => {
 
     expect(screen.getByRole('button', { name: 'Refresh from TMDB' })).toBeEnabled();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('clears the working state when opening the importer rejects', async () => {
+    const onOpen = vi.fn().mockRejectedValue(new Error('Modal failed to open'));
+    render(<FieldAddon tmdbId={null} onOpen={onOpen} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Find movie' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Find movie' })).toBeEnabled();
+    });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The TMDB importer could not open. Try again.',
+    );
   });
 });

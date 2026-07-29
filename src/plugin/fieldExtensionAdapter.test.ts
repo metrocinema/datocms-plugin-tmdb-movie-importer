@@ -1,0 +1,168 @@
+import type { Modal } from 'datocms-plugin-sdk';
+import type { PreparedImport } from '../dato/importExecutor';
+import { runFieldExtensionImport } from './fieldExtensionAdapter';
+
+const configuredParameters = {
+  tmdbReadToken: 'tmdb-token',
+  movieModelApiKey: 'movie',
+  targetLocale: 'en',
+  movieFields: { title: 'title' },
+  personModelApiKey: 'person',
+  personNameFieldApiKey: 'name',
+  personTmdbIdFieldApiKey: 'tmdb_id',
+  actorLimit: 10,
+};
+
+const preparedImport: PreparedImport = {
+  fieldChanges: [{ key: 'title', value: 'The Example' }],
+  directors: [],
+  actors: [],
+  people: [],
+  images: [],
+  heroImage: null,
+  otherImages: [],
+  createdPeople: [],
+  uploadedAssets: [],
+};
+
+function fieldContext(openModal: (options: Modal) => Promise<unknown>) {
+  return {
+    plugin: { attributes: { parameters: { ...configuredParameters } } },
+    formValues: {
+      title: { en: 'English title', fr: 'Titre français' },
+      tmdb_id: 123,
+    },
+    fieldPath: 'tmdb_id',
+    locale: 'en',
+    fields: {
+      title: {
+        attributes: {
+          api_key: 'title',
+          localized: true,
+          field_type: 'string',
+        },
+      },
+    },
+    openModal,
+    notice: vi.fn(),
+    alert: vi.fn(),
+  };
+}
+
+describe('field extension adapter', () => {
+  it('does not apply an invalid modal result', async () => {
+    const ctx = fieldContext(async () => ({ status: 'success' }));
+    const createGateway = vi.fn();
+    const applyPrepared = vi.fn();
+
+    await runFieldExtensionImport('find', vi.fn(), ctx, {
+      createGateway,
+      applyPrepared,
+    });
+
+    expect(createGateway).not.toHaveBeenCalled();
+    expect(applyPrepared).not.toHaveBeenCalled();
+    expect(ctx.notice).not.toHaveBeenCalled();
+    expect(ctx.alert).not.toHaveBeenCalled();
+  });
+
+  it('reports an unexpected modal failure without applying values', async () => {
+    const ctx = fieldContext(async () => {
+      throw new Error('Dato modal failed to open');
+    });
+    const applyPrepared = vi.fn();
+
+    await runFieldExtensionImport('find', vi.fn(), ctx, {
+      createGateway: vi.fn(),
+      applyPrepared,
+    });
+
+    expect(applyPrepared).not.toHaveBeenCalled();
+    expect(ctx.alert).toHaveBeenCalledWith(
+      'The TMDB importer could not finish. No movie values were applied.',
+    );
+  });
+
+  it('revalidates changed configuration after the modal closes', async () => {
+    const ctx = fieldContext(async () => {
+      ctx.plugin.attributes.parameters.movieModelApiKey = '';
+      return preparedImport;
+    });
+    const applyPrepared = vi.fn();
+
+    await runFieldExtensionImport('find', vi.fn(), ctx, {
+      createGateway: vi.fn(),
+      applyPrepared,
+    });
+
+    expect(applyPrepared).not.toHaveBeenCalled();
+    expect(ctx.alert).toHaveBeenCalledWith(
+      'Import did not run because the configuration is incomplete: Movie model is required.',
+    );
+  });
+
+  it('recomputes the locale after the modal closes and reports application success', async () => {
+    const openModal = vi.fn(async () => {
+      ctx.locale = 'fr';
+      return preparedImport;
+    });
+    const ctx = fieldContext(openModal);
+    const gateway = {};
+    const createGateway = vi.fn(() => gateway);
+    const applyPrepared = vi.fn(async () => ({
+      status: 'success' as const,
+      createdPeople: [],
+      uploadedAssets: [],
+      appliedFields: ['title.fr'],
+    }));
+    const reportStatus = vi.fn();
+
+    await runFieldExtensionImport('refresh', reportStatus, ctx, {
+      createGateway,
+      applyPrepared,
+    });
+
+    expect(openModal).toHaveBeenCalledWith(expect.objectContaining({
+      parameters: expect.objectContaining({
+        targetLocale: 'en',
+        currentValues: { title: 'English title' },
+      }),
+    }));
+    expect(createGateway).toHaveBeenCalledWith(ctx, 'fr');
+    expect(applyPrepared).toHaveBeenCalledWith(
+      preparedImport,
+      expect.objectContaining({ targetLocale: 'fr' }),
+      gateway,
+      {
+        localizedMovieFields: { title: true },
+        movieFieldTypes: { title: 'string' },
+      },
+    );
+    expect(reportStatus).toHaveBeenCalledWith('applying');
+    expect(ctx.notice).toHaveBeenCalledWith(
+      'TMDB import applied to the unsaved movie.',
+    );
+    expect(ctx.alert).not.toHaveBeenCalled();
+  });
+
+  it('reports an application failure as an alert', async () => {
+    const ctx = fieldContext(async () => preparedImport);
+    const applyPrepared = vi.fn(async () => ({
+      status: 'form_failed' as const,
+      message: 'The movie form could not be updated.',
+      createdPeople: [],
+      uploadedAssets: [],
+      appliedFields: [],
+    }));
+
+    await runFieldExtensionImport('find', vi.fn(), ctx, {
+      createGateway: vi.fn(() => ({})),
+      applyPrepared,
+    });
+
+    expect(ctx.alert).toHaveBeenCalledWith(
+      'The movie form could not be updated.',
+    );
+    expect(ctx.notice).not.toHaveBeenCalled();
+  });
+});
