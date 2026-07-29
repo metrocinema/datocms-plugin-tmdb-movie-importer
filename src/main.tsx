@@ -4,13 +4,13 @@ import { connect } from 'datocms-plugin-sdk';
 import { Canvas } from 'datocms-react-ui';
 import 'datocms-react-ui/styles.css';
 import { App, type PluginScreen } from './App';
-import { applyPreparedImport, prepareImport, type PreparedImport } from './dato/importExecutor';
+import { applyPreparedImport, prepareImport } from './dato/importExecutor';
 import { createDatoGateway, type GatewayClient, type UploadStageTiming } from './dato/datoGateway';
 import type { CurrentMovieValues } from './domain/fieldComparison';
 import type { MovieFieldKey } from './domain/movie';
 import { activeTargetLocale, parsePluginParameters } from './plugin/parameters';
 import { manualFieldExtensions } from './plugin/fieldExtensions';
-import { modalCurrentValues, modalInitialTitle, modalInitialTmdbId, modalInitialYear, modalMappedFields } from './plugin/modalRuntime';
+import { isPreparedImport, modalCurrentValues, modalInitialTitle, modalInitialTmdbId, modalInitialYear, modalMappedFields } from './plugin/modalRuntime';
 import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './plugin/runtimeValidation';
 import { executorOptionsForMappedFields, mappedFieldMetadata, valuesForMappedFields } from './plugin/mappedFields';
 import { TmdbClient } from './providers/tmdbClient';
@@ -239,19 +239,6 @@ function gatewayFor(
     targetLocale,
     onUploadStageTiming,
   });
-}
-
-function isPreparedImport(value: unknown): value is PreparedImport {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as Record<string, unknown>;
-
-  return (
-    Array.isArray(candidate.fieldChanges) &&
-    Array.isArray(candidate.directors) &&
-    Array.isArray(candidate.actors) &&
-    Array.isArray(candidate.people) &&
-    Array.isArray(candidate.images)
-  );
 }
 
 function validTmdbId(value: unknown): number | null {
