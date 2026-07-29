@@ -1,12 +1,15 @@
 import React from 'react';
 import { Canvas } from 'datocms-react-ui';
 import { App, type PluginScreen } from './App';
+import type { ImportProgressEvent, PrepareImportResult } from './dato/importExecutor';
+import type { ImportPlan } from './domain/importPlanning';
 import type { NormalizedMovie } from './domain/movie';
 import { renderIntoRoot } from './reactRoot';
 
 type HarnessMode = 'modal' | 'config' | 'field';
 type HarnessTheme = 'light' | 'dark' | 'dato-dark';
 type HarnessScenario = 'default' | 'odyssey-existing';
+export type HarnessProgress = 'search' | 'import' | 'failure' | null;
 
 export function isDevHarnessRequest(url = window.location.href, isEmbedded = window.parent !== window) {
   if (!import.meta.env.DEV) {
@@ -25,6 +28,7 @@ export function renderDevHarness() {
   const colorScheme = theme === 'dato-dark' ? 'dark' : theme;
   const ctx = mockCanvasContext(theme);
   const scenario = harnessScenario();
+  const progress = harnessProgress();
 
   document.documentElement.dataset.colorScheme = colorScheme;
   document.documentElement.style.colorScheme = colorScheme;
@@ -33,7 +37,7 @@ export function renderDevHarness() {
     document.getElementById('root')!,
     <React.StrictMode>
       <Canvas ctx={ctx as never} noAutoResizer>
-        <App screen={screenForHarnessMode(harnessMode(), scenario)} />
+        <App screen={screenForHarnessMode(harnessMode(), scenario, progress)} />
       </Canvas>
     </React.StrictMode>,
   );
@@ -63,7 +67,16 @@ export function harnessScenario(url = window.location.href): HarnessScenario {
   return new URL(url).searchParams.get('scenario') === 'odyssey-existing' ? 'odyssey-existing' : 'default';
 }
 
-export function screenForHarnessMode(mode: HarnessMode, scenario: HarnessScenario = 'default'): PluginScreen {
+export function harnessProgress(url = window.location.href): HarnessProgress {
+  const value = new URL(url).searchParams.get('progress');
+  return value === 'search' || value === 'import' || value === 'failure' ? value : null;
+}
+
+export function screenForHarnessMode(
+  mode: HarnessMode,
+  scenario: HarnessScenario = 'default',
+  progress: HarnessProgress = null,
+): PluginScreen {
   if (mode === 'config') {
     return {
       type: 'config',
@@ -112,14 +125,49 @@ export function screenForHarnessMode(mode: HarnessMode, scenario: HarnessScenari
     initialTmdbId: null,
     currentValues: modalScenario.currentValues,
     mappedFields: ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'],
-    searchMovies: async () => modalScenario.searchResults,
+    searchMovies: progress === 'search'
+      ? () => pendingHarnessPromise()
+      : async () => modalScenario.searchResults,
     loadMovie: async () => modalScenario.movie,
     tmdbIdFieldConfigured: true,
     resolvePeople: async () => modalScenario.people,
-    execute: async (plan) => {
-      console.info('Impeccable harness import plan', plan);
+    prepare: (plan, onProgress) => prepareHarnessImport(progress, plan, onProgress),
+    resolve: async (prepared) => {
+      console.info('Impeccable harness prepared import', prepared);
     },
   };
+}
+
+function prepareHarnessImport(
+  progress: HarnessProgress,
+  plan: ImportPlan,
+  onProgress: (event: ImportProgressEvent) => void,
+): Promise<PrepareImportResult> {
+  console.info('Impeccable harness import plan', plan);
+
+  if (progress === 'import') {
+    onProgress({ phase: 'people_create', state: 'active', completed: 1, total: 2 });
+    onProgress({ phase: 'images', state: 'active', completed: 2, total: 5 });
+    return pendingHarnessPromise();
+  }
+
+  if (progress === 'failure') {
+    onProgress({ phase: 'people_create', state: 'complete', completed: 1, total: 1 });
+    onProgress({ phase: 'images', state: 'failed', completed: 1, total: 2, message: 'The second image could not be uploaded.' });
+    return Promise.resolve({
+      status: 'dependency_failed' as const,
+      failedPhase: 'images' as const,
+      message: 'The second image could not be uploaded.',
+      createdPeople: ['person-wong-kar-wai'],
+      uploadedAssets: ['upload-poster'],
+    });
+  }
+
+  return pendingHarnessPromise();
+}
+
+function pendingHarnessPromise<T = never>(): Promise<T> {
+  return new Promise<T>(() => undefined);
 }
 
 function modalScenarioFor(scenario: HarnessScenario) {

@@ -140,4 +140,19 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(summaryRule).toContain('display: grid');
     expect(summaryRule).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
   });
+
+  it('keeps progress states token-based and readable on narrow screens', () => {
+    const activeRule = ruleFor('.movie-import-modal__progress-phase--active');
+    const completeRule = ruleFor('.movie-import-modal__progress-phase--complete');
+    const failedRule = ruleFor('.movie-import-modal__progress-phase--failed');
+    const footerRule = ruleFor('.movie-import-modal__actions--sticky');
+    const narrowRule = ruleInMedia('(max-width: 540px)', '.movie-import-modal__progress-phase');
+    const progressCss = [activeRule, completeRule, failedRule].join('\n');
+
+    expect(progressCss).toContain('var(--color--');
+    expect(footerRule).toContain('min-height: 60px');
+    expect(progressCss).not.toMatch(/#[0-9a-f]{3,8}|rgb\(/i);
+    expect(progressCss).not.toMatch(/background:\s*(?:white|#fff|rgb\()/i);
+    expect(narrowRule).toContain('align-items: flex-start');
+  });
 });

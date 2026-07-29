@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { harnessDesignTokens, harnessScenario, harnessTheme, isDevHarnessRequest, screenForHarnessMode } from './devHarness';
+import { harnessDesignTokens, harnessProgress, harnessScenario, harnessTheme, isDevHarnessRequest, screenForHarnessMode } from './devHarness';
 
 describe('devHarness', () => {
+  it.each([
+    ['search', 'search'],
+    ['import', 'import'],
+    ['failure', 'failure'],
+    ['unknown', null],
+    [null, null],
+  ] as const)('routes progress=%s to the stable visual progress scenario', (progress, expected) => {
+    const url = progress
+      ? `http://127.0.0.1:5174/?impeccable=modal&progress=${progress}`
+      : 'http://127.0.0.1:5174/?impeccable=modal';
+
+    expect(harnessProgress(url)).toBe(expected);
+  });
+
   it('supports a Dato dark theme mode for sandbox-accurate visual review', () => {
     expect(harnessTheme('http://127.0.0.1:5174/?impeccable=modal&theme=dato-dark')).toBe('dato-dark');
   });

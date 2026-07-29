@@ -3,7 +3,20 @@ import userEvent from '@testing-library/user-event';
 import { ImportModal } from './ImportModal';
 import type { NormalizedMovie } from '../domain/movie';
 import type { ImportProgressEvent, PrepareImportResult } from '../dato/importExecutor';
+import type { ImportPlan } from '../domain/importPlanning';
 import { TmdbError } from '../providers/tmdbClient';
+
+const pendingLifecycle = {
+  prepare: () => new Promise<PrepareImportResult>(() => undefined),
+  resolve: async () => undefined,
+};
+
+function capturePreparedPlan(recordPlan: (plan: ImportPlan) => unknown) {
+  return (plan: ImportPlan) => {
+    recordPlan(plan);
+    return new Promise<PrepareImportResult>(() => undefined);
+  };
+}
 
 const movie: NormalizedMovie = {
   tmdbId: 123,
@@ -96,7 +109,7 @@ describe('ImportModal', () => {
           { id: 456, title: 'Example Movie', releaseDate: '2023-10-12', overview: null, posterPath: null, posterUrl: null },
         ]}
         loadMovie={async () => movie}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -139,7 +152,7 @@ describe('ImportModal', () => {
           finishSearch = resolve;
         })}
         loadMovie={async () => movie}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -168,7 +181,7 @@ describe('ImportModal', () => {
         mappedFields={['title']}
         searchMovies={searchMovies}
         loadMovie={async () => movie}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -203,7 +216,7 @@ describe('ImportModal', () => {
         resolvePeople={() => new Promise((resolve) => {
           resolvePeople = resolve;
         })}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -230,7 +243,7 @@ describe('ImportModal', () => {
         mappedFields={['title']}
         searchMovies={async () => []}
         loadMovie={async () => movie}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -250,7 +263,7 @@ describe('ImportModal', () => {
         mappedFields={['title']}
         searchMovies={searchMovies}
         loadMovie={async () => movie}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -271,7 +284,7 @@ describe('ImportModal', () => {
         mappedFields={['title']}
         searchMovies={searchMovies}
         loadMovie={async () => movie}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -291,7 +304,7 @@ describe('ImportModal', () => {
         mappedFields={['title']}
         searchMovies={async () => []}
         loadMovie={loadMovie}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -312,7 +325,7 @@ describe('ImportModal', () => {
         mappedFields={['title', 'runtime', 'tmdbId', 'directors', 'actors', 'poster']}
         searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: 'Overview text', posterPath: null, posterUrl: null }]}
         loadMovie={async () => movie}
-        execute={execute}
+        prepare={capturePreparedPlan(execute)} resolve={vi.fn()}
       />,
     );
 
@@ -465,7 +478,7 @@ describe('ImportModal', () => {
         mappedFields={['title', 'directors', 'actors', 'poster', 'heroImage', 'backdrops']}
         searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: 'Overview text', posterPath: null, posterUrl: null }]}
         loadMovie={async () => movie}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -517,7 +530,7 @@ async function reachReview() {
 describe('ImportModal data flow', () => {
   it('uses an explicit hero selector and keeps other image choices separate', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     expect(screen.getByText('Choose exactly which TMDB artwork destinations to import.')).toBeInTheDocument();
@@ -548,7 +561,7 @@ describe('ImportModal data flow', () => {
   });
 
   it('shows only the first 10 poster candidates and first 10 backdrop candidates', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithManyImages} resolvePeople={async () => []} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithManyImages} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
     expect(screen.getAllByRole('img', { name: /Poster option/i })).toHaveLength(10);
@@ -560,7 +573,7 @@ describe('ImportModal data flow', () => {
 
   it('allows editors to skip importing a hero image while keeping other image choices', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     await userEvent.click(screen.getByRole('radio', { name: 'Do not import a Hero Image' }));
@@ -575,7 +588,7 @@ describe('ImportModal data flow', () => {
   });
 
   it('describes the backdrop picker as hero-only when only the hero image field is mapped', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: null }} mappedFields={['title', 'heroImage']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: null }} mappedFields={['title', 'heroImage']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
     expect(screen.getByText('Choose one backdrop to upload to the Hero Image field, or skip this destination.')).toBeInTheDocument();
@@ -583,7 +596,7 @@ describe('ImportModal data flow', () => {
   });
 
   it('describes the backdrop picker as other-images-only when only the other images field is mapped', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', backdrops: [] }} mappedFields={['title', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', backdrops: [] }} mappedFields={['title', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
     expect(screen.getByText('Select any backdrops to upload to the Other Images gallery field.')).toBeInTheDocument();
@@ -592,7 +605,7 @@ describe('ImportModal data flow', () => {
 
   it('keeps an existing hero image untouched when only other images are selected', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: { upload_id: 'existing-hero' }, backdrops: [] }} mappedFields={['title', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: { upload_id: 'existing-hero' }, backdrops: [] }} mappedFields={['title', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     expect(screen.getByText('2 Other Images selected for import.')).toBeInTheDocument();
@@ -606,7 +619,7 @@ describe('ImportModal data flow', () => {
 
   it('keeps image provider identity when selecting candidates with the same provider image ID', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithProviderCollisionImages} resolvePeople={async () => []} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithProviderCollisionImages} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     const heroOptions = screen.getAllByRole('radio', { name: /Use as Hero Image/i });
@@ -620,7 +633,7 @@ describe('ImportModal data flow', () => {
 
   it('creates resolutions for imported directors and actors before confirming', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'directors', 'actors', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'directors', 'actors', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -640,7 +653,7 @@ describe('ImportModal data flow', () => {
 
   it('excludes unmapped people and image destinations from the review plan', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     expect(screen.queryByRole('heading', { name: 'Images' })).not.toBeInTheDocument();
@@ -661,7 +674,7 @@ describe('ImportModal data flow', () => {
   });
 
   it('blocks confirmation for an ambiguous person until the editor resolves it', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'person-a', name: 'Director Name', tmdbId: null }, { id: 'person-b', name: 'Director Name', tmdbId: null }]} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'person-a', name: 'Director Name', tmdbId: null }, { id: 'person-b', name: 'Director Name', tmdbId: null }]} {...pendingLifecycle} />);
 
     await reachReview();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
@@ -674,7 +687,7 @@ describe('ImportModal data flow', () => {
   });
 
   it('resolves only the selected role when one TMDB person appears in multiple people rows', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors', 'actors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithSamePersonInTwoRoles} resolvePeople={async () => [{ id: 'person-a', name: 'Multi-Hyphenate Person', tmdbId: null }, { id: 'person-b', name: 'Multi-Hyphenate Person', tmdbId: null }]} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors', 'actors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithSamePersonInTwoRoles} resolvePeople={async () => [{ id: 'person-a', name: 'Multi-Hyphenate Person', tmdbId: null }, { id: 'person-b', name: 'Multi-Hyphenate Person', tmdbId: null }]} {...pendingLifecycle} />);
 
     await reachReview();
     const directorResolutionControl = screen.getByLabelText('Resolve director: Multi-Hyphenate Person');
@@ -689,7 +702,7 @@ describe('ImportModal data flow', () => {
 
   it('keeps mixed manual create and reuse decisions separate for the same TMDB person in different roles', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors', 'actors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithSamePersonInTwoRoles} resolvePeople={async () => [{ id: 'person-a', name: 'Multi-Hyphenate Person', tmdbId: null }, { id: 'person-b', name: 'Multi-Hyphenate Person', tmdbId: null }]} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors', 'actors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithSamePersonInTwoRoles} resolvePeople={async () => [{ id: 'person-a', name: 'Multi-Hyphenate Person', tmdbId: null }, { id: 'person-b', name: 'Multi-Hyphenate Person', tmdbId: null }]} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     const directorResolutionControl = screen.getByLabelText('Resolve director: Multi-Hyphenate Person');
@@ -713,7 +726,7 @@ describe('ImportModal data flow', () => {
   });
 
   it('summarizes overwrite risk and lets editors clear selected field changes in one action', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: 'Existing title', runtime: null }} mappedFields={['title', 'runtime']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: 'Existing title', runtime: null }} mappedFields={['title', 'runtime']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
     expect(screen.getByText('No current values will be overwritten · 1 empty field will be filled')).toBeInTheDocument();
@@ -751,7 +764,7 @@ describe('ImportModal data flow', () => {
         searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
         loadMovie={async () => movie}
         resolvePeople={async () => []}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -776,7 +789,7 @@ describe('ImportModal data flow', () => {
         searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
         loadMovie={async () => movie}
         resolvePeople={async () => []}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -804,7 +817,7 @@ describe('ImportModal data flow', () => {
         searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
         loadMovie={async () => movie}
         resolvePeople={async () => []}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -826,7 +839,7 @@ describe('ImportModal data flow', () => {
         searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
         loadMovie={async () => movie}
         resolvePeople={async () => []}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -853,7 +866,7 @@ describe('ImportModal data flow', () => {
         searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
         loadMovie={async () => movie}
         resolvePeople={async () => []}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -880,7 +893,7 @@ describe('ImportModal data flow', () => {
         searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]}
         loadMovie={async () => ({ ...movie, tagline: null })}
         resolvePeople={async () => []}
-        execute={vi.fn()}
+        {...pendingLifecycle}
       />,
     );
 
@@ -893,7 +906,7 @@ describe('ImportModal data flow', () => {
 
   it('includes selected images and excludes images deselected in review', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
@@ -910,7 +923,7 @@ describe('ImportModal data flow', () => {
 
   it('only displays and preselects English-language posters', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithNonEnglishPosters} resolvePeople={async () => []} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithNonEnglishPosters} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
 
@@ -928,7 +941,7 @@ describe('ImportModal data flow', () => {
 
   it('loads the existing TMDB ID directly for refresh mode', async () => {
     const loadMovie = vi.fn(async () => movie);
-    render(<ImportModal initialTitle="Example" initialYear={2024} initialTmdbId={123} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={loadMovie} resolvePeople={async () => []} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} initialTmdbId={123} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={loadMovie} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Review changes' })).toBeInTheDocument());
     expect(loadMovie).toHaveBeenCalledWith(123);
@@ -936,7 +949,7 @@ describe('ImportModal data flow', () => {
 
   it('loads a movie from a TMDB ID entered in find mode', async () => {
     const loadMovie = vi.fn(async () => movie);
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={loadMovie} resolvePeople={async () => []} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={loadMovie} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
     await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
@@ -948,7 +961,7 @@ describe('ImportModal data flow', () => {
   it('shows an auth-specific message when TMDB rejects the read token while loading by ID', async () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={async () => {
       throw new TmdbError('TMDB read token is invalid or not allowed.', 'auth');
-    }} resolvePeople={async () => []} execute={vi.fn()} />);
+    }} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
     await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
@@ -959,7 +972,7 @@ describe('ImportModal data flow', () => {
   it('distinguishes person matching failures from TMDB ID loading failures', async () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => []} loadMovie={async () => movie} resolvePeople={async () => {
       throw new Error('DatoCMS item list permission is unavailable.');
-    }} execute={vi.fn()} />);
+    }} {...pendingLifecycle} />);
 
     await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
     await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
@@ -982,7 +995,7 @@ describe('ImportModal data flow', () => {
     try {
       render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => []} loadMovie={async () => movie} resolvePeople={async () => {
         throw richError;
-      }} execute={vi.fn()} />);
+      }} {...pendingLifecycle} />);
 
       await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
       await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
@@ -1001,7 +1014,7 @@ describe('ImportModal data flow', () => {
     let finishLoad: ((value: NormalizedMovie) => void) | undefined;
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => []} loadMovie={() => new Promise((resolve) => {
       finishLoad = resolve;
-    })} resolvePeople={async () => []} execute={vi.fn()} />);
+    })} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
     await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
@@ -1011,35 +1024,35 @@ describe('ImportModal data flow', () => {
     finishLoad?.(movie);
   });
 
-  it('disables the final import action while submitting the plan to DatoCMS', async () => {
-    let finishExecute: (() => void) | undefined;
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={() => new Promise<void>((resolve) => {
-      finishExecute = resolve;
-    })} />);
+  it('shows preparation progress while the import plan is being prepared', async () => {
+    let finishPreparation: (() => void) | undefined;
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={() => new Promise<PrepareImportResult>((resolve) => {
+      finishPreparation = () => resolve({ status: 'dependency_failed', failedPhase: 'images', message: 'Image upload failed.', createdPeople: [], uploadedAssets: [] });
+    })} resolve={vi.fn()} />);
 
     await reachReview();
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
-    expect(screen.getByRole('button', { name: 'Preparing import' })).toBeDisabled();
-    finishExecute?.();
+    expect(screen.getByRole('heading', { name: 'Importing movie' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Preparing your TMDB import');
+    finishPreparation?.();
   });
 
-  it('uses safe copy if DatoCMS cannot start the import from the modal', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={async () => {
+  it('uses safe copy if import preparation throws', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={async () => {
       throw new Error('ctx.resolve failed');
-    }} />);
+    }} resolve={vi.fn()} />);
 
     await reachReview();
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('The import could not start from the modal.');
-    expect(screen.queryByText(/draft people or uploaded images may already exist/i)).not.toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('The import could not finish while creating people or uploading images.');
   });
 
   it('keeps custom review controls at accessible touch-target sizes', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
 
@@ -1050,7 +1063,7 @@ describe('ImportModal data flow', () => {
   });
 
   it('keeps image choices understandable when a preview fails to load', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} execute={vi.fn()} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
     fireEvent.error(screen.getByRole('img', { name: 'Poster option 1' }));
@@ -1062,7 +1075,7 @@ describe('ImportModal data flow', () => {
 
   it('reuses a different-name record when the TMDB ID matches', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Stored Name', tmdbId: 10 }]} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Stored Name', tmdbId: 10 }]} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     expect(screen.getByText('Matched by TMDB ID.')).toBeInTheDocument();
@@ -1075,7 +1088,7 @@ describe('ImportModal data flow', () => {
 
   it('does not use TMDB ID matching when the person ID field is not configured', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Stored Name', tmdbId: 10 }]} tmdbIdFieldConfigured={false} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Stored Name', tmdbId: 10 }]} tmdbIdFieldConfigured={false} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -1087,7 +1100,7 @@ describe('ImportModal data flow', () => {
 
   it('uses plain-language copy when reusing a person by exact name', async () => {
     const execute = vi.fn();
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Director Name', tmdbId: null }]} execute={execute} />);
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => [{ id: 'director-10', name: 'Director Name', tmdbId: null }]} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
 

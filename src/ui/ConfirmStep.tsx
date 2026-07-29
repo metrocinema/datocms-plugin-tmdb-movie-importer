@@ -10,10 +10,9 @@ type ConfirmStepProps = {
   movie: NormalizedMovie;
   onConfirm: () => void;
   onBack: () => void;
-  isSubmittingPlan?: boolean;
 };
 
-export function ConfirmStep({ plan, movie, onConfirm, onBack, isSubmittingPlan = false }: ConfirmStepProps) {
+export function ConfirmStep({ plan, movie, onConfirm, onBack }: ConfirmStepProps) {
   const summary = countConfirmSummary(plan);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const fieldLabels = plan.fieldChanges.map((change) => movieFieldLabels[change.key]);
@@ -91,11 +90,11 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack, isSubmittingPlan =
           {impactSummary.map((item) => <span key={item}>{item}</span>)}
         </p>
         <div className="movie-import-modal__action-buttons">
-          <Button type="button" onClick={onBack} disabled={isSubmittingPlan}>
+          <Button type="button" onClick={onBack}>
             Back to review
           </Button>
-          <Button buttonType="primary" type="button" onClick={onConfirm} disabled={isSubmittingPlan}>
-            {isSubmittingPlan ? 'Preparing import' : 'Start import'}
+          <Button buttonType="primary" type="button" onClick={onConfirm}>
+            Start import
           </Button>
         </div>
       </div>
