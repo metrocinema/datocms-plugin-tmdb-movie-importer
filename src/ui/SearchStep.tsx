@@ -75,8 +75,9 @@ export function SearchStep({ title, year, results, hasSearched, onTitleChange, o
                 <p className="movie-import-modal__meta">TMDB ID {result.id}</p>
               </div>
               <div className="movie-import-modal__card-action">
-                <Button buttonSize="s" type="button" onClick={() => onSelect(result.id)} disabled={isBusy} aria-label={`Use ${result.title}`}>
-                  Use this
+                <Button buttonSize="s" buttonType="muted" type="button" onClick={() => onSelect(result.id)} disabled={isBusy}>
+                  {'Use this '}
+                  <span className="movie-import-modal__visually-hidden">for {result.title}, TMDB ID {result.id}</span>
                 </Button>
               </div>
             </article>

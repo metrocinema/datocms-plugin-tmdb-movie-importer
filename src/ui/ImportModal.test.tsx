@@ -90,7 +90,10 @@ describe('ImportModal', () => {
         initialYear={2024}
         currentValues={{ title: '' }}
         mappedFields={['title']}
-        searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: 'Overview text', posterPath: null, posterUrl: 'https://image.tmdb.org/t/p/w154/poster.jpg' }]}
+        searchMovies={async () => [
+          { id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: 'Overview text', posterPath: null, posterUrl: 'https://image.tmdb.org/t/p/w154/poster.jpg' },
+          { id: 456, title: 'Example Movie', releaseDate: '2023-10-12', overview: null, posterPath: null, posterUrl: null },
+        ]}
         loadMovie={async () => movie}
         execute={vi.fn()}
       />,
@@ -109,7 +112,7 @@ describe('ImportModal', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Search' }));
 
-    expect(screen.getByText('Example Movie')).toBeInTheDocument();
+    expect(screen.getAllByText('Example Movie')).toHaveLength(2);
     expect(screen.getByText('2024')).toBeInTheDocument();
     expect(screen.getByText('Overview text')).toBeInTheDocument();
     expect(screen.getByText('TMDB ID 123')).toBeInTheDocument();
@@ -117,7 +120,10 @@ describe('ImportModal', () => {
     expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('loading', 'lazy');
     expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('width', '64');
     expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('height', '96');
-    expect(screen.getByRole('button', { name: 'Use Example Movie' })).toBeInTheDocument();
+    const firstAction = screen.getByRole('button', { name: 'Use this for Example Movie, TMDB ID 123' });
+    const secondAction = screen.getByRole('button', { name: 'Use this for Example Movie, TMDB ID 456' });
+    expect(firstAction.childNodes[0]).toHaveTextContent('Use this');
+    expect(secondAction.childNodes[0]).toHaveTextContent('Use this');
   });
 
   it('disables search controls while searching', async () => {
@@ -276,6 +282,11 @@ describe('ImportModal', () => {
     expect(screen.getByText('Apply selected TMDB values to the unsaved movie form.')).toBeInTheDocument();
     expect(screen.getByText('The movie record will remain unsaved until you save it in DatoCMS.')).toBeInTheDocument();
     expect(screen.getByText('If something fails after people or images are created, those drafts or uploads may remain in DatoCMS.')).toBeInTheDocument();
+    const confirmActions = document.querySelector('.movie-import-modal__actions--confirm')!;
+    expect(within(confirmActions as HTMLElement).getByText('3 fields selected')).toBeInTheDocument();
+    expect(within(confirmActions as HTMLElement).getByText('1 image selected')).toBeInTheDocument();
+    expect(within(confirmActions as HTMLElement).getByText('2 new people')).toBeInTheDocument();
+    expect(within(confirmActions as HTMLElement).getByText('0 reused people')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start import' })).toBeInTheDocument();
   });
 
@@ -293,7 +304,7 @@ describe('ImportModal', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Search' }));
-    await userEvent.click(screen.getByRole('button', { name: /Use Example Movie/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Use this for Example Movie/i }));
 
     expect(screen.getAllByText('Selected movie').length).toBeGreaterThan(0);
     expect(screen.getByText('Example Movie (2024)')).toBeInTheDocument();

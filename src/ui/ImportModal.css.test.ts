@@ -19,6 +19,37 @@ function rulesFor(selector: string) {
     .map((match) => match.groups?.body ?? '');
 }
 
+function mediaBodyFor(condition: string) {
+  const start = css.indexOf(`@media ${condition}`);
+  if (start === -1) {
+    return '';
+  }
+
+  const openingBrace = css.indexOf('{', start);
+  let depth = 0;
+
+  for (let index = openingBrace; index < css.length; index += 1) {
+    if (css[index] === '{') {
+      depth += 1;
+    } else if (css[index] === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return css.slice(openingBrace + 1, index);
+      }
+    }
+  }
+
+  return '';
+}
+
+function ruleInMedia(condition: string, selector: string) {
+  const mediaBody = mediaBodyFor(condition);
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = mediaBody.match(new RegExp(`${escapedSelector}\\s*\\{(?<body>[^}]*)\\}`));
+
+  return match?.groups?.body ?? '';
+}
+
 describe('ImportModal.css accessibility tokens', () => {
   it('uses a Dato-style modal frame with fixed header, scroll body, and footer rows', () => {
     expect(ruleFor('.movie-import-modal')).toContain('height: 100vh');
@@ -91,5 +122,22 @@ describe('ImportModal.css accessibility tokens', () => {
 
     expect(rule).toContain('background: var(--color--surface');
     expect(rule).not.toContain('--color--field-group-media--surface');
+  });
+
+  it('stacks Review fields and compacts the footer summary at narrow widths', () => {
+    const condition = '(max-width: 540px)';
+    const rowRule = ruleInMedia(condition, '.movie-import-modal__field-table tbody .movie-import-modal__field-table-row');
+    const fieldRule = ruleInMedia(condition, `.movie-import-modal__field-table-field,
+  .movie-import-modal__field-table-value,
+  .movie-import-modal__field-table-proposed`);
+    const valueRule = ruleInMedia(condition, '.movie-import-modal__field-table td.movie-import-modal__field-table-value');
+    const summaryRule = ruleInMedia(condition, '.movie-import-modal__action-summary');
+
+    expect(rowRule).toContain('grid-template-columns: 1fr');
+    expect(fieldRule).toContain('grid-column: 1');
+    expect(fieldRule).toContain('grid-row: auto');
+    expect(valueRule).toContain('padding: 0');
+    expect(summaryRule).toContain('display: grid');
+    expect(summaryRule).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
   });
 });

@@ -18,6 +18,12 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack, isSubmittingPlan =
   const headingRef = useRef<HTMLHeadingElement>(null);
   const fieldLabels = plan.fieldChanges.map((change) => movieFieldLabels[change.key]);
   const imageDestinations = formatImageDestinations(plan);
+  const impactSummary = [
+    `${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} selected`,
+    `${summary.imagesToUpload} ${pluralize(summary.imagesToUpload, 'image')} selected`,
+    `${summary.peopleToCreate} new ${pluralize(summary.peopleToCreate, 'person', 'people')}`,
+    `${summary.peopleToReuse} reused ${pluralize(summary.peopleToReuse, 'person', 'people')}`,
+  ];
 
   useEffect(() => {
     const moveToStart = () => {
@@ -81,12 +87,17 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack, isSubmittingPlan =
         </div>
       </div>
       <div className="movie-import-modal__actions movie-import-modal__actions--sticky movie-import-modal__actions--confirm">
-        <Button type="button" onClick={onBack} disabled={isSubmittingPlan}>
-          Back to review
-        </Button>
-        <Button buttonType="primary" type="button" onClick={onConfirm} disabled={isSubmittingPlan}>
-          {isSubmittingPlan ? 'Preparing import' : 'Start import'}
-        </Button>
+        <p className="movie-import-modal__action-summary" aria-label={`${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} selected, ${summary.imagesToUpload} ${pluralize(summary.imagesToUpload, 'image')} selected, ${summary.peopleToCreate} new ${pluralize(summary.peopleToCreate, 'person', 'people')}, ${summary.peopleToReuse} reused ${pluralize(summary.peopleToReuse, 'person', 'people')}`}>
+          {impactSummary.map((item) => <span key={item}>{item}</span>)}
+        </p>
+        <div className="movie-import-modal__action-buttons">
+          <Button type="button" onClick={onBack} disabled={isSubmittingPlan}>
+            Back to review
+          </Button>
+          <Button buttonType="primary" type="button" onClick={onConfirm} disabled={isSubmittingPlan}>
+            {isSubmittingPlan ? 'Preparing import' : 'Start import'}
+          </Button>
+        </div>
       </div>
     </section>
   );
