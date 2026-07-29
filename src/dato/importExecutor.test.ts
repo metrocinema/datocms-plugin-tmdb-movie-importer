@@ -321,6 +321,7 @@ describe('executeImportPlan', () => {
     );
 
     expect(result.status).toBe('dependency_failed');
+    expect(result.status === 'dependency_failed' && result.failedPhase).toBe('images');
     expect(timings).toEqual(expect.arrayContaining([
       expect.objectContaining({ phase: 'images', status: 'failed', itemCount: 1 }),
       expect.objectContaining({ phase: 'total', status: 'failed' }),
@@ -358,6 +359,7 @@ describe('executeImportPlan', () => {
     );
 
     expect(result.status).toBe('dependency_failed');
+    expect(result.status === 'dependency_failed' && result.failedPhase).toBe('people_create');
     expect(timings.filter(({ phase }) => phase === 'people_lookup')).toEqual([
       expect.objectContaining({ status: 'success', itemCount: 1 }),
     ]);
@@ -365,6 +367,43 @@ describe('executeImportPlan', () => {
       expect.objectContaining({ phase: 'people_create', status: 'failed', itemCount: 1 }),
       expect.objectContaining({ phase: 'total', status: 'failed' }),
     ]));
+  });
+
+  it('preserves the first actual dependency failure when concurrent branches both fail', async () => {
+    let finishLookup: ((records: []) => void) | undefined;
+    const execution = prepareImport(
+      {
+        ...plan,
+        directors: [plan.directors[0]],
+        actors: [],
+        peopleToCreate: [plan.peopleToCreate[0]],
+        assetsToUpload: [plan.assetsToUpload[0]],
+      },
+      params,
+      {
+        findPeople() {
+          return new Promise((resolve) => {
+            finishLookup = resolve;
+          });
+        },
+        async createPersonDraft() {
+          throw new Error('create failed after upload');
+        },
+        async uploadImage() {
+          throw new Error('upload failed first');
+        },
+        async applyFormValues() {
+          throw new Error('fields must not run');
+        },
+      },
+    );
+
+    await Promise.resolve();
+    finishLookup?.([]);
+
+    const result = await execution;
+
+    expect(result.status === 'dependency_failed' && result.failedPhase).toBe('images');
   });
 
   it('uploads at most five independent images at a time', async () => {

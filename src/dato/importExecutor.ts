@@ -8,7 +8,7 @@ import { mapWithConcurrency } from '../utils/concurrency';
 
 export type ImportResult =
   | { status: 'success'; createdPeople: string[]; uploadedAssets: string[]; appliedFields: string[] }
-  | { status: 'dependency_failed'; message: string; createdPeople: string[]; uploadedAssets: string[] }
+  | { status: 'dependency_failed'; failedPhase: DependencyFailurePhase; message: string; createdPeople: string[]; uploadedAssets: string[] }
   | { status: 'form_failed'; message: string; createdPeople: string[]; uploadedAssets: string[]; appliedFields: string[] };
 
 export type ImportExecutorOptions = {
@@ -41,6 +41,8 @@ export type ImportProgressEvent = {
   message?: string;
 };
 
+export type DependencyFailurePhase = Extract<ImportProgressPhase, 'people_lookup' | 'people_create' | 'images'>;
+
 export type PreparedImageReference = {
   providerKey: string;
   providerImageId: string;
@@ -70,6 +72,7 @@ export type PrepareImportResult =
   | { status: 'success'; prepared: PreparedImport }
   | {
       status: 'dependency_failed';
+      failedPhase: DependencyFailurePhase;
       message: string;
       createdPeople: string[];
       uploadedAssets: string[];
@@ -84,6 +87,15 @@ type PersonDraftResult = {
   id: string;
   created: boolean;
 };
+
+class DependencyPreparationFailure extends Error {
+  constructor(
+    readonly phase: DependencyFailurePhase,
+    readonly originalError: unknown,
+  ) {
+    super(`Dependency preparation failed during ${phase}`);
+  }
+}
 
 const preparationTimings = new WeakMap<PreparedImport, { startedAt: number; dependencyItemCount: number }>();
 
@@ -100,6 +112,14 @@ export async function prepareImport(
   const autoPersonIdsByTmdb = new Map<number, string>();
   const now = options.now ?? (() => globalThis.performance.now());
   const totalStartedAt = now();
+  let firstDependencyFailure: DependencyPreparationFailure | null = null;
+
+  const failDependency = (phase: DependencyFailurePhase, error: unknown) => {
+    const failure = new DependencyPreparationFailure(phase, error);
+    firstDependencyFailure ??= failure;
+    return failure;
+  };
+  const firstRecordedDependencyFailure = (): DependencyPreparationFailure | null => firstDependencyFailure;
 
   for (const person of plan.peopleToReuse) {
     personIdsByCandidate.set(personKey(person), person.recordId);
@@ -136,7 +156,7 @@ export async function prepareImport(
         total: autoPeopleToCreate.length,
         message: importFailureMessage(error, 'Person lookup failed.'),
       });
-      throw error;
+      throw failDependency('people_lookup', error);
     }
     reportPhaseTiming(options, now, 'people_lookup', 'success', autoPeopleToCreate.length, lookupStartedAt);
     reportProgress(options, {
@@ -216,7 +236,7 @@ export async function prepareImport(
         total: peopleToCreate.length,
         message: importFailureMessage(error, 'Person creation failed.'),
       });
-      throw error;
+      throw failDependency('people_create', error);
     }
     reportPhaseTiming(options, now, 'people_create', 'success', creationCount, creationStartedAt);
     reportProgress(options, {
@@ -261,7 +281,7 @@ export async function prepareImport(
         total: plan.assetsToUpload.length,
         message: importFailureMessage(error, 'Image upload failed.'),
       });
-      throw error;
+      throw failDependency('images', error);
     } finally {
       for (const asset of completedUploads) {
         if (!asset) continue;
@@ -280,10 +300,16 @@ export async function prepareImport(
   const dependencyResults = await Promise.allSettled([processPeople(), processImages()]);
   const dependencyFailure = dependencyResults.find((result): result is PromiseRejectedResult => result.status === 'rejected');
   if (dependencyFailure) {
+    const actualFailure = firstRecordedDependencyFailure();
+    if (!actualFailure) {
+      throw dependencyFailure.reason;
+    }
+
     reportPhaseTiming(options, now, 'total', 'failed', plan.peopleToCreate.length + plan.assetsToUpload.length, totalStartedAt);
     return {
       status: 'dependency_failed',
-      message: importFailureMessage(dependencyFailure.reason, 'The import could not finish while creating people or uploading images. Some drafts or uploads may already exist in DatoCMS.'),
+      failedPhase: actualFailure.phase,
+      message: importFailureMessage(actualFailure.originalError, 'The import could not finish while creating people or uploading images. Some drafts or uploads may already exist in DatoCMS.'),
       createdPeople,
       uploadedAssets,
     };

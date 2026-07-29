@@ -410,6 +410,7 @@ describe('ImportModal', () => {
     const resolve = vi.fn();
     const prepare = vi.fn(async (): Promise<PrepareImportResult> => ({
       status: 'dependency_failed',
+      failedPhase: 'images',
       message: 'The import could not finish while creating people or uploading images.',
       createdPeople: ['person-1'],
       uploadedAssets: ['upload-1'],
@@ -423,12 +424,36 @@ describe('ImportModal', () => {
 
     expect(await screen.findByText('Preparation failed')).toBeInTheDocument();
     expect(screen.getByText('The import could not finish while creating people or uploading images.')).toBeInTheDocument();
+    expect(screen.getByText('Uploading images').closest('li')).toHaveClass('movie-import-modal__progress-phase--failed');
     expect(screen.getByText(/draft people or uploaded images may already exist/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
 
     expect(resolve).toHaveBeenCalledWith(null);
+  });
+
+  it('shows active person and image preparation phases together', async () => {
+    let reportProgress: ((event: ImportProgressEvent) => void) | undefined;
+    const prepare = vi.fn(
+      (_plan, onProgress) => new Promise<PrepareImportResult>(() => {
+        reportProgress = onProgress;
+      }),
+    );
+
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={prepare} resolve={vi.fn()} />);
+
+    await reachReview();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
+
+    reportProgress?.({ phase: 'people_create', state: 'active', completed: 1, total: 2 });
+    reportProgress?.({ phase: 'images', state: 'active', completed: 3, total: 5 });
+
+    expect(await screen.findByText('1 of 2 complete')).toBeInTheDocument();
+    expect(screen.getByText('3 of 5 images uploaded')).toBeInTheDocument();
+    expect(screen.getByText('Creating draft people').closest('li')).toHaveClass('movie-import-modal__progress-phase--active');
+    expect(screen.getByText('Uploading images').closest('li')).toHaveClass('movie-import-modal__progress-phase--active');
   });
 
   it('frames the selected movie review with field, image, and people sections', async () => {

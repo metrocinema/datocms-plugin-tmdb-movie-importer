@@ -151,6 +151,14 @@ export function ImportModal(props: ImportModalProps) {
         return;
       }
 
+      setProgressEvents((current) => ({
+        ...current,
+        [result.failedPhase]: {
+          ...current[result.failedPhase],
+          phase: result.failedPhase,
+          state: 'failed',
+        },
+      }));
       setPreparationFailure(result.message);
     } catch {
       setPreparationFailure('The import could not finish while creating people or uploading images.');
