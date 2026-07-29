@@ -6,7 +6,7 @@ import { ImportModal, type ImportModalProps } from './ui/ImportModal';
 
 export type PluginScreen =
   | { type: 'config'; parameters?: unknown; onSave?: (params: unknown) => Promise<void> }
-  | { type: 'fieldAddon'; tmdbId?: number | string | null; onOpen?: (mode: 'find' | 'refresh') => void; configurationIssues?: ValidationIssue[] }
+  | { type: 'fieldAddon'; tmdbId?: number | string | null; onOpen?: (mode: 'find' | 'refresh') => void | Promise<void>; configurationIssues?: ValidationIssue[] }
   | ({ type: 'modal'; configurationIssues?: ValidationIssue[] } & ImportModalProps)
   | { type: 'unknown'; label: string };
 

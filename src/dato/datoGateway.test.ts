@@ -1,6 +1,46 @@
-import { createDatoGateway, DuplicatePersonNameError } from './datoGateway';
+import { createDatoGateway, DuplicatePersonNameError, type UploadStageTiming } from './datoGateway';
 
 describe('DatoGateway', () => {
+  it('looks up at most three Person TMDB IDs at a time', async () => {
+    const started: number[] = [];
+    const pending = new Map<number, (records: Array<Record<string, unknown>>) => void>();
+    const gateway = createDatoGateway({
+      client: {
+        items: {
+          list: async (params) => {
+            const fields = (params as { filter?: { fields?: { tmdb_id?: { eq?: number } } } }).filter?.fields;
+            const tmdbId = fields?.tmdb_id?.eq;
+            if (tmdbId === undefined) {
+              return [];
+            }
+
+            started.push(tmdbId);
+            return new Promise((resolve) => pending.set(tmdbId, resolve));
+          },
+        },
+      },
+      ctx: {},
+    });
+    const lookup = gateway.findPeople({
+      modelApiKey: 'person',
+      nameFieldApiKey: 'name',
+      tmdbIdFieldApiKey: 'tmdb_id',
+      names: ['Person 1', 'Person 2', 'Person 3', 'Person 4'],
+      tmdbIds: [1, 2, 3, 4],
+    });
+
+    await vi.waitFor(() => expect(started).toEqual([1, 2, 3]));
+    expect(started).not.toContain(4);
+
+    pending.get(1)?.([{ id: 'person-1', name: 'Person 1', tmdb_id: 1 }]);
+    await vi.waitFor(() => expect(started).toContain(4));
+    pending.get(2)?.([{ id: 'person-2', name: 'Person 2', tmdb_id: 2 }]);
+    pending.get(3)?.([{ id: 'person-3', name: 'Person 3', tmdb_id: 3 }]);
+    pending.get(4)?.([{ id: 'person-4', name: 'Person 4', tmdb_id: 4 }]);
+
+    await expect(lookup).resolves.toHaveLength(4);
+  });
+
   it('finds configured people by normalized name and maps their records', async () => {
     const list = async (params: Record<string, unknown>) => {
       expect(params).toEqual({
@@ -360,14 +400,154 @@ describe('DatoGateway', () => {
     expect(created[0]).toMatchObject({
       path: 'upload-request-1',
       default_field_metadata: {
-        alt: {
-          'en-US': 'poster from tmdb',
-        },
-        title: {
-          'en-US': '/poster.jpg',
+        'en-US': {
+          alt: 'poster from tmdb',
+          title: '/poster.jpg',
         },
       },
     });
+  });
+
+  it('reports safe timing for each image upload stage', async () => {
+    const timings: UploadStageTiming[] = [];
+    const gateway = createDatoGateway({
+      client: {
+        uploads: {
+          create: async () => ({ id: 'upload-1' }),
+        },
+        uploadRequest: {
+          create: async () => ({
+            id: 'upload-request-1',
+            url: 'https://uploads.example.com/signed-put',
+            request_headers: {},
+          }),
+        },
+      },
+      ctx: {},
+      fetchImpl: async (_url, init) => {
+        return init?.method === 'PUT'
+          ? new Response(null, { status: 200 })
+          : new Response(new Uint8Array([1, 2, 3]), {
+            status: 200,
+            headers: { 'content-type': 'image/jpeg' },
+          });
+      },
+      onUploadStageTiming: (timing) => timings.push(timing),
+    });
+
+    await gateway.uploadImage({
+      providerKey: 'tmdb',
+      providerImageId: '/poster.jpg',
+      movieIdentity: { providerKey: 'tmdb', tmdbId: 1 },
+      type: 'poster',
+      originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg',
+      width: 100,
+      height: 150,
+      language: 'en',
+      rank: 1,
+      attribution: 'TMDB',
+    });
+
+    expect(timings.map(({ uploadNumber, imageType, stage, status, byteSize }) => ({
+      uploadNumber,
+      imageType,
+      stage,
+      status,
+      byteSize,
+    }))).toEqual([
+      { uploadNumber: 1, imageType: 'poster', stage: 'download', status: 'success', byteSize: 3 },
+      { uploadNumber: 1, imageType: 'poster', stage: 'upload_request', status: 'success', byteSize: 3 },
+      { uploadNumber: 1, imageType: 'poster', stage: 'transfer', status: 'success', byteSize: 3 },
+      { uploadNumber: 1, imageType: 'poster', stage: 'asset_processing', status: 'success', byteSize: 3 },
+      { uploadNumber: 1, imageType: 'poster', stage: 'total', status: 'success', byteSize: 3 },
+    ]);
+    expect(timings.every(({ durationMs }) => typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs >= 0)).toBe(true);
+  });
+
+  it('does not fail an upload when the timing observer throws', async () => {
+    const gateway = createDatoGateway({
+      client: {
+        uploads: {
+          create: async () => ({ id: 'upload-1' }),
+        },
+        uploadRequest: {
+          create: async () => ({
+            id: 'upload-request-1',
+            url: 'https://uploads.example.com/signed-put',
+            request_headers: {},
+          }),
+        },
+      },
+      ctx: {},
+      fetchImpl: async (_url, init) => {
+        return init?.method === 'PUT'
+          ? new Response(null, { status: 200 })
+          : new Response(new Uint8Array([1, 2, 3]), { status: 200 });
+      },
+      onUploadStageTiming() {
+        throw new Error('observer failed');
+      },
+    });
+
+    await expect(gateway.uploadImage({
+      providerKey: 'tmdb',
+      providerImageId: '/poster.jpg',
+      movieIdentity: { providerKey: 'tmdb', tmdbId: 1 },
+      type: 'poster',
+      originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg',
+      width: 100,
+      height: 150,
+      language: 'en',
+      rank: 1,
+      attribution: 'TMDB',
+    })).resolves.toEqual({ id: 'upload-1' });
+  });
+
+  it('reports the failed upload stage and total without continuing asset processing', async () => {
+    const timings: UploadStageTiming[] = [];
+    const gateway = createDatoGateway({
+      client: {
+        uploads: {
+          create: async () => {
+            throw new Error('asset processing must not run');
+          },
+        },
+        uploadRequest: {
+          create: async () => ({
+            id: 'upload-request-1',
+            url: 'https://uploads.example.com/signed-put',
+            request_headers: {},
+          }),
+        },
+      },
+      ctx: {},
+      fetchImpl: async (_url, init) => {
+        return init?.method === 'PUT'
+          ? new Response(null, { status: 500 })
+          : new Response(new Uint8Array([1, 2, 3]), { status: 200 });
+      },
+      onUploadStageTiming: (timing) => timings.push(timing),
+    });
+    const upload = gateway.uploadImage({
+      providerKey: 'tmdb',
+      providerImageId: '/poster.jpg',
+      movieIdentity: { providerKey: 'tmdb', tmdbId: 1 },
+      type: 'poster',
+      originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg',
+      width: 100,
+      height: 150,
+      language: 'en',
+      rank: 1,
+      attribution: 'TMDB',
+    });
+
+    await expect(upload).rejects.toThrow('DatoCMS upload request failed: 500');
+    expect(timings.map(({ stage, status }) => ({ stage, status }))).toEqual([
+      { stage: 'download', status: 'success' },
+      { stage: 'upload_request', status: 'success' },
+      { stage: 'transfer', status: 'failed' },
+      { stage: 'total', status: 'failed' },
+    ]);
   });
 
   it('throws when image upload is unavailable', async () => {

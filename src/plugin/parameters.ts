@@ -46,7 +46,7 @@ export function parsePluginParameters(input: unknown): PluginParameters {
     ...DEFAULT_PARAMETERS,
     tmdbReadToken: stringValue(source.tmdbReadToken),
     movieModelApiKey: stringValue(source.movieModelApiKey),
-    targetLocale: 'en',
+    targetLocale: stringValue(source.targetLocale) || DEFAULT_PARAMETERS.targetLocale,
     movieFields: rawFields as MovieFieldMappings,
     personModelApiKey: stringValue(source.personModelApiKey),
     personNameFieldApiKey: stringValue(source.personNameFieldApiKey),

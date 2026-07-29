@@ -5,7 +5,7 @@ import { Canvas } from 'datocms-react-ui';
 import 'datocms-react-ui/styles.css';
 import { App, type PluginScreen } from './App';
 import { executeImportPlan } from './dato/importExecutor';
-import { createDatoGateway, type GatewayClient } from './dato/datoGateway';
+import { createDatoGateway, type GatewayClient, type UploadStageTiming } from './dato/datoGateway';
 import type { CurrentMovieValues } from './domain/fieldComparison';
 import type { ImportPlan } from './domain/importPlanning';
 import type { MovieFieldKey } from './domain/movie';
@@ -132,10 +132,15 @@ connect({
           const result = await executeImportPlan(
             plan,
             { ...latestParams, targetLocale: executionLocale },
-            gatewayFor(ctx, executionLocale),
+            gatewayFor(
+              ctx,
+              executionLocale,
+              (timing) => console.info('MCS Movie Importer upload performance', timing),
+            ),
             {
               ...executorOptionsForMappedFields(latestFieldMetadata),
               personModelId: latestSchema?.models[latestParams.personModelApiKey]?.id,
+              onPhaseTiming: (timing) => console.info('MCS Movie Importer performance', timing),
             },
           );
           if (result.status === 'success') {
@@ -183,7 +188,11 @@ connect({
 });
 }
 
-function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; environment: string; setFieldValue?: (path: string, value: unknown) => Promise<void> }, targetLocale: string) {
+function gatewayFor(
+  ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; environment: string; setFieldValue?: (path: string, value: unknown) => Promise<void> },
+  targetLocale: string,
+  onUploadStageTiming?: (timing: UploadStageTiming) => void,
+) {
   const client = buildClient({
     apiToken: ctx.currentUserAccessToken ?? null,
     baseUrl: ctx.cmaBaseUrl,
@@ -206,6 +215,7 @@ function gatewayFor(ctx: { currentUserAccessToken?: string; cmaBaseUrl: string; 
     } satisfies GatewayClient,
     ctx,
     targetLocale,
+    onUploadStageTiming,
   });
 }
 

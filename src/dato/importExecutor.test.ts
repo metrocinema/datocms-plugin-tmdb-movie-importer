@@ -1,4 +1,4 @@
-import { executeImportPlan } from './importExecutor';
+import { executeImportPlan, type ImportPhaseTiming } from './importExecutor';
 import { DuplicatePersonNameError, FormValuesApplyError } from './datoGateway';
 import type { ImportPlan } from '../domain/importPlanning';
 import { assetReference } from '../plugin/datoFieldMapping';
@@ -38,6 +38,271 @@ const plan: ImportPlan = {
 };
 
 describe('executeImportPlan', () => {
+  it('reports safe phase timings for Person lookup, Person creation, images, fields, and total work', async () => {
+    const timings: ImportPhaseTiming[] = [];
+
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        assetsToUpload: [plan.assetsToUpload[0]],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues() {
+          return undefined;
+        },
+      },
+      {
+        onPhaseTiming: (timing) => timings.push(timing),
+      },
+    );
+
+    expect(result.status).toBe('success');
+    expect(timings.map(({ phase, status, itemCount }) => ({ phase, status, itemCount }))).toEqual([
+      { phase: 'people_lookup', status: 'success', itemCount: 0 },
+      { phase: 'people_create', status: 'success', itemCount: 0 },
+      { phase: 'images', status: 'success', itemCount: 1 },
+      { phase: 'fields', status: 'success', itemCount: 2 },
+      { phase: 'total', status: 'success', itemCount: 3 },
+    ]);
+    expect(timings.every(({ durationMs }) => Number.isFinite(durationMs) && durationMs >= 0)).toBe(true);
+  });
+
+  it('does not fail the import when a phase timing observer throws', async () => {
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        assetsToUpload: [],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues() {
+          return undefined;
+        },
+      },
+      {
+        onPhaseTiming() {
+          throw new Error('observer failed');
+        },
+      },
+    );
+
+    expect(result.status).toBe('success');
+  });
+
+  it('uploads images while Person lookup is pending and waits for both before applying fields', async () => {
+    const events: string[] = [];
+    let resolvePeople!: (records: []) => void;
+    let resolveUpload!: (upload: { id: string }) => void;
+    const execution = executeImportPlan(
+      {
+        ...plan,
+        directors: [plan.directors[0]],
+        actors: [],
+        peopleToCreate: [plan.peopleToCreate[0]],
+        assetsToUpload: [plan.assetsToUpload[0]],
+      },
+      params,
+      {
+        findPeople() {
+          events.push('people_lookup');
+          return new Promise((resolve) => {
+            resolvePeople = resolve;
+          });
+        },
+        async createPersonDraft() {
+          events.push('person_create');
+          return { id: 'person-1' };
+        },
+        uploadImage() {
+          events.push('image_upload');
+          return new Promise((resolve) => {
+            resolveUpload = resolve;
+          });
+        },
+        async applyFormValues() {
+          events.push('fields');
+        },
+      },
+    );
+
+    await vi.waitFor(() => expect(events).toEqual(['people_lookup', 'image_upload']));
+    resolveUpload({ id: 'upload-1' });
+    await Promise.resolve();
+    expect(events).not.toContain('fields');
+
+    resolvePeople([]);
+    await expect(execution).resolves.toMatchObject({ status: 'success' });
+    expect(events).toEqual(['people_lookup', 'image_upload', 'person_create', 'fields']);
+  });
+
+  it('reports failed image timing when the concurrent upload branch fails', async () => {
+    const timings: ImportPhaseTiming[] = [];
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        assetsToUpload: [plan.assetsToUpload[0]],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          throw new Error('upload failed');
+        },
+        async applyFormValues() {
+          throw new Error('fields must not run');
+        },
+      },
+      {
+        onPhaseTiming: (timing) => timings.push(timing),
+      },
+    );
+
+    expect(result.status).toBe('dependency_failed');
+    expect(timings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ phase: 'images', status: 'failed', itemCount: 1 }),
+      expect.objectContaining({ phase: 'total', status: 'failed' }),
+    ]));
+  });
+
+  it('reports Person creation failures without misreporting a successful lookup', async () => {
+    const timings: ImportPhaseTiming[] = [];
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [plan.directors[0]],
+        actors: [],
+        peopleToCreate: [plan.peopleToCreate[0]],
+        assetsToUpload: [],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          throw new Error('create failed');
+        },
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues() {
+          throw new Error('fields must not run');
+        },
+      },
+      {
+        onPhaseTiming: (timing) => timings.push(timing),
+      },
+    );
+
+    expect(result.status).toBe('dependency_failed');
+    expect(timings.filter(({ phase }) => phase === 'people_lookup')).toEqual([
+      expect.objectContaining({ status: 'success', itemCount: 1 }),
+    ]);
+    expect(timings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ phase: 'people_create', status: 'failed', itemCount: 1 }),
+      expect.objectContaining({ phase: 'total', status: 'failed' }),
+    ]));
+  });
+
+  it('uploads at most five independent images at a time', async () => {
+    const images = Array.from({ length: 6 }, (_, index) => ({
+      ...plan.assetsToUpload[1],
+      providerImageId: `/backdrop-${index + 1}.jpg`,
+      originalUrl: `https://image.tmdb.org/t/p/original/backdrop-${index + 1}.jpg`,
+    }));
+    const started: string[] = [];
+    const pending = new Map<string, (value: { id: string }) => void>();
+    const execution = executeImportPlan(
+      {
+        ...plan,
+        fieldChanges: [],
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        otherImagesToUpload: images,
+        assetsToUpload: images,
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        uploadImage(image) {
+          started.push(image.providerImageId);
+          return new Promise((resolve) => pending.set(image.providerImageId, resolve));
+        },
+        async applyFormValues() {
+          return undefined;
+        },
+      },
+    );
+
+    await vi.waitFor(() => expect(started).toEqual([
+      '/backdrop-1.jpg',
+      '/backdrop-2.jpg',
+      '/backdrop-3.jpg',
+      '/backdrop-4.jpg',
+      '/backdrop-5.jpg',
+    ]));
+    expect(started).not.toContain('/backdrop-6.jpg');
+
+    pending.get('/backdrop-1.jpg')?.({ id: 'upload-1' });
+    await vi.waitFor(() => expect(started).toContain('/backdrop-6.jpg'));
+    pending.get('/backdrop-2.jpg')?.({ id: 'upload-2' });
+    pending.get('/backdrop-3.jpg')?.({ id: 'upload-3' });
+    pending.get('/backdrop-4.jpg')?.({ id: 'upload-4' });
+    pending.get('/backdrop-5.jpg')?.({ id: 'upload-5' });
+    pending.get('/backdrop-6.jpg')?.({ id: 'upload-6' });
+
+    await expect(execution).resolves.toMatchObject({
+      status: 'success',
+      uploadedAssets: [
+        'upload-1',
+        'upload-2',
+        'upload-3',
+        'upload-4',
+        'upload-5',
+        'upload-6',
+      ],
+    });
+  });
+
   it('creates people and uploads assets before applying form values', async () => {
     const order: string[] = [];
     const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
@@ -64,7 +329,8 @@ describe('executeImportPlan', () => {
     });
 
     expect(result.status).toBe('success');
-    expect(order).toEqual(['person', 'person', 'upload', 'upload', 'form']);
+    expect(order.at(-1)).toBe('form');
+    expect(order.slice(0, -1).sort()).toEqual(['person', 'person', 'upload', 'upload']);
     expect(appliedChanges).toEqual([
       { fieldPath: 'title', value: 'Example Movie' },
       { fieldPath: 'directors', value: ['person-1'] },
@@ -128,7 +394,9 @@ describe('executeImportPlan', () => {
     }
     expect(result.message).toContain('Some drafts or uploads may already exist in DatoCMS.');
     expect(result.message).toContain('permission denied');
-    expect(order).toEqual(['person']);
+    expect(order).toContain('person');
+    expect(order.filter((event) => event === 'upload')).toHaveLength(2);
+    expect(order).not.toContain('form');
   });
 
   it('maps a backdrop-only selection without writing the poster field', async () => {
@@ -258,7 +526,7 @@ describe('executeImportPlan', () => {
     expect(appliedChanges).toEqual([{ fieldPath: 'title.en-US', value: 'Example Movie' }]);
   });
 
-  it('writes description as a structured text document when configured field type is structured_text', async () => {
+  it('writes description in the editor Slate format when configured field type is structured_text', async () => {
     const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
     await executeImportPlan(
       {
@@ -290,18 +558,12 @@ describe('executeImportPlan', () => {
     expect(appliedChanges).toEqual([
       {
         fieldPath: 'description',
-        value: {
-          schema: 'dast',
-          document: {
-            type: 'root',
-            children: [
-              {
-                type: 'paragraph',
-                children: [{ type: 'span', value: 'Overview text' }],
-              },
-            ],
+        value: [
+          {
+            type: 'paragraph',
+            children: [{ text: 'Overview text' }],
           },
-        },
+        ],
       },
     ]);
   });

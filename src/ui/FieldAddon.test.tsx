@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { act } from 'react';
 import { FieldAddon } from './FieldAddon';
 
 describe('FieldAddon', () => {
@@ -42,5 +43,23 @@ describe('FieldAddon', () => {
     expect(screen.getByRole('button', { name: 'Find movie' })).toBeDisabled();
     expect(screen.getByRole('alert')).toHaveTextContent('TMDB read token is required.');
     expect(screen.getByRole('alert')).toHaveClass('movie-import-field-addon__alert');
+  });
+
+  it('keeps import activity visible until the modal and import work finish', async () => {
+    let finishImport!: () => void;
+    const onOpen = vi.fn(() => new Promise<void>((resolve) => {
+      finishImport = resolve;
+    }));
+    render(<FieldAddon tmdbId={123} onOpen={onOpen} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh from TMDB' }));
+
+    expect(screen.getByRole('button', { name: 'Refresh from TMDB' })).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Importing from TMDB…');
+
+    await act(async () => finishImport());
+
+    expect(screen.getByRole('button', { name: 'Refresh from TMDB' })).toBeEnabled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

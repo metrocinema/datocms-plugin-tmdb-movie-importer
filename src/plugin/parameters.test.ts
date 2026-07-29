@@ -23,6 +23,12 @@ describe('plugin parameters', () => {
     expect(params.actorLimit).toBe(7);
   });
 
+  it('preserves a configured target locale for fallback upload metadata', () => {
+    const params = parsePluginParameters({ targetLocale: 'en-US' });
+
+    expect(params.targetLocale).toBe('en-US');
+  });
+
   it('uses the active Dato editor locale for live form updates', () => {
     const params = parsePluginParameters({});
 

@@ -3,7 +3,8 @@ import type { ImportPlan } from '../domain/importPlanning';
 import type { MovieFieldKey, NormalizedImageCandidate } from '../domain/movie';
 import type { PluginParameters } from '../plugin/parameters';
 import { assetReference, fieldPathForMovieField, itemReference } from '../plugin/datoFieldMapping';
-import { matchPerson } from '../domain/personMatching';
+import { matchPerson, type ExistingPersonRecord } from '../domain/personMatching';
+import { mapWithConcurrency } from '../utils/concurrency';
 
 export type ImportResult =
   | { status: 'success'; createdPeople: string[]; uploadedAssets: string[]; appliedFields: string[] }
@@ -14,6 +15,15 @@ export type ImportExecutorOptions = {
   localizedMovieFields?: Partial<Record<MovieFieldKey, boolean>>;
   movieFieldTypes?: Partial<Record<MovieFieldKey, string>>;
   personModelId?: string;
+  onPhaseTiming?: (timing: ImportPhaseTiming) => void;
+  now?: () => number;
+};
+
+export type ImportPhaseTiming = {
+  phase: 'people_lookup' | 'people_create' | 'images' | 'fields' | 'total';
+  status: 'success' | 'failed';
+  itemCount: number;
+  durationMs: number;
 };
 
 type UploadedAsset = {
@@ -35,65 +45,109 @@ export async function executeImportPlan(
   const createdPeople: string[] = [];
   const uploadedAssets: string[] = [];
   const uploadedAssetsByImage: UploadedAsset[] = [];
+  const completedUploads: Array<UploadedAsset | undefined> = [];
   const personIdsByCandidate = new Map<string, string>();
   const autoPersonIdsByTmdb = new Map<number, string>();
+  const now = options.now ?? (() => globalThis.performance.now());
+  const totalStartedAt = now();
 
-  try {
-    for (const person of plan.peopleToReuse) {
-      personIdsByCandidate.set(personKey(person), person.recordId);
-    }
+  for (const person of plan.peopleToReuse) {
+    personIdsByCandidate.set(personKey(person), person.recordId);
+  }
 
+  const processPeople = async () => {
     const peopleToCreate = plan.peopleToCreate.filter((person) => !personIdsByCandidate.has(personKey(person)));
     const autoPeopleToCreate = peopleToCreate.filter((person) => person.source === 'auto');
-    const existingPeople = autoPeopleToCreate.length > 0
-      ? await gateway.findPeople({
-        modelApiKey: params.personModelApiKey,
-        nameFieldApiKey: params.personNameFieldApiKey,
-        tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
-        names: autoPeopleToCreate.map((person) => person.name),
-        tmdbIds: autoPeopleToCreate.map((person) => person.candidateTmdbId),
-      })
-      : [];
+    const lookupStartedAt = now();
+    let existingPeople: ExistingPersonRecord[];
 
-    for (const person of peopleToCreate) {
-      if (person.source === 'auto') {
-        const autoPersonId = autoPersonIdsByTmdb.get(person.candidateTmdbId);
-        if (autoPersonId) {
-          personIdsByCandidate.set(personKey(person), autoPersonId);
-          continue;
+    try {
+      existingPeople = autoPeopleToCreate.length > 0
+        ? await gateway.findPeople({
+          modelApiKey: params.personModelApiKey,
+          nameFieldApiKey: params.personNameFieldApiKey,
+          tmdbIdFieldApiKey: params.personTmdbIdFieldApiKey,
+          names: autoPeopleToCreate.map((person) => person.name),
+          tmdbIds: autoPeopleToCreate.map((person) => person.candidateTmdbId),
+        })
+        : [];
+    } catch (error) {
+      reportPhaseTiming(options, now, 'people_lookup', 'failed', autoPeopleToCreate.length, lookupStartedAt);
+      throw error;
+    }
+    reportPhaseTiming(options, now, 'people_lookup', 'success', autoPeopleToCreate.length, lookupStartedAt);
+
+    const creationStartedAt = now();
+    let creationCount = 0;
+    try {
+      for (const person of peopleToCreate) {
+        if (person.source === 'auto') {
+          const autoPersonId = autoPersonIdsByTmdb.get(person.candidateTmdbId);
+          if (autoPersonId) {
+            personIdsByCandidate.set(personKey(person), autoPersonId);
+            continue;
+          }
+
+          const decision = matchPerson(
+            { tmdbId: person.candidateTmdbId, name: person.name, order: 0, role: person.candidateRole },
+            existingPeople,
+            Boolean(params.personTmdbIdFieldApiKey),
+          );
+          if (decision.type === 'reuse') {
+            personIdsByCandidate.set(personKey(person), decision.recordId);
+            autoPersonIdsByTmdb.set(person.candidateTmdbId, decision.recordId);
+            continue;
+          }
         }
 
-        const decision = matchPerson(
-          { tmdbId: person.candidateTmdbId, name: person.name, order: 0, role: person.candidateRole },
-          existingPeople,
-          Boolean(params.personTmdbIdFieldApiKey),
-        );
-        if (decision.type === 'reuse') {
-          personIdsByCandidate.set(personKey(person), decision.recordId);
-          autoPersonIdsByTmdb.set(person.candidateTmdbId, decision.recordId);
-          continue;
+        creationCount += 1;
+        const record = await createPersonDraftOrReuseDuplicate(person, params, gateway, options);
+        if (record.created) {
+          createdPeople.push(record.id);
+        }
+        personIdsByCandidate.set(personKey(person), record.id);
+        if (person.source === 'auto') {
+          autoPersonIdsByTmdb.set(person.candidateTmdbId, record.id);
         }
       }
+    } catch (error) {
+      reportPhaseTiming(options, now, 'people_create', 'failed', creationCount, creationStartedAt);
+      throw error;
+    }
+    reportPhaseTiming(options, now, 'people_create', 'success', creationCount, creationStartedAt);
+  };
 
-      const record = await createPersonDraftOrReuseDuplicate(person, params, gateway, options);
-      if (record.created) {
-        createdPeople.push(record.id);
-      }
-      personIdsByCandidate.set(personKey(person), record.id);
-      if (person.source === 'auto') {
-        autoPersonIdsByTmdb.set(person.candidateTmdbId, record.id);
+  const processImages = async () => {
+    const imagesStartedAt = now();
+    try {
+      await mapWithConcurrency(
+        plan.assetsToUpload,
+        5,
+        (image) => gateway.uploadImage(image),
+        (upload, image, index) => {
+          completedUploads[index] = { image, id: upload.id };
+        },
+      );
+    } catch (error) {
+      reportPhaseTiming(options, now, 'images', 'failed', plan.assetsToUpload.length, imagesStartedAt);
+      throw error;
+    } finally {
+      for (const asset of completedUploads) {
+        if (!asset) continue;
+        uploadedAssets.push(asset.id);
+        uploadedAssetsByImage.push(asset);
       }
     }
+    reportPhaseTiming(options, now, 'images', 'success', plan.assetsToUpload.length, imagesStartedAt);
+  };
 
-    for (const image of plan.assetsToUpload) {
-      const upload = await gateway.uploadImage(image);
-      uploadedAssets.push(upload.id);
-      uploadedAssetsByImage.push({ image, id: upload.id });
-    }
-  } catch (error) {
+  const dependencyResults = await Promise.allSettled([processPeople(), processImages()]);
+  const dependencyFailure = dependencyResults.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+  if (dependencyFailure) {
+    reportPhaseTiming(options, now, 'total', 'failed', plan.peopleToCreate.length + plan.assetsToUpload.length, totalStartedAt);
     return {
       status: 'dependency_failed',
-      message: importFailureMessage(error, 'The import could not finish while creating people or uploading images. Some drafts or uploads may already exist in DatoCMS.'),
+      message: importFailureMessage(dependencyFailure.reason, 'The import could not finish while creating people or uploading images. Some drafts or uploads may already exist in DatoCMS.'),
       createdPeople,
       uploadedAssets,
     };
@@ -153,9 +207,12 @@ export async function executeImportPlan(
     }
   }
 
+  const fieldsStartedAt = now();
   try {
     await gateway.applyFormValues(changes);
   } catch (error) {
+    reportPhaseTiming(options, now, 'fields', 'failed', changes.length, fieldsStartedAt);
+    reportPhaseTiming(options, now, 'total', 'failed', plan.peopleToCreate.length + plan.assetsToUpload.length + changes.length, totalStartedAt);
     return {
       status: 'form_failed',
       message: importFailureMessage(error, 'The import could not finish while updating the movie form. Created people and uploaded images may already exist in DatoCMS.'),
@@ -164,6 +221,8 @@ export async function executeImportPlan(
       appliedFields: error instanceof FormValuesApplyError ? error.appliedFields : [],
     };
   }
+  reportPhaseTiming(options, now, 'fields', 'success', changes.length, fieldsStartedAt);
+  reportPhaseTiming(options, now, 'total', 'success', plan.peopleToCreate.length + plan.assetsToUpload.length + changes.length, totalStartedAt);
 
   return {
     status: 'success',
@@ -171,6 +230,26 @@ export async function executeImportPlan(
     uploadedAssets,
     appliedFields: changes.map((change) => change.fieldPath),
   };
+}
+
+function reportPhaseTiming(
+  options: ImportExecutorOptions,
+  now: () => number,
+  phase: ImportPhaseTiming['phase'],
+  status: ImportPhaseTiming['status'],
+  itemCount: number,
+  startedAt: number,
+) {
+  try {
+    options.onPhaseTiming?.({
+      phase,
+      status,
+      itemCount,
+      durationMs: Math.max(0, now() - startedAt),
+    });
+  } catch {
+    // Diagnostics must never interrupt an import.
+  }
 }
 
 async function createPersonDraftOrReuseDuplicate(
@@ -241,23 +320,17 @@ function movieFieldPath(
 
 function valueForMovieField(key: MovieFieldKey, value: unknown, options: ImportExecutorOptions): unknown {
   if (key === 'description' && options.movieFieldTypes?.description === 'structured_text') {
-    return structuredTextDocument(String(value));
+    return structuredTextEditorValue(String(value));
   }
 
   return value;
 }
 
-function structuredTextDocument(value: string): { schema: 'dast'; document: { type: 'root'; children: Array<{ type: 'paragraph'; children: Array<{ type: 'span'; value: string }> }> } } {
-  return {
-    schema: 'dast',
-    document: {
-      type: 'root',
-      children: [
-        {
-          type: 'paragraph',
-          children: [{ type: 'span', value }],
-        },
-      ],
+function structuredTextEditorValue(value: string): Array<{ type: 'paragraph'; children: Array<{ text: string }> }> {
+  return [
+    {
+      type: 'paragraph',
+      children: [{ text: value }],
     },
-  };
+  ];
 }

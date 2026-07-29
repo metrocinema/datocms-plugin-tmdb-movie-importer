@@ -1,5 +1,6 @@
 import type { NormalizedImageCandidate } from '../domain/movie';
 import { normalizePersonName, type ExistingPersonRecord } from '../domain/personMatching';
+import { mapWithConcurrency } from '../utils/concurrency';
 
 export type GatewayClient = {
   items?: {
@@ -61,14 +62,27 @@ export type CreatePersonDraftInput = {
   tmdbId: number;
 };
 
+export type UploadStageTiming = {
+  uploadNumber: number;
+  imageType: NormalizedImageCandidate['type'];
+  stage: 'download' | 'upload_request' | 'transfer' | 'asset_processing' | 'total';
+  status: 'success' | 'failed';
+  byteSize: number;
+  durationMs: number;
+};
+
 type CreateDatoGatewayInput = {
   client: GatewayClient;
   ctx: GatewayContext;
   targetLocale?: string;
   fetchImpl?: typeof fetch;
+  onUploadStageTiming?: (timing: UploadStageTiming) => void;
+  now?: () => number;
 };
 
 export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
+  let uploadSequence = 0;
+
   return {
     async findPeople(person) {
       if (!input.client.items?.list && !input.client.items?.listPagedIterator) {
@@ -125,42 +139,87 @@ export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
         throw new Error('DatoCMS upload permission is unavailable.');
       }
 
+      const uploadNumber = ++uploadSequence;
       const fetchImpl = input.fetchImpl ?? globalThis.fetch.bind(globalThis);
-      const imageResponse = await fetchImpl(image.originalUrl);
-      if (!imageResponse.ok) {
-        throw new Error(`TMDB image could not be downloaded: ${imageResponse.status}`);
-      }
+      const now = input.now ?? (() => globalThis.performance.now());
+      const totalStartedAt = now();
+      let byteSize = 0;
+      try {
+        const { body, contentType } = await timeUploadStage('download', async () => {
+          const imageResponse = await fetchImpl(image.originalUrl);
+          if (!imageResponse.ok) {
+            throw new Error(`TMDB image could not be downloaded: ${imageResponse.status}`);
+          }
 
-      const contentType = imageResponse.headers.get('content-type') ?? contentTypeForImage(image);
-      const body = await imageResponse.blob();
-      const uploadRequest = await input.client.uploadRequest.create({
-        filename: filenameForImage(image),
-      });
-      const headers = headersForUploadRequest(uploadRequest.request_headers);
-      if (contentType) {
-        headers['content-type'] = contentType;
-      }
+          const downloadedBody = await imageResponse.blob();
+          byteSize = downloadedBody.size;
+          return {
+            body: downloadedBody,
+            contentType: imageResponse.headers.get('content-type') ?? contentTypeForImage(image),
+          };
+        }, input, now, uploadNumber, image, () => byteSize);
+        const uploadRequest = await timeUploadStage(
+          'upload_request',
+          () => input.client.uploadRequest!.create!({ filename: filenameForImage(image) }),
+          input,
+          now,
+          uploadNumber,
+          image,
+          () => byteSize,
+        );
+        const headers = headersForUploadRequest(uploadRequest.request_headers);
+        if (contentType) {
+          headers['content-type'] = contentType;
+        }
 
-      const uploadResponse = await fetchImpl(uploadRequest.url, {
-        method: 'PUT',
-        headers,
-        body,
-      });
-      if (!uploadResponse.ok) {
-        throw new Error(`DatoCMS upload request failed: ${uploadResponse.status}`);
-      }
+        await timeUploadStage('transfer', async () => {
+          const uploadResponse = await fetchImpl(uploadRequest.url, {
+            method: 'PUT',
+            headers,
+            body,
+          });
+          if (!uploadResponse.ok) {
+            throw new Error(`DatoCMS upload request failed: ${uploadResponse.status}`);
+          }
+        }, input, now, uploadNumber, image, () => byteSize);
 
-      return input.client.uploads.create({
-        path: uploadRequest.id,
-        default_field_metadata: {
-          alt: {
-            [input.targetLocale ?? 'en']: `${image.type} from ${image.providerKey}`,
-          },
-          title: {
-            [input.targetLocale ?? 'en']: image.providerImageId,
-          },
-        },
-      });
+        const upload = await timeUploadStage(
+          'asset_processing',
+          () => input.client.uploads!.create!({
+            path: uploadRequest.id,
+            default_field_metadata: {
+              [input.targetLocale ?? 'en']: {
+                alt: `${image.type} from ${image.providerKey}`,
+                title: image.providerImageId,
+              },
+            },
+          }),
+          input,
+          now,
+          uploadNumber,
+          image,
+          () => byteSize,
+        );
+        reportUploadTiming(input, {
+          uploadNumber,
+          imageType: image.type,
+          stage: 'total',
+          status: 'success',
+          byteSize,
+          durationMs: Math.max(0, now() - totalStartedAt),
+        });
+        return upload;
+      } catch (error) {
+        reportUploadTiming(input, {
+          uploadNumber,
+          imageType: image.type,
+          stage: 'total',
+          status: 'failed',
+          byteSize,
+          durationMs: Math.max(0, now() - totalStartedAt),
+        });
+        throw error;
+      }
     },
 
     async applyFormValues(changes) {
@@ -182,6 +241,48 @@ export function createDatoGateway(input: CreateDatoGatewayInput): DatoGateway {
       }
     },
   };
+}
+
+async function timeUploadStage<T>(
+  stage: UploadStageTiming['stage'],
+  operation: () => Promise<T>,
+  input: CreateDatoGatewayInput,
+  now: () => number,
+  uploadNumber: number,
+  image: NormalizedImageCandidate,
+  byteSize: () => number,
+): Promise<T> {
+  const startedAt = now();
+  try {
+    const result = await operation();
+    reportUploadTiming(input, {
+      uploadNumber,
+      imageType: image.type,
+      stage,
+      status: 'success',
+      byteSize: byteSize(),
+      durationMs: Math.max(0, now() - startedAt),
+    });
+    return result;
+  } catch (error) {
+    reportUploadTiming(input, {
+      uploadNumber,
+      imageType: image.type,
+      stage,
+      status: 'failed',
+      byteSize: byteSize(),
+      durationMs: Math.max(0, now() - startedAt),
+    });
+    throw error;
+  }
+}
+
+function reportUploadTiming(input: CreateDatoGatewayInput, timing: UploadStageTiming) {
+  try {
+    input.onUploadStageTiming?.(timing);
+  } catch {
+    // Diagnostics must never interrupt an upload.
+  }
 }
 
 async function fetchPeopleByNames(
@@ -209,24 +310,24 @@ async function fetchPeopleByTmdbIds(
   items: NonNullable<GatewayClient['items']>,
   person: FindPeopleInput,
 ): Promise<Array<Record<string, unknown>>> {
-  if (!person.tmdbIdFieldApiKey || !person.tmdbIds || person.tmdbIds.length === 0) {
+  const tmdbIdFieldApiKey = person.tmdbIdFieldApiKey;
+  if (!tmdbIdFieldApiKey || !person.tmdbIds || person.tmdbIds.length === 0) {
     return [];
   }
 
-  const records: Array<Record<string, unknown>> = [];
-  for (const tmdbId of [...new Set(person.tmdbIds)]) {
-    records.push(...await collectQueryRecords(items, {
+  const recordGroups = await mapWithConcurrency([...new Set(person.tmdbIds)], 3, (tmdbId) => {
+    return collectQueryRecords(items, {
       filter: {
         type: person.modelApiKey,
         fields: {
-          [person.tmdbIdFieldApiKey]: {
+          [tmdbIdFieldApiKey]: {
             eq: tmdbId,
           },
         },
       },
-    }));
-  }
-  return records;
+    });
+  });
+  return recordGroups.flat();
 }
 
 async function fetchPeopleByModel(
