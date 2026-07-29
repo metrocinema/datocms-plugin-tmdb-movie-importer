@@ -68,8 +68,8 @@
 }
 
 .movie-import-modal__header {
-  margin: 0;
-  padding: var(--spacing-l) var(--spacing-xl);
+  margin: 0 0 var(--spacing-l);
+  padding: 0;
 }
 
 .movie-import-modal__eyebrow {
@@ -773,6 +773,8 @@
 }
 
 .movie-import-modal__image-thumb {
+  background: var(--color--surface-muted);
+  box-shadow: 0 0 0 1px var(--color--border);
   border-radius: 4px;
   display: block;
   object-fit: cover;

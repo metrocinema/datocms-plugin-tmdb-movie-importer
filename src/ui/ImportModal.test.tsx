@@ -97,9 +97,9 @@ describe('ImportModal', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Find movie' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Find movie' }).closest('.movie-import-modal__chrome-header')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Find movie' }).closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Search by title and year').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
-    expect(screen.getByText('Search TMDB and choose the record that matches this DatoCMS movie.')).toBeInTheDocument();
+    expect(screen.getByText('Search TMDB and choose the record that matches this DatoCMS movie.').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Review changes')).toBeInTheDocument();
     expect(screen.getByText('Confirm import')).toBeInTheDocument();
     expect(screen.getByText('Search by title and year')).toBeInTheDocument();
@@ -242,7 +242,8 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: /Example Movie/i }));
 
     expect(screen.getByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Review changes' }).closest('.movie-import-modal__chrome-header')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Review changes' }).closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
+    expect(screen.getByText('Choose which TMDB values to prepare. Nothing is saved or published until you save the DatoCMS movie.').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Field changes').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(execute).not.toHaveBeenCalled();
 
@@ -251,7 +252,8 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     const confirmHeading = screen.getByRole('heading', { name: 'Confirm import' });
     expect(confirmHeading).toBeInTheDocument();
-    expect(confirmHeading.closest('.movie-import-modal__chrome-header')).toBeInTheDocument();
+    expect(confirmHeading.closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
+    expect(screen.getByText('Start the reviewed TMDB import for this movie form. DatoCMS will run the selected creates, uploads, and form updates after this modal closes.').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Import summary').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     await waitFor(() => expect(confirmHeading).toHaveFocus());
     await waitFor(() => expect(document.documentElement.scrollTop).toBe(0));

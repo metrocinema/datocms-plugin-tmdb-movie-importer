@@ -47,13 +47,13 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack, isSubmittingPlan =
     <section className="movie-import-modal__confirm-step movie-import-modal__step-frame">
       <div className="movie-import-modal__chrome-header">
         <ModalStepIndicator activeStep="confirm" />
+      </div>
+      <div className="movie-import-modal__scroll-body">
         <header className="movie-import-modal__header">
           <p className="movie-import-modal__eyebrow">TMDB movie importer</p>
           <h2 ref={headingRef} tabIndex={-1} className="movie-import-modal__title movie-import-modal__title--focus-target">Confirm import</h2>
           <p className="movie-import-modal__intro">Start the reviewed TMDB import for this movie form. DatoCMS will run the selected creates, uploads, and form updates after this modal closes.</p>
         </header>
-      </div>
-      <div className="movie-import-modal__scroll-body">
         <Section title="Import summary">
           <div className="movie-import-modal__confirm-decision">
             <div className="movie-import-modal__confirm-target" aria-label="Movie receiving reviewed values">
