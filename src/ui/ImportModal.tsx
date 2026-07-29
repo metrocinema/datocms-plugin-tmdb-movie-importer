@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ImportProgressEvent, ImportProgressPhase, PreparedImport, PrepareImportResult } from '../dato/importExecutor';
 import { compareMovieFields, type CurrentMovieValues, type FieldComparison } from '../domain/fieldComparison';
 import { buildImportPlan, type ImportPlan, type PersonResolution } from '../domain/importPlanning';
 import type { MovieFieldKey, NormalizedImageCandidate, NormalizedMovie, PersonCandidate } from '../domain/movie';
@@ -8,10 +9,27 @@ import { TmdbError } from '../providers/tmdbClient';
 import { defaultImageSelection, type ImageSelection } from '../providers/imageProvider';
 import { ConfirmStep } from './ConfirmStep';
 import './ImportModal.css';
+import { ImportProgressStep, initialImportProgress } from './ImportProgressStep';
 import { ReviewStep } from './ReviewStep';
 import { SearchStep, type SearchActivity } from './SearchStep';
 
-type Step = 'search' | 'review' | 'confirm';
+type Step = 'search' | 'review' | 'confirm' | 'progress';
+
+type PreparationLifecycleProps = {
+  prepare: (
+    plan: ImportPlan,
+    onProgress: (event: ImportProgressEvent) => void,
+  ) => Promise<PrepareImportResult>;
+  resolve: (prepared: PreparedImport | null) => Promise<void>;
+  execute?: never;
+};
+
+type LegacyExecutionProps = {
+  prepare?: never;
+  resolve?: never;
+  /** @deprecated Temporary compatibility fallback until production wiring migrates to prepare and resolve. */
+  execute: (plan: ImportPlan) => Promise<void>;
+};
 
 export type ImportModalProps = {
   initialTitle: string;
@@ -23,8 +41,7 @@ export type ImportModalProps = {
   loadMovie: (tmdbId: number) => Promise<NormalizedMovie>;
   resolvePeople?: (candidates: PersonCandidate[]) => Promise<ExistingPersonRecord[]>;
   tmdbIdFieldConfigured?: boolean;
-  execute: (plan: ImportPlan) => Promise<void>;
-};
+} & (PreparationLifecycleProps | LegacyExecutionProps);
 
 export function ImportModal(props: ImportModalProps) {
   const [step, setStep] = useState<Step>('search');
@@ -39,7 +56,10 @@ export function ImportModal(props: ImportModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchActivity, setSearchActivity] = useState<SearchActivity>(null);
-  const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
+  const [progressEvents, setProgressEvents] = useState<Record<ImportProgressPhase, ImportProgressEvent>>(initialImportProgress);
+  const [preparationFailure, setPreparationFailure] = useState<string | null>(null);
+  const [isExecutingLegacy, setIsExecutingLegacy] = useState(false);
+  const isPreparingRef = useRef(false);
 
   const loadSelectedMovie = async (tmdbId: number) => {
     try {
@@ -104,18 +124,53 @@ export function ImportModal(props: ImportModalProps) {
   };
 
   const submitImportPlan = async () => {
-    if (isSubmittingPlan) {
+    if (isPreparingRef.current) {
+      return;
+    }
+
+    if (!props.prepare) {
+      await executeLegacyPlan();
+      return;
+    }
+
+    isPreparingRef.current = true;
+    setPreparationFailure(null);
+    setProgressEvents(initialImportProgress());
+    setStep('progress');
+
+    try {
+      const result = await props.prepare(plan, (event) => {
+        setProgressEvents((current) => ({
+          ...current,
+          [event.phase]: event,
+        }));
+      });
+
+      if (result.status === 'success') {
+        await props.resolve(result.prepared);
+        return;
+      }
+
+      setPreparationFailure(result.message);
+    } catch {
+      setPreparationFailure('The import could not finish while creating people or uploading images.');
+    }
+  };
+
+  const executeLegacyPlan = async () => {
+    if (!props.execute) {
+      setError('The import could not start from the modal. Nothing was saved or published from this confirmation step.');
       return;
     }
 
     try {
       setError(null);
-      setIsSubmittingPlan(true);
+      setIsExecutingLegacy(true);
       await props.execute(plan);
     } catch {
       setError('The import could not start from the modal. Nothing was saved or published from this confirmation step.');
     } finally {
-      setIsSubmittingPlan(false);
+      setIsExecutingLegacy(false);
     }
   };
 
@@ -176,9 +231,17 @@ export function ImportModal(props: ImportModalProps) {
     );
   }
 
+  if (step === 'progress') {
+    return (
+      <div className="movie-import-modal">
+        <ImportProgressStep plan={plan} progressEvents={progressEvents} preparationFailure={preparationFailure} onClose={() => void props.resolve?.(null)} />
+      </div>
+    );
+  }
+
   return (
     <div className="movie-import-modal">
-      <ConfirmStep movie={movie!} plan={plan} isSubmittingPlan={isSubmittingPlan} onBack={() => setStep('review')} onConfirm={() => void submitImportPlan()} />
+      <ConfirmStep movie={movie!} plan={plan} isSubmittingPlan={isExecutingLegacy} onBack={() => setStep('review')} onConfirm={() => void submitImportPlan()} />
       {error ? <p role="alert" className="movie-import-modal__warning">{error}</p> : null}
     </div>
   );

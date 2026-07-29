@@ -929,6 +929,93 @@
   margin: 0;
 }
 
+.movie-import-modal__progress-status {
+  align-items: center;
+  color: var(--movie-import-readable-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+  justify-content: center;
+  min-height: 120px;
+  text-align: center;
+}
+
+.movie-import-modal__progress-status p {
+  margin: 0;
+}
+
+.movie-import-modal__progress-phases {
+  display: grid;
+  gap: var(--spacing-s);
+  list-style: none;
+  margin: var(--spacing-l) 0 0;
+  padding: 0;
+}
+
+.movie-import-modal__progress-phase {
+  align-items: center;
+  background: var(--color--surface);
+  border: 1px solid var(--color--border);
+  border-radius: 4px;
+  display: flex;
+  gap: var(--spacing-m);
+  justify-content: space-between;
+  min-height: 44px;
+  padding: var(--spacing-s) var(--spacing-m);
+}
+
+.movie-import-modal__progress-phase--active {
+  background: var(--color--primary-soft--surface);
+  border-color: var(--color--primary-soft--border, var(--color--border));
+  color: var(--color--primary-soft--ink);
+}
+
+.movie-import-modal__progress-phase--complete {
+  background: var(--color--success-soft--surface);
+  border-color: var(--color--success-soft--border, var(--color--border));
+  color: var(--color--success-soft--ink);
+}
+
+.movie-import-modal__progress-phase--failed {
+  background: var(--color--danger-soft--surface, var(--color--surface-muted));
+  border: 1px solid var(--color--danger-soft--border, var(--color--border));
+  color: var(--color--danger-soft--ink, var(--color--ink));
+}
+
+.movie-import-modal__progress-phase-label {
+  font-weight: 600;
+}
+
+.movie-import-modal__progress-phase-detail {
+  color: var(--movie-import-readable-muted);
+  font-size: var(--font-size-s);
+  text-align: right;
+}
+
+.movie-import-modal__progress-phase--active .movie-import-modal__progress-phase-detail,
+.movie-import-modal__progress-phase--complete .movie-import-modal__progress-phase-detail,
+.movie-import-modal__progress-phase--failed .movie-import-modal__progress-phase-detail {
+  color: currentColor;
+}
+
+.movie-import-modal__progress-failure {
+  background: var(--color--danger-soft--surface, var(--color--surface-muted));
+  border: 1px solid var(--color--danger-soft--border, var(--color--border));
+  border-radius: 4px;
+  color: var(--color--danger-soft--ink, var(--color--ink));
+  line-height: 1.5;
+  padding: var(--spacing-m);
+}
+
+.movie-import-modal__progress-failure h3,
+.movie-import-modal__progress-failure p {
+  margin: 0;
+}
+
+.movie-import-modal__progress-failure p + p {
+  margin-top: var(--spacing-s);
+}
+
 .movie-import-modal__safety {
   background: var(--color--warning-soft--surface);
   border: 1px solid var(--color--warning-soft--border);

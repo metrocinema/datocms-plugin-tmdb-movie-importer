@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { ImportModal } from './ImportModal';
 import type { NormalizedMovie } from '../domain/movie';
+import type { ImportProgressEvent, PrepareImportResult } from '../dato/importExecutor';
 import { TmdbError } from '../providers/tmdbClient';
 
 const movie: NormalizedMovie = {
@@ -359,6 +360,75 @@ describe('ImportModal', () => {
     expect(within(confirmActions as HTMLElement).getByText('2 new people')).toBeInTheDocument();
     expect(within(confirmActions as HTMLElement).getByText('0 reused people')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start import' })).toBeInTheDocument();
+  });
+
+  it('shows preparation progress after starting an import', async () => {
+    let reportProgress: ((event: ImportProgressEvent) => void) | undefined;
+    let finishPreparation: ((result: PrepareImportResult) => void) | undefined;
+    const resolve = vi.fn();
+    const prepared = {
+      fieldChanges: [],
+      directors: [],
+      actors: [],
+      people: [],
+      images: [],
+      heroImage: null,
+      otherImages: [],
+      createdPeople: [],
+      uploadedAssets: [],
+    };
+    const prepare = vi.fn(
+      (_plan, onProgress) => new Promise<PrepareImportResult>((finish) => {
+        reportProgress = onProgress;
+        finishPreparation = finish;
+      }),
+    );
+
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={prepare} resolve={resolve} />);
+
+    await reachReview();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
+
+    const heading = screen.getByRole('heading', { name: 'Importing movie' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(screen.getByRole('status')).toHaveTextContent('Preparing your TMDB import');
+    expect(screen.queryByRole('button', { name: 'Back to review' })).not.toBeInTheDocument();
+
+    reportProgress?.({ phase: 'images', state: 'active', completed: 3, total: 5 });
+
+    expect(await screen.findByText('3 of 5 images uploaded')).toBeInTheDocument();
+    expect(screen.getByText('1 field selected')).toBeInTheDocument();
+    expect(resolve).not.toHaveBeenCalled();
+
+    finishPreparation?.({ status: 'success', prepared });
+
+    await waitFor(() => expect(resolve).toHaveBeenCalledWith(prepared));
+  });
+
+  it('keeps the failed preparation visible and closes without applying it', async () => {
+    const resolve = vi.fn();
+    const prepare = vi.fn(async (): Promise<PrepareImportResult> => ({
+      status: 'dependency_failed',
+      message: 'The import could not finish while creating people or uploading images.',
+      createdPeople: ['person-1'],
+      uploadedAssets: ['upload-1'],
+    }));
+
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={prepare} resolve={resolve} />);
+
+    await reachReview();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
+
+    expect(await screen.findByText('Preparation failed')).toBeInTheDocument();
+    expect(screen.getByText('The import could not finish while creating people or uploading images.')).toBeInTheDocument();
+    expect(screen.getByText(/draft people or uploaded images may already exist/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(resolve).toHaveBeenCalledWith(null);
   });
 
   it('frames the selected movie review with field, image, and people sections', async () => {
