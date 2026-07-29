@@ -91,10 +91,10 @@ describe('devHarness', () => {
 
     expect(result).toMatchObject({
       status: 'dependency_failed',
-      createdPeople: ['harness-person-1'],
+      createdPeople: ['harness-person-1', 'harness-person-2', 'harness-person-3'],
       uploadedAssets: ['harness-upload-1'],
     });
-    expect(progress).toHaveBeenCalledWith({ phase: 'people_create', state: 'complete', completed: 1, total: 3 });
+    expect(progress).toHaveBeenCalledWith({ phase: 'people_create', state: 'complete', completed: 3, total: 3 });
     expect(progress).toHaveBeenCalledWith(expect.objectContaining({ phase: 'images', state: 'failed', completed: 1, total: 5 }));
   });
 

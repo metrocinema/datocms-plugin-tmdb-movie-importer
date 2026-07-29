@@ -153,7 +153,7 @@ function prepareHarnessImport(
   }
 
   if (progress === 'failure') {
-    const createdPeople = deterministicPersonIds(plan).slice(0, 1);
+    const createdPeople = deterministicPersonIds(plan);
     const uploadedAssets = deterministicUploadIds(plan).slice(0, 1);
     onProgress({ phase: 'people_create', state: 'complete', completed: createdPeople.length, total: peopleTotal });
     onProgress({ phase: 'images', state: 'failed', completed: uploadedAssets.length, total: imageTotal, message: 'The next image could not be uploaded.' });
