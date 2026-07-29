@@ -4,10 +4,9 @@ import { connect } from 'datocms-plugin-sdk';
 import { Canvas } from 'datocms-react-ui';
 import 'datocms-react-ui/styles.css';
 import { App, type PluginScreen } from './App';
-import { executeImportPlan } from './dato/importExecutor';
+import { applyPreparedImport, prepareImport, type PreparedImport } from './dato/importExecutor';
 import { createDatoGateway, type GatewayClient, type UploadStageTiming } from './dato/datoGateway';
 import type { CurrentMovieValues } from './domain/fieldComparison';
-import type { ImportPlan } from './domain/importPlanning';
 import type { MovieFieldKey } from './domain/movie';
 import { activeTargetLocale, parsePluginParameters } from './plugin/parameters';
 import { manualFieldExtensions } from './plugin/fieldExtensions';
@@ -88,7 +87,7 @@ connect({
         type: 'fieldAddon',
         tmdbId: ctx.formValues[ctx.fieldPath] as number | string | null,
         configurationIssues,
-        onOpen: async (mode) => {
+        onOpen: async (mode, reportStatus) => {
           const params = parsePluginParameters(ctx.plugin.attributes.parameters);
           const schema = await loadSchemaForRuntimeValidation(params, ctx);
           const currentIssues = validateRuntimeConfiguration(params, schema);
@@ -100,7 +99,7 @@ connect({
           const fieldMetadata = mappedFieldMetadata(params.movieFields, ctx.fields);
           const mappedFields = fieldMetadata.map((field) => field.key);
           const currentValues = valuesForMappedFields(ctx.formValues, targetLocale, fieldMetadata);
-          const plan = await ctx.openModal({
+          const prepared = await ctx.openModal({
             id: 'tmdbMovieImport',
             title: mode === 'refresh' ? 'Refresh from TMDB' : 'Find movie',
             width: 'fullWidth',
@@ -109,13 +108,14 @@ connect({
               mode,
               currentValues,
               mappedFields,
+              targetLocale,
               initialTitle: typeof currentValues.title === 'string' ? currentValues.title : '',
               initialYear: typeof currentValues.yearReleased === 'number' ? currentValues.yearReleased : null,
               initialTmdbId: mode === 'refresh' ? validTmdbId(currentValues.tmdbId) : null,
             },
           });
 
-          if (!isImportPlan(plan)) {
+          if (!isPreparedImport(prepared)) {
             return;
           }
 
@@ -129,19 +129,13 @@ connect({
 
           const executionLocale = activeTargetLocale(latestParams, ctx.locale);
           const latestFieldMetadata = mappedFieldMetadata(latestParams.movieFields, ctx.fields);
-          const result = await executeImportPlan(
-            plan,
+          reportStatus('applying');
+
+          const result = await applyPreparedImport(
+            prepared,
             { ...latestParams, targetLocale: executionLocale },
-            gatewayFor(
-              ctx,
-              executionLocale,
-              (timing) => console.info('MCS Movie Importer upload performance', timing),
-            ),
-            {
-              ...executorOptionsForMappedFields(latestFieldMetadata),
-              personModelId: latestSchema?.models[latestParams.personModelApiKey]?.id,
-              onPhaseTiming: (timing) => console.info('MCS Movie Importer performance', timing),
-            },
+            gatewayFor(ctx, executionLocale),
+            executorOptionsForMappedFields(latestFieldMetadata),
           );
           if (result.status === 'success') {
             ctx.notice('TMDB import applied to the unsaved movie.');
@@ -182,7 +176,35 @@ connect({
           tmdbIds: people.map((person) => person.tmdbId),
         });
       },
-      execute: async (plan) => ctx.resolve(plan),
+      prepare: async (plan, onProgress) => {
+        const latestParams = parsePluginParameters(ctx.plugin.attributes.parameters);
+        const latestSchema = await loadSchemaForRuntimeValidation(latestParams, ctx);
+        const preparationIssues = validateRuntimeConfiguration(latestParams, latestSchema);
+        if (preparationIssues.length > 0) {
+          throw new Error(`Import did not run because the configuration is incomplete: ${preparationIssues.map((issue) => issue.message).join(' ')}`);
+        }
+
+        const preparationLocale = activeTargetLocale(latestParams, ctx.parameters.targetLocale);
+        return prepareImport(
+          plan,
+          { ...latestParams, targetLocale: preparationLocale },
+          gatewayFor(
+            {
+              currentUserAccessToken: ctx.currentUserAccessToken,
+              cmaBaseUrl: ctx.cmaBaseUrl,
+              environment: ctx.environment,
+            },
+            preparationLocale,
+            (timing) => console.info('MCS Movie Importer upload performance', timing),
+          ),
+          {
+            personModelId: latestSchema?.models[latestParams.personModelApiKey]?.id,
+            onProgress,
+            onPhaseTiming: (timing) => console.info('MCS Movie Importer performance', timing),
+          },
+        );
+      },
+      resolve: (prepared) => ctx.resolve(prepared),
     }, ctx);
   },
 });
@@ -219,8 +241,17 @@ function gatewayFor(
   });
 }
 
-function isImportPlan(value: unknown): value is ImportPlan {
-  return typeof value === 'object' && value !== null && ['fieldChanges', 'directors', 'actors', 'peopleToCreate', 'peopleToReuse', 'assetsToUpload'].every((key) => Array.isArray((value as Record<string, unknown>)[key]));
+function isPreparedImport(value: unknown): value is PreparedImport {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    Array.isArray(candidate.fieldChanges) &&
+    Array.isArray(candidate.directors) &&
+    Array.isArray(candidate.actors) &&
+    Array.isArray(candidate.people) &&
+    Array.isArray(candidate.images)
+  );
 }
 
 function validTmdbId(value: unknown): number | null {

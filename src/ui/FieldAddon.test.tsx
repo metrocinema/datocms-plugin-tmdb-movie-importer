@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
-import { FieldAddon } from './FieldAddon';
+import { FieldAddon, type FieldAddonStatusReporter } from './FieldAddon';
 
 describe('FieldAddon', () => {
   it('opens find mode when no TMDB id exists', async () => {
@@ -10,7 +10,7 @@ describe('FieldAddon', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Find movie' }));
 
-    expect(onOpen).toHaveBeenCalledWith('find');
+    expect(onOpen).toHaveBeenCalledWith('find', expect.any(Function));
   });
 
   it('uses the DatoCMS button component for the launcher', () => {
@@ -25,7 +25,7 @@ describe('FieldAddon', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Refresh from TMDB' }));
 
-    expect(onOpen).toHaveBeenCalledWith('refresh');
+    expect(onOpen).toHaveBeenCalledWith('refresh', expect.any(Function));
   });
 
   it('opens find mode when the TMDB id is whitespace only', async () => {
@@ -34,7 +34,7 @@ describe('FieldAddon', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Find movie' }));
 
-    expect(onOpen).toHaveBeenCalledWith('find');
+    expect(onOpen).toHaveBeenCalledWith('find', expect.any(Function));
   });
 
   it('disables the launcher and explains the configuration problem', () => {
@@ -45,17 +45,25 @@ describe('FieldAddon', () => {
     expect(screen.getByRole('alert')).toHaveClass('movie-import-field-addon__alert');
   });
 
-  it('keeps import activity visible until the modal and import work finish', async () => {
+  it('keeps form application visible until DatoCMS finishes updating the entry', async () => {
     let finishImport!: () => void;
-    const onOpen = vi.fn(() => new Promise<void>((resolve) => {
-      finishImport = resolve;
-    }));
+    const onOpen = vi.fn((
+      _mode: 'find' | 'refresh',
+      reportStatus: FieldAddonStatusReporter,
+    ) => {
+      reportStatus('applying');
+      return new Promise<void>((resolve) => {
+        finishImport = resolve;
+      });
+    });
     render(<FieldAddon tmdbId={123} onOpen={onOpen} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Refresh from TMDB' }));
 
     expect(screen.getByRole('button', { name: 'Refresh from TMDB' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent('Importing from TMDB…');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Applying imported values…',
+    );
 
     await act(async () => finishImport());
 

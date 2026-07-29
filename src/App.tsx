@@ -1,12 +1,12 @@
 import { parsePluginParameters } from './plugin/parameters';
 import type { ValidationIssue } from './domain/movie';
 import { ConfigScreen } from './ui/ConfigScreen';
-import { FieldAddon } from './ui/FieldAddon';
+import { FieldAddon, type FieldAddonStatusReporter } from './ui/FieldAddon';
 import { ImportModal, type ImportModalProps } from './ui/ImportModal';
 
 export type PluginScreen =
   | { type: 'config'; parameters?: unknown; onSave?: (params: unknown) => Promise<void> }
-  | { type: 'fieldAddon'; tmdbId?: number | string | null; onOpen?: (mode: 'find' | 'refresh') => void | Promise<void>; configurationIssues?: ValidationIssue[] }
+  | { type: 'fieldAddon'; tmdbId?: number | string | null; onOpen?: (mode: 'find' | 'refresh', reportStatus: FieldAddonStatusReporter) => void | Promise<void>; configurationIssues?: ValidationIssue[] }
   | ({ type: 'modal'; configurationIssues?: ValidationIssue[] } & ImportModalProps)
   | { type: 'unknown'; label: string };
 
@@ -20,7 +20,7 @@ export function App({ screen }: AppProps) {
   }
 
   if (screen.type === 'fieldAddon') {
-    return <FieldAddon tmdbId={screen.tmdbId ?? null} onOpen={(mode) => screen.onOpen?.(mode)} configurationIssues={screen.configurationIssues?.map((issue) => issue.message)} />;
+    return <FieldAddon tmdbId={screen.tmdbId ?? null} onOpen={(mode, reportStatus) => screen.onOpen?.(mode, reportStatus)} configurationIssues={screen.configurationIssues?.map((issue) => issue.message)} />;
   }
 
   if (screen.type === 'modal') {
