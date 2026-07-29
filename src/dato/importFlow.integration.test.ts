@@ -1,6 +1,6 @@
 import { compareMovieFields } from '../domain/fieldComparison';
 import { buildImportPlan } from '../domain/importPlanning';
-import { executeImportPlan } from './importExecutor';
+import { applyPreparedImport, executeImportPlan, prepareImport } from './importExecutor';
 import type { NormalizedMovie } from '../domain/movie';
 import type { PluginParameters } from '../plugin/parameters';
 
@@ -42,7 +42,29 @@ describe('import flow integration', () => {
     });
     const applied: Array<{ fieldPath: string; value: unknown }> = [];
 
-    const result = await executeImportPlan(plan, params, {
+    const preparation = await prepareImport(plan, params, {
+      async findPeople() {
+        return [];
+      },
+      async createPersonDraft() {
+        return { id: 'person-1' };
+      },
+      async uploadImage() {
+        throw new Error('unexpected upload');
+      },
+      async applyFormValues(changes) {
+        applied.push(...changes);
+      },
+    });
+
+    expect(preparation.status).toBe('success');
+    expect(applied).toEqual([]);
+
+    if (preparation.status !== 'success') {
+      throw new Error('Expected preparation to succeed');
+    }
+
+    const result = await applyPreparedImport(preparation.prepared, params, {
       async findPeople() {
         return [];
       },

@@ -1,4 +1,9 @@
-import { executeImportPlan, type ImportPhaseTiming } from './importExecutor';
+import {
+  executeImportPlan,
+  prepareImport,
+  type ImportPhaseTiming,
+  type ImportProgressEvent,
+} from './importExecutor';
 import { DuplicatePersonNameError, FormValuesApplyError } from './datoGateway';
 import type { ImportPlan } from '../domain/importPlanning';
 import { assetReference } from '../plugin/datoFieldMapping';
@@ -38,6 +43,93 @@ const plan: ImportPlan = {
 };
 
 describe('executeImportPlan', () => {
+  it('prepares dependencies without applying form values or retaining source image URLs', async () => {
+    const progress: ImportProgressEvent[] = [];
+    const applyFormValues = vi.fn();
+
+    const result = await prepareImport(
+      {
+        ...plan,
+        directors: [plan.directors[0]],
+        actors: [],
+        peopleToCreate: [plan.peopleToCreate[0]],
+        assetsToUpload: [plan.assetsToUpload[0]],
+        heroImageToUpload: null,
+        otherImagesToUpload: [],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        applyFormValues,
+      },
+      {
+        onProgress: (event) => progress.push(event),
+      },
+    );
+
+    expect(result.status).toBe('success');
+    expect(applyFormValues).not.toHaveBeenCalled();
+    expect(result.status === 'success' && result.prepared.images).toEqual([
+      {
+        providerKey: 'tmdb',
+        providerImageId: '/poster.jpg',
+        type: 'poster',
+        uploadId: 'upload-1',
+      },
+    ]);
+    expect(JSON.stringify(result)).not.toContain('image.tmdb.org');
+    expect(progress).toContainEqual({
+      phase: 'images',
+      state: 'complete',
+      completed: 1,
+      total: 1,
+    });
+  });
+
+  it('continues preparation when a progress observer throws', async () => {
+    const result = await prepareImport(
+      {
+        ...plan,
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        assetsToUpload: [plan.assetsToUpload[0]],
+        heroImageToUpload: null,
+        otherImagesToUpload: [],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues() {
+          return undefined;
+        },
+      },
+      {
+        onProgress() {
+          throw new Error('observer failed');
+        },
+      },
+    );
+
+    expect(result.status).toBe('success');
+  });
+
   it('reports safe phase timings for Person lookup, Person creation, images, fields, and total work', async () => {
     const timings: ImportPhaseTiming[] = [];
 
