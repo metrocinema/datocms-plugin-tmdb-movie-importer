@@ -41,6 +41,8 @@ vi.mock('datocms-react-ui', () => ({
     }, children),
   Section: ({ title, children }: { title: ReactNode; children: ReactNode }) =>
     createElement('div', { 'data-dato-component': 'Section' }, createElement('h3', undefined, title), children),
+  Spinner: ({ size }: { size?: number }) =>
+    createElement('div', { 'aria-hidden': true, 'data-dato-component': 'Spinner', style: size ? { height: size, width: size } : undefined }),
   SelectField: ({
     id,
     name,

@@ -149,6 +149,77 @@ describe('ImportModal', () => {
     finishSearch?.([]);
   });
 
+  it('shows TMDB search progress and clears stale results while a new search is pending', async () => {
+    let resolveSecondSearch: ((value: []) => void) | undefined;
+    const searchMovies = vi.fn()
+      .mockResolvedValueOnce([
+        { id: 456, title: 'Previous result', releaseDate: '2023-10-12', overview: null, posterPath: null, posterUrl: null },
+      ])
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecondSearch = resolve;
+      }));
+
+    render(
+      <ImportModal
+        initialTitle="Example"
+        initialYear={2024}
+        currentValues={{ title: '' }}
+        mappedFields={['title']}
+        searchMovies={searchMovies}
+        loadMovie={async () => movie}
+        execute={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect(await screen.findByText('Previous result')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Searching TMDB for “Example”…');
+    expect(screen.queryByText('Previous result')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Searching TMDB' })).toBeDisabled();
+
+    resolveSecondSearch?.([]);
+  });
+
+  it('shows movie loading and person matching progress while preparing a selected result', async () => {
+    let resolveMovie: ((value: NormalizedMovie) => void) | undefined;
+    let resolvePeople: ((value: []) => void) | undefined;
+
+    render(
+      <ImportModal
+        initialTitle="Example"
+        initialYear={2024}
+        currentValues={{ title: '' }}
+        mappedFields={['title', 'directors', 'actors']}
+        searchMovies={async () => [
+          { id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null },
+        ]}
+        loadMovie={() => new Promise((resolve) => {
+          resolveMovie = resolve;
+        })}
+        resolvePeople={() => new Promise((resolve) => {
+          resolvePeople = resolve;
+        })}
+        execute={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Use this for Example Movie, TMDB ID 123' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading movie details…');
+
+    resolveMovie?.(movie);
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Matching directors and actors…');
+
+    resolvePeople?.([]);
+
+    expect(await screen.findByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
+  });
+
   it('shows a useful empty state when TMDB search has no matches', async () => {
     render(
       <ImportModal

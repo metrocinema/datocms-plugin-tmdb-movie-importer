@@ -9,7 +9,7 @@ import { defaultImageSelection, type ImageSelection } from '../providers/imagePr
 import { ConfirmStep } from './ConfirmStep';
 import './ImportModal.css';
 import { ReviewStep } from './ReviewStep';
-import { SearchStep } from './SearchStep';
+import { SearchStep, type SearchActivity } from './SearchStep';
 
 type Step = 'search' | 'review' | 'confirm';
 
@@ -38,19 +38,19 @@ export function ImportModal(props: ImportModalProps) {
   const [imageSelection, setImageSelection] = useState<ImageSelection>({ poster: null, heroImage: null, backdrops: [] });
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isLoadingMovie, setIsLoadingMovie] = useState(false);
+  const [searchActivity, setSearchActivity] = useState<SearchActivity>(null);
   const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
 
   const loadSelectedMovie = async (tmdbId: number) => {
     try {
       setError(null);
-      setIsLoadingMovie(true);
+      setSearchActivity('loading_movie');
       const loaded = await props.loadMovie(tmdbId);
       const peopleCandidates = peopleCandidatesForMappedFields(loaded, props.mappedFields);
       let records: ExistingPersonRecord[] = [];
 
       try {
+        setSearchActivity('matching_people');
         records = await props.resolvePeople?.(peopleCandidates) ?? [];
       } catch (error) {
         console.error('MCS Movie Importer person matching failed', tokenSafeErrorDetails(error));
@@ -69,7 +69,7 @@ export function ImportModal(props: ImportModalProps) {
       setError(messageForTmdbMovieLoadError(error));
       setStep('search');
     } finally {
-      setIsLoadingMovie(false);
+      setSearchActivity(null);
     }
   };
 
@@ -90,14 +90,16 @@ export function ImportModal(props: ImportModalProps) {
 
     try {
       setError(null);
-      setIsSearching(true);
+      setResults([]);
+      setHasSearched(false);
+      setSearchActivity('searching');
       setResults(await props.searchMovies({ title: trimmedTitle, year }));
       setHasSearched(true);
     } catch (error) {
       console.error('MCS Movie Importer TMDB search failed', tokenSafeErrorDetails(error));
       setError(messageForTmdbSearchError(error));
     } finally {
-      setIsSearching(false);
+      setSearchActivity(null);
     }
   };
 
@@ -141,7 +143,7 @@ export function ImportModal(props: ImportModalProps) {
   if (step === 'search') {
     return (
       <div className="movie-import-modal">
-        <SearchStep title={title} year={year} results={results} hasSearched={hasSearched} onTitleChange={setTitle} onYearChange={setYear} onSearch={searchTmdb} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} isSearching={isSearching} isLoadingMovie={isLoadingMovie} onLoadTmdbId={() => {
+        <SearchStep title={title} year={year} results={results} hasSearched={hasSearched} onTitleChange={setTitle} onYearChange={setYear} onSearch={searchTmdb} onSelect={loadSelectedMovie} tmdbId={tmdbId} onTmdbIdChange={setTmdbId} searchActivity={searchActivity} onLoadTmdbId={() => {
           const trimmedTmdbId = tmdbId.trim();
           const parsed = Number(trimmedTmdbId);
 

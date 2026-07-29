@@ -1,6 +1,12 @@
-import { Button, FieldGroup, Section, TextField } from 'datocms-react-ui';
+import { Button, FieldGroup, Section, Spinner, TextField } from 'datocms-react-ui';
 import type { TmdbSearchResult } from '../providers/tmdbTypes';
 import { ModalStepIndicator } from './ModalStepIndicator';
+
+export type SearchActivity =
+  | 'searching'
+  | 'loading_movie'
+  | 'matching_people'
+  | null;
 
 type SearchStepProps = {
   title: string;
@@ -14,12 +20,13 @@ type SearchStepProps = {
   tmdbId: string;
   onTmdbIdChange: (id: string) => void;
   onLoadTmdbId: () => void;
-  isSearching?: boolean;
-  isLoadingMovie?: boolean;
+  searchActivity: SearchActivity;
 };
 
-export function SearchStep({ title, year, results, hasSearched, onTitleChange, onYearChange, onSearch, onSelect, tmdbId, onTmdbIdChange, onLoadTmdbId, isSearching = false, isLoadingMovie = false }: SearchStepProps) {
-  const isBusy = isSearching || isLoadingMovie;
+export function SearchStep({ title, year, results, hasSearched, onTitleChange, onYearChange, onSearch, onSelect, tmdbId, onTmdbIdChange, onLoadTmdbId, searchActivity }: SearchStepProps) {
+  const isBusy = searchActivity !== null;
+  const isSearching = searchActivity === 'searching';
+  const isLoadingMovie = searchActivity === 'loading_movie' || searchActivity === 'matching_people';
 
   return (
     <section className="movie-import-modal__step-frame">
@@ -63,32 +70,47 @@ export function SearchStep({ title, year, results, hasSearched, onTitleChange, o
         </div>
 
         <div className="movie-import-modal__cards" aria-busy={isBusy}>
-          {results.map((result) => (
-            <article key={result.id} className="movie-import-modal__card">
-              {result.posterUrl
-                ? <img className="movie-import-modal__card-media" src={result.posterUrl} alt={`${result.title} poster`} loading="lazy" width={64} height={96} />
-                : <div className="movie-import-modal__card-media movie-import-modal__card-placeholder">No poster</div>}
-              <div>
-                <h3 className="movie-import-modal__card-title">{result.title}</h3>
-                {result.releaseDate ? <p className="movie-import-modal__meta">{result.releaseDate.slice(0, 4)}</p> : null}
-                {result.overview ? <p className="movie-import-modal__body">{result.overview}</p> : null}
-                <p className="movie-import-modal__meta">TMDB ID {result.id}</p>
-              </div>
-              <div className="movie-import-modal__card-action">
-                <Button buttonSize="s" buttonType="muted" type="button" onClick={() => onSelect(result.id)} disabled={isBusy}>
-                  {'Use this '}
-                  <span className="movie-import-modal__visually-hidden">for {result.title}, TMDB ID {result.id}</span>
-                </Button>
-              </div>
-            </article>
-          ))}
-          {hasSearched && results.length === 0 && !isBusy ? (
-            <p role="status" className="movie-import-modal__empty movie-import-modal__empty--results">
-              No TMDB matches found. Try a different title, remove the year, or load a known TMDB ID.
-            </p>
-          ) : null}
+          {searchActivity ? (
+            <div className="movie-import-modal__loading-state" role="status" aria-live="polite">
+              <Spinner size={40} />
+              <p>{searchActivityMessage(searchActivity, title)}</p>
+            </div>
+          ) : (
+            <>
+              {results.map((result) => (
+                <article key={result.id} className="movie-import-modal__card">
+                  {result.posterUrl
+                    ? <img className="movie-import-modal__card-media" src={result.posterUrl} alt={`${result.title} poster`} loading="lazy" width={64} height={96} />
+                    : <div className="movie-import-modal__card-media movie-import-modal__card-placeholder">No poster</div>}
+                  <div>
+                    <h3 className="movie-import-modal__card-title">{result.title}</h3>
+                    {result.releaseDate ? <p className="movie-import-modal__meta">{result.releaseDate.slice(0, 4)}</p> : null}
+                    {result.overview ? <p className="movie-import-modal__body">{result.overview}</p> : null}
+                    <p className="movie-import-modal__meta">TMDB ID {result.id}</p>
+                  </div>
+                  <div className="movie-import-modal__card-action">
+                    <Button buttonSize="s" buttonType="muted" type="button" onClick={() => onSelect(result.id)} disabled={isBusy}>
+                      {'Use this '}
+                      <span className="movie-import-modal__visually-hidden">for {result.title}, TMDB ID {result.id}</span>
+                    </Button>
+                  </div>
+                </article>
+              ))}
+              {hasSearched && results.length === 0 ? (
+                <p role="status" className="movie-import-modal__empty movie-import-modal__empty--results">
+                  No TMDB matches found. Try a different title, remove the year, or load a known TMDB ID.
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </section>
   );
+}
+
+function searchActivityMessage(searchActivity: Exclude<SearchActivity, null>, title: string) {
+  if (searchActivity === 'searching') return `Searching TMDB for “${title.trim()}”…`;
+  if (searchActivity === 'loading_movie') return 'Loading movie details…';
+  return 'Matching directors and actors…';
 }
