@@ -76,15 +76,30 @@ export function isPreparedImport(value: unknown): value is PreparedImport {
 
   if (!isStructurallyValid) return false;
   const prepared = candidate as PreparedImport;
+  const preparedPersonKeys = new Set(
+    prepared.people.map((person) => `${person.candidateRole}:${person.candidateTmdbId}`),
+  );
+  const preparedPersonRecordIds = new Set(
+    prepared.people.map((person) => person.recordId),
+  );
+  const preparedImageUploadIds = new Set(
+    prepared.images.map((image) => image.uploadId),
+  );
+  const uploadedAssetIds = new Set(prepared.uploadedAssets);
+  const preparedBackdropKeys = new Set(
+    prepared.images
+      .filter((image) => image.type === 'backdrop')
+      .map(imageIdentityKey),
+  );
 
   return (
-    prepared.directors.every((person) => hasPreparedPerson(prepared, person)) &&
-    prepared.actors.every((person) => hasPreparedPerson(prepared, person)) &&
-    prepared.createdPeople.every((recordId) => prepared.people.some((person) => person.recordId === recordId)) &&
-    prepared.images.every((image) => prepared.uploadedAssets.includes(image.uploadId)) &&
-    prepared.uploadedAssets.every((uploadId) => prepared.images.some((image) => image.uploadId === uploadId)) &&
-    (prepared.heroImage === null || hasPreparedBackdrop(prepared, prepared.heroImage)) &&
-    prepared.otherImages.every((image) => hasPreparedBackdrop(prepared, image))
+    prepared.directors.every((person) => preparedPersonKeys.has(`${person.role}:${person.tmdbId}`)) &&
+    prepared.actors.every((person) => preparedPersonKeys.has(`${person.role}:${person.tmdbId}`)) &&
+    prepared.createdPeople.every((recordId) => preparedPersonRecordIds.has(recordId)) &&
+    prepared.images.every((image) => uploadedAssetIds.has(image.uploadId)) &&
+    prepared.uploadedAssets.every((uploadId) => preparedImageUploadIds.has(uploadId)) &&
+    (prepared.heroImage === null || preparedBackdropKeys.has(imageIdentityKey(prepared.heroImage))) &&
+    prepared.otherImages.every((image) => preparedBackdropKeys.has(imageIdentityKey(image)))
   );
 }
 
@@ -101,9 +116,24 @@ function isPreparedFieldChange(value: unknown) {
     isRecord(value) &&
     hasExactOwnKeys(value, ['key', 'value']) &&
     typeof value.key === 'string' &&
-    knownMovieFieldKeys.includes(value.key as MovieFieldKey) &&
-    Object.hasOwn(value, 'value')
+    isPreparedFieldValue(value.key, value.value)
   );
+}
+
+function isPreparedFieldValue(key: string, value: unknown) {
+  switch (key) {
+    case 'title':
+    case 'mpaaRating':
+    case 'tagline':
+    case 'description':
+      return typeof value === 'string' && value.trim().length > 0;
+    case 'yearReleased':
+    case 'runtime':
+    case 'tmdbId':
+      return Number.isSafeInteger(value) && (value as number) > 0;
+    default:
+      return false;
+  }
 }
 
 function isPreparedPersonCandidate(
@@ -134,25 +164,10 @@ function isPreparedPersonReference(value: unknown) {
   );
 }
 
-function hasPreparedPerson(
-  candidate: PreparedImport,
-  person: PreparedImport['directors'][number] | PreparedImport['actors'][number],
+function imageIdentityKey(
+  image: Pick<PreparedImport['images'][number], 'providerKey' | 'providerImageId'>,
 ) {
-  return candidate.people.some((reference) => (
-    reference.candidateTmdbId === person.tmdbId &&
-    reference.candidateRole === person.role
-  ));
-}
-
-function hasPreparedBackdrop(
-  candidate: PreparedImport,
-  identity: PreparedImport['otherImages'][number],
-) {
-  return candidate.images.some((image) => (
-    image.type === 'backdrop' &&
-    image.providerKey === identity.providerKey &&
-    image.providerImageId === identity.providerImageId
-  ));
+  return JSON.stringify([image.providerKey, image.providerImageId]);
 }
 
 function isPreparedImageReference(value: unknown) {

@@ -8,7 +8,7 @@ import { mapWithConcurrency } from '../utils/concurrency';
 
 export type ImportResult =
   | { status: 'success'; createdPeople: string[]; uploadedAssets: string[]; appliedFields: string[] }
-  | { status: 'dependency_failed'; failedPhase: DependencyFailurePhase; message: string; createdPeople: string[]; uploadedAssets: string[] }
+  | { status: 'dependency_failed'; failedPhase: DependencyFailurePhase; message: string; sideEffectsPossible: boolean; createdPeople: string[]; uploadedAssets: string[] }
   | { status: 'form_failed'; message: string; createdPeople: string[]; uploadedAssets: string[]; appliedFields: string[] };
 
 export type ImportExecutorOptions = {
@@ -74,6 +74,7 @@ export type PrepareImportResult =
       status: 'dependency_failed';
       failedPhase: DependencyFailurePhase;
       message: string;
+      sideEffectsPossible: boolean;
       createdPeople: string[];
       uploadedAssets: string[];
     };
@@ -154,7 +155,7 @@ export async function prepareImport(
         state: 'failed',
         completed: 0,
         total: autoPeopleToCreate.length,
-        message: importFailureMessage(error, 'Person lookup failed.'),
+        message: dependencyFailureMessage(error, 'Person lookup failed.'),
       });
       throw failDependency('people_lookup', error);
     }
@@ -234,7 +235,7 @@ export async function prepareImport(
         state: 'failed',
         completed: completedPersonCount,
         total: peopleToCreate.length,
-        message: importFailureMessage(error, 'Person creation failed.'),
+        message: dependencyFailureMessage(error, 'Person creation failed.'),
       });
       throw failDependency('people_create', error);
     }
@@ -279,7 +280,7 @@ export async function prepareImport(
         state: 'failed',
         completed: completedImageCount,
         total: plan.assetsToUpload.length,
-        message: importFailureMessage(error, 'Image upload failed.'),
+        message: dependencyFailureMessage(error, 'Image upload failed.'),
       });
       throw failDependency('images', error);
     } finally {
@@ -306,10 +307,20 @@ export async function prepareImport(
     }
 
     reportPhaseTiming(options, now, 'total', 'failed', plan.peopleToCreate.length + plan.assetsToUpload.length, totalStartedAt);
+    const sideEffectsPossible =
+      actualFailure.phase !== 'people_lookup'
+      || createdPeople.length > 0
+      || uploadedAssets.length > 0;
     return {
       status: 'dependency_failed',
       failedPhase: actualFailure.phase,
-      message: importFailureMessage(actualFailure.originalError, 'The import could not finish while creating people or uploading images. Some drafts or uploads may already exist in DatoCMS.'),
+      message: dependencyFailureMessage(
+        actualFailure.originalError,
+        sideEffectsPossible
+          ? 'The import could not finish while creating people or uploading images. Some drafts or uploads may already exist in DatoCMS.'
+          : 'The import could not finish while matching existing people. No drafts or uploads were created in DatoCMS.',
+      ),
+      sideEffectsPossible,
       createdPeople,
       uploadedAssets,
     };
@@ -369,6 +380,9 @@ export async function applyPreparedImport(
   const totalStartedAt = preparationTiming?.startedAt ?? now();
   const dependencyItemCount = preparationTiming?.dependencyItemCount
     ?? prepared.createdPeople.length + prepared.uploadedAssets.length;
+  const personIdsByCandidate = new Map(
+    prepared.people.map((person) => [personKey(person), person.recordId]),
+  );
 
   const changes = prepared.fieldChanges
     .map((change) => {
@@ -381,7 +395,7 @@ export async function applyPreparedImport(
   if (directorField && prepared.directors.length > 0) {
     changes.push({
       fieldPath: movieFieldPath('directors', directorField, params, options),
-      value: prepared.directors.map((person) => preparedPersonId(prepared, person)).filter((id): id is string => Boolean(id)).map(itemReference),
+      value: prepared.directors.map((person) => personIdsByCandidate.get(personKey(person))).filter((id): id is string => Boolean(id)).map(itemReference),
     });
   }
 
@@ -389,7 +403,7 @@ export async function applyPreparedImport(
   if (actorField && prepared.actors.length > 0) {
     changes.push({
       fieldPath: movieFieldPath('actors', actorField, params, options),
-      value: prepared.actors.map((person) => preparedPersonId(prepared, person)).filter((id): id is string => Boolean(id)).map(itemReference),
+      value: prepared.actors.map((person) => personIdsByCandidate.get(personKey(person))).filter((id): id is string => Boolean(id)).map(itemReference),
     });
   }
 
@@ -432,7 +446,7 @@ export async function applyPreparedImport(
     reportPhaseTiming(options, now, 'total', 'failed', dependencyItemCount + changes.length, totalStartedAt);
     return {
       status: 'form_failed',
-      message: importFailureMessage(error, 'The import could not finish while updating the movie form. Created people and uploaded images may already exist in DatoCMS.'),
+      message: 'The import could not finish while updating the movie form. Created people and uploaded images may already exist in DatoCMS.',
       createdPeople: prepared.createdPeople,
       uploadedAssets: prepared.uploadedAssets,
       appliedFields: error instanceof FormValuesApplyError ? error.appliedFields : [],
@@ -557,25 +571,16 @@ function sameImage(
   return left.providerKey === right.providerKey && left.providerImageId === right.providerImageId;
 }
 
-function preparedPersonId(
-  prepared: PreparedImport,
-  person: ImportPlan['directors'][number] | ImportPlan['actors'][number],
-) {
-  return prepared.people.find((reference) => (
-    reference.candidateTmdbId === person.tmdbId
-    && reference.candidateRole === person.role
-  ))?.recordId;
-}
-
 function personKey(person: { candidateTmdbId: number; candidateRole: 'director' | 'actor' } | { tmdbId: number; role: 'director' | 'actor' }) {
   const tmdbId = 'candidateTmdbId' in person ? person.candidateTmdbId : person.tmdbId;
   const role = 'candidateRole' in person ? person.candidateRole : person.role;
   return `${role}:${tmdbId}`;
 }
 
-function importFailureMessage(error: unknown, prefix: string): string {
-  const detail = error instanceof Error ? error.message : null;
-  return detail ? `${prefix} ${detail}` : prefix;
+function dependencyFailureMessage(error: unknown, prefix: string): string {
+  return error instanceof DuplicatePersonNameError
+    ? `${prefix} ${error.message}`
+    : prefix;
 }
 
 function movieFieldPath(

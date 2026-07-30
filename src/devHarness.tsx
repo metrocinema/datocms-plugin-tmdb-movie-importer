@@ -161,6 +161,7 @@ function prepareHarnessImport(
       status: 'dependency_failed' as const,
       failedPhase: 'images' as const,
       message: 'The next image could not be uploaded.',
+      sideEffectsPossible: true,
       createdPeople,
       uploadedAssets,
     });

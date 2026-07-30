@@ -7,6 +7,7 @@ import { matchPerson, type ExistingPersonRecord, type PersonMatchDecision } from
 import type { TmdbSearchQuery, TmdbSearchResult } from '../providers/tmdbTypes';
 import { TmdbError } from '../providers/tmdbClient';
 import { defaultImageSelection, type ImageSelection } from '../providers/imageProvider';
+import { ImportConfigurationError } from '../plugin/runtimeValidation';
 import { ConfirmStep } from './ConfirmStep';
 import './ImportModal.css';
 import { ImportProgressStep, initialImportProgress } from './ImportProgressStep';
@@ -50,6 +51,7 @@ export function ImportModal(props: ImportModalProps) {
   const [searchActivity, setSearchActivity] = useState<SearchActivity>(null);
   const [progressEvents, setProgressEvents] = useState<Record<ImportProgressPhase, ImportProgressEvent>>(initialImportProgress);
   const [preparationFailure, setPreparationFailure] = useState<string | null>(null);
+  const [preparationMayHaveSideEffects, setPreparationMayHaveSideEffects] = useState(false);
   const isPreparingRef = useRef(false);
 
   const loadSelectedMovie = async (tmdbId: number) => {
@@ -121,6 +123,7 @@ export function ImportModal(props: ImportModalProps) {
 
     isPreparingRef.current = true;
     setPreparationFailure(null);
+    setPreparationMayHaveSideEffects(false);
     setProgressEvents(initialImportProgress());
     setStep('progress');
 
@@ -145,9 +148,13 @@ export function ImportModal(props: ImportModalProps) {
           state: 'failed',
         },
       }));
+      setPreparationMayHaveSideEffects(result.sideEffectsPossible);
       setPreparationFailure(result.message);
-    } catch {
-      setPreparationFailure('The import could not finish while creating people or uploading images.');
+    } catch (error) {
+      setPreparationMayHaveSideEffects(
+        !isControlledConfigurationError(error),
+      );
+      setPreparationFailure(messageForPreparationError(error));
     }
   };
 
@@ -211,7 +218,7 @@ export function ImportModal(props: ImportModalProps) {
   if (step === 'progress') {
     return (
       <div className="movie-import-modal">
-        <ImportProgressStep plan={plan} progressEvents={progressEvents} preparationFailure={preparationFailure} onClose={() => void props.resolve(null)} />
+        <ImportProgressStep plan={plan} progressEvents={progressEvents} preparationFailure={preparationFailure} preparationMayHaveSideEffects={preparationMayHaveSideEffects} onClose={() => void props.resolve(null)} />
       </div>
     );
   }
@@ -266,6 +273,22 @@ function messageForTmdbMovieLoadError(error: unknown) {
   }
 
   return 'The TMDB movie could not be loaded. Search by title and year, or try a different TMDB ID.';
+}
+
+function messageForPreparationError(error: unknown) {
+  const genericMessage = 'The import could not finish while creating people or uploading images.';
+
+  if (isControlledConfigurationError(error)) {
+    return error.message;
+  }
+
+  return genericMessage;
+}
+
+function isControlledConfigurationError(
+  error: unknown,
+): error is ImportConfigurationError {
+  return error instanceof ImportConfigurationError;
 }
 
 function tokenSafeErrorDetails(error: unknown) {

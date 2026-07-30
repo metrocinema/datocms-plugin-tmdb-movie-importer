@@ -27,7 +27,14 @@ const preparedImport: PreparedImport = {
 
 function fieldContext(openModal: (options: Modal) => Promise<unknown>) {
   return {
-    plugin: { attributes: { parameters: { ...configuredParameters } } },
+    plugin: {
+      attributes: {
+        parameters: {
+          ...configuredParameters,
+          movieFields: { ...configuredParameters.movieFields },
+        },
+      },
+    },
     formValues: {
       title: { en: 'English title', fr: 'Titre français' },
       tmdb_id: 123,
@@ -42,6 +49,13 @@ function fieldContext(openModal: (options: Modal) => Promise<unknown>) {
           field_type: 'string',
         },
       },
+      alternateTitle: {
+        attributes: {
+          api_key: 'alternate_title',
+          localized: true,
+          field_type: 'string',
+        },
+      },
     },
     openModal,
     notice: vi.fn(),
@@ -50,8 +64,8 @@ function fieldContext(openModal: (options: Modal) => Promise<unknown>) {
 }
 
 describe('field extension adapter', () => {
-  it('does not apply an invalid modal result', async () => {
-    const ctx = fieldContext(async () => ({ status: 'success' }));
+  it.each([null, undefined])('treats %s modal results as cancellation', async (modalResult) => {
+    const ctx = fieldContext(async () => modalResult);
     const createGateway = vi.fn();
     const applyPrepared = vi.fn();
 
@@ -64,6 +78,24 @@ describe('field extension adapter', () => {
     expect(applyPrepared).not.toHaveBeenCalled();
     expect(ctx.notice).not.toHaveBeenCalled();
     expect(ctx.alert).not.toHaveBeenCalled();
+  });
+
+  it('alerts without applying an invalid modal result', async () => {
+    const ctx = fieldContext(async () => ({ status: 'success' }));
+    const createGateway = vi.fn();
+    const applyPrepared = vi.fn();
+
+    await runFieldExtensionImport('find', vi.fn(), ctx, {
+      createGateway,
+      applyPrepared,
+    });
+
+    expect(createGateway).not.toHaveBeenCalled();
+    expect(applyPrepared).not.toHaveBeenCalled();
+    expect(ctx.notice).not.toHaveBeenCalled();
+    expect(ctx.alert).toHaveBeenCalledWith(
+      'The TMDB import data was invalid. Search for the movie again.',
+    );
   });
 
   it('reports an unexpected modal failure without applying values', async () => {
@@ -101,11 +133,80 @@ describe('field extension adapter', () => {
     );
   });
 
-  it('recomputes the locale after the modal closes and reports application success', async () => {
+  it('does not apply if a field mapping changes while the modal is open', async () => {
+    const ctx = fieldContext(async () => {
+      ctx.plugin.attributes.parameters.movieFields.title = 'alternate_title';
+      return preparedImport;
+    });
+    const applyPrepared = vi.fn();
+    const reportStatus = vi.fn();
+
+    await runFieldExtensionImport('find', reportStatus, ctx, {
+      createGateway: vi.fn(),
+      applyPrepared,
+    });
+
+    expect(applyPrepared).not.toHaveBeenCalled();
+    expect(reportStatus).not.toHaveBeenCalledWith('applying');
+    expect(ctx.alert).toHaveBeenCalledWith(
+      'Import did not run because the field mapping or target locale changed while the modal was open. Review the movie again.',
+    );
+  });
+
+  it.each([
+    {
+      name: 'localization',
+      changeField: (ctx: ReturnType<typeof fieldContext>) => {
+        ctx.fields.title.attributes.localized = false;
+      },
+    },
+    {
+      name: 'field type',
+      changeField: (ctx: ReturnType<typeof fieldContext>) => {
+        ctx.fields.title.attributes.field_type = 'text';
+      },
+    },
+  ])('does not apply if mapped field $name changes while the modal is open', async ({ changeField }) => {
+    const ctx = fieldContext(async () => {
+      changeField(ctx);
+      return preparedImport;
+    });
+    const applyPrepared = vi.fn();
+
+    await runFieldExtensionImport('find', vi.fn(), ctx, {
+      createGateway: vi.fn(),
+      applyPrepared,
+    });
+
+    expect(applyPrepared).not.toHaveBeenCalled();
+    expect(ctx.alert).toHaveBeenCalledWith(
+      'Import did not run because the field mapping or target locale changed while the modal was open. Review the movie again.',
+    );
+  });
+
+  it('does not apply if the target locale changes while the modal is open', async () => {
     const openModal = vi.fn(async () => {
       ctx.locale = 'fr';
       return preparedImport;
     });
+    const ctx = fieldContext(openModal);
+    const applyPrepared = vi.fn();
+    const reportStatus = vi.fn();
+
+    await runFieldExtensionImport('refresh', reportStatus, ctx, {
+      createGateway: vi.fn(),
+      applyPrepared,
+    });
+
+    expect(applyPrepared).not.toHaveBeenCalled();
+    expect(reportStatus).not.toHaveBeenCalledWith('applying');
+    expect(ctx.alert).toHaveBeenCalledWith(
+      'Import did not run because the field mapping or target locale changed while the modal was open. Review the movie again.',
+    );
+  });
+
+  it('applies with the reviewed mapping and reports success', async () => {
+    const openModal = vi.fn(async () => preparedImport);
     const ctx = fieldContext(openModal);
     const gateway = {};
     const createGateway = vi.fn(() => gateway);
@@ -128,10 +229,10 @@ describe('field extension adapter', () => {
         currentValues: { title: 'English title' },
       }),
     }));
-    expect(createGateway).toHaveBeenCalledWith(ctx, 'fr');
+    expect(createGateway).toHaveBeenCalledWith(ctx, 'en');
     expect(applyPrepared).toHaveBeenCalledWith(
       preparedImport,
-      expect.objectContaining({ targetLocale: 'fr' }),
+      expect.objectContaining({ targetLocale: 'en' }),
       gateway,
       {
         localizedMovieFields: { title: true },

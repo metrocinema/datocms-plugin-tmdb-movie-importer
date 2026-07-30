@@ -5,6 +5,7 @@ import type { NormalizedMovie } from '../domain/movie';
 import type { ImportProgressEvent, PrepareImportResult } from '../dato/importExecutor';
 import type { ImportPlan } from '../domain/importPlanning';
 import { TmdbError } from '../providers/tmdbClient';
+import { ImportConfigurationError } from '../plugin/runtimeValidation';
 
 const pendingLifecycle = {
   prepare: () => new Promise<PrepareImportResult>(() => undefined),
@@ -428,6 +429,7 @@ describe('ImportModal', () => {
       status: 'dependency_failed',
       failedPhase: 'images',
       message: 'The import could not finish while creating people or uploading images.',
+      sideEffectsPossible: true,
       createdPeople: ['person-1'],
       uploadedAssets: ['upload-1'],
     }));
@@ -447,6 +449,27 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
 
     expect(resolve).toHaveBeenCalledWith(null);
+  });
+
+  it('does not warn about cleanup after a lookup-only failure', async () => {
+    const prepare = vi.fn(async (): Promise<PrepareImportResult> => ({
+      status: 'dependency_failed',
+      failedPhase: 'people_lookup',
+      message: 'Person lookup failed.',
+      sideEffectsPossible: false,
+      createdPeople: [],
+      uploadedAssets: [],
+    }));
+
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={prepare} resolve={vi.fn()} />);
+
+    await reachReview();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
+
+    expect(await screen.findByText('Preparation failed')).toBeInTheDocument();
+    expect(screen.getByText('Person lookup failed.')).toBeInTheDocument();
+    expect(screen.queryByText(/draft people or uploaded images may already exist/i)).not.toBeInTheDocument();
   });
 
   it('shows active person and image preparation phases together', async () => {
@@ -1034,7 +1057,7 @@ describe('ImportModal data flow', () => {
   it('shows preparation progress while the import plan is being prepared', async () => {
     let finishPreparation: (() => void) | undefined;
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={() => new Promise<PrepareImportResult>((resolve) => {
-      finishPreparation = () => resolve({ status: 'dependency_failed', failedPhase: 'images', message: 'Image upload failed.', createdPeople: [], uploadedAssets: [] });
+      finishPreparation = () => resolve({ status: 'dependency_failed', failedPhase: 'images', message: 'Image upload failed.', sideEffectsPossible: true, createdPeople: [], uploadedAssets: [] });
     })} resolve={vi.fn()} />);
 
     await reachReview();
@@ -1056,6 +1079,22 @@ describe('ImportModal data flow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The import could not finish while creating people or uploading images.');
+  });
+
+  it('preserves a safe configuration error if import preparation throws', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={async () => {
+      throw new ImportConfigurationError([{
+        code: 'movie_field_missing',
+        message: 'Movie field title was not found.',
+        severity: 'error',
+      }]);
+    }} resolve={vi.fn()} />);
+
+    await reachReview();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Import did not run because the configuration is incomplete: Movie field title was not found.');
   });
 
   it('keeps custom review controls at accessible touch-target sizes', async () => {

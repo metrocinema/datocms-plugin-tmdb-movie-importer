@@ -2,6 +2,17 @@ import type { ValidationIssue } from '../domain/movie';
 import { validateFieldMappings, type DatoFieldSnapshot, type DatoSchemaSnapshot } from './datoFieldMapping';
 import { validatePluginParameters, type PluginParameters } from './parameters';
 
+export class ImportConfigurationError extends Error {
+  constructor(readonly issues: ValidationIssue[]) {
+    super(
+      `Import did not run because the configuration is incomplete: ${issues
+        .map((issue) => issue.message)
+        .join(' ')}`,
+    );
+    this.name = 'ImportConfigurationError';
+  }
+}
+
 export function validateRuntimeConfiguration(
   parameters: PluginParameters,
   schema?: DatoSchemaSnapshot,

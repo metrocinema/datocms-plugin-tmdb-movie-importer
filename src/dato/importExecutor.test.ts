@@ -540,6 +540,7 @@ describe('executeImportPlan', () => {
 
   it('stops before form updates when a dependency write fails', async () => {
     const order: string[] = [];
+    const progress: ImportProgressEvent[] = [];
     const result = await executeImportPlan(plan, params, {
       async findPeople() {
         return [];
@@ -555,17 +556,66 @@ describe('executeImportPlan', () => {
       async applyFormValues() {
         order.push('form');
       },
+    }, {
+      onProgress: (event) => progress.push(event),
     });
 
     expect(result.status).toBe('dependency_failed');
     if (result.status !== 'dependency_failed') {
       throw new Error(`Expected dependency_failed, got ${result.status}`);
     }
-    expect(result.message).toContain('Some drafts or uploads may already exist in DatoCMS.');
-    expect(result.message).toContain('permission denied');
+    expect(result.message).toBe('The import could not finish while creating people or uploading images. Some drafts or uploads may already exist in DatoCMS.');
+    expect(result.message).not.toContain('permission denied');
+    expect(progress).toContainEqual({
+      phase: 'people_create',
+      state: 'failed',
+      completed: 0,
+      total: 2,
+      message: 'Person creation failed.',
+    });
     expect(order).toContain('person');
     expect(order.filter((event) => event === 'upload')).toHaveLength(2);
     expect(order).not.toContain('form');
+  });
+
+  it('does not warn about cleanup when lookup fails before dependency writes', async () => {
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [plan.directors[0]],
+        actors: [],
+        peopleToCreate: [plan.peopleToCreate[0]],
+        assetsToUpload: [],
+      },
+      params,
+      {
+        async findPeople() {
+          throw new Error('private lookup failure detail');
+        },
+        async createPersonDraft() {
+          throw new Error('person creation must not run');
+        },
+        async uploadImage() {
+          throw new Error('image upload must not run');
+        },
+        async applyFormValues() {
+          throw new Error('form update must not run');
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      status: 'dependency_failed',
+      failedPhase: 'people_lookup',
+      sideEffectsPossible: false,
+      message:
+        'The import could not finish while matching existing people. No drafts or uploads were created in DatoCMS.',
+    });
+    if (result.status !== 'dependency_failed') {
+      throw new Error(`Expected dependency_failed, got ${result.status}`);
+    }
+    expect(result.message).not.toContain('private lookup failure detail');
+    expect(result.message).not.toContain('may already exist');
   });
 
   it('maps a backdrop-only selection without writing the poster field', async () => {
@@ -904,7 +954,7 @@ describe('executeImportPlan', () => {
         return { id: 'upload-1' };
       },
       async applyFormValues() {
-        throw new FormValuesApplyError('Form update failed.', ['title']);
+        throw new FormValuesApplyError('secret SDK failure detail', ['title']);
       },
     });
 
@@ -912,7 +962,46 @@ describe('executeImportPlan', () => {
     if (result.status !== 'form_failed') {
       throw new Error(`Expected form_failed, got ${result.status}`);
     }
-    expect(result.message).toContain('Created people and uploaded images may already exist in DatoCMS.');
-    expect(result.message).toContain('Form update failed.');
+    expect(result.message).toBe(
+      'The import could not finish while updating the movie form. Created people and uploaded images may already exist in DatoCMS.',
+    );
+    expect(result.message).not.toContain('secret SDK failure detail');
+  });
+
+  it('does not expose unexpected form update errors', async () => {
+    const result = await executeImportPlan(
+      {
+        ...plan,
+        directors: [],
+        actors: [],
+        peopleToCreate: [],
+        assetsToUpload: [],
+      },
+      params,
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'upload-1' };
+        },
+        async applyFormValues() {
+          throw new Error('POST /items failed with internal request details');
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      status: 'form_failed',
+      message:
+        'The import could not finish while updating the movie form. Created people and uploaded images may already exist in DatoCMS.',
+    });
+    if (result.status !== 'form_failed') {
+      throw new Error(`Expected form_failed, got ${result.status}`);
+    }
+    expect(result.message).not.toContain('internal request details');
   });
 });

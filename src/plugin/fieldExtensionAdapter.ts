@@ -69,25 +69,21 @@ async function runFieldExtensionImportUnchecked<TGateway>(
   ctx: FieldExtensionAdapterContext,
   dependencies: FieldExtensionAdapterDependencies<TGateway>,
 ): Promise<void> {
-  const params = parsePluginParameters(ctx.plugin.attributes.parameters);
-  const schema = await loadSchemaForRuntimeValidation(params, ctx);
-  const currentIssues = validateRuntimeConfiguration(params, schema);
-  if (currentIssues.length > 0) {
+  const reviewedRuntime = await readRuntimeSnapshot(ctx);
+  if (reviewedRuntime.issues.length > 0) {
     ctx.alert(
-      `Configure the importer before using it: ${currentIssues
+      `Configure the importer before using it: ${reviewedRuntime.issues
         .map((issue) => issue.message)
         .join(' ')}`,
     );
     return;
   }
 
-  const targetLocale = activeTargetLocale(params, ctx.locale);
-  const fieldMetadata = mappedFieldMetadata(params.movieFields, ctx.fields);
-  const mappedFields = fieldMetadata.map((field) => field.key);
+  const mappedFields = reviewedRuntime.fieldMetadata.map((field) => field.key);
   const currentValues = valuesForMappedFields(
     ctx.formValues,
-    targetLocale,
-    fieldMetadata,
+    reviewedRuntime.targetLocale,
+    reviewedRuntime.fieldMetadata,
   );
   const prepared = await ctx.openModal({
     id: 'tmdbMovieImport',
@@ -98,7 +94,7 @@ async function runFieldExtensionImportUnchecked<TGateway>(
       mode,
       currentValues,
       mappedFields,
-      targetLocale,
+      targetLocale: reviewedRuntime.targetLocale,
       initialTitle:
         typeof currentValues.title === 'string' ? currentValues.title : '',
       initialYear:
@@ -110,45 +106,85 @@ async function runFieldExtensionImportUnchecked<TGateway>(
     },
   });
 
-  if (!isPreparedImport(prepared)) {
+  if (prepared === null || prepared === undefined) {
     return;
   }
 
-  const latestParams = parsePluginParameters(
-    ctx.plugin.attributes.parameters,
-  );
-  const latestSchema = await loadSchemaForRuntimeValidation(latestParams, ctx);
-  const executionIssues = validateRuntimeConfiguration(
-    latestParams,
-    latestSchema,
-  );
-  if (executionIssues.length > 0) {
+  if (!isPreparedImport(prepared)) {
     ctx.alert(
-      `Import did not run because the configuration is incomplete: ${executionIssues
+      'The TMDB import data was invalid. Search for the movie again.',
+    );
+    return;
+  }
+
+  const executionRuntime = await readRuntimeSnapshot(ctx);
+  if (executionRuntime.issues.length > 0) {
+    ctx.alert(
+      `Import did not run because the configuration is incomplete: ${executionRuntime.issues
         .map((issue) => issue.message)
         .join(' ')}`,
     );
     return;
   }
 
-  const executionLocale = activeTargetLocale(latestParams, ctx.locale);
-  const latestFieldMetadata = mappedFieldMetadata(
-    latestParams.movieFields,
-    ctx.fields,
-  );
+  if (executionRuntime.mappingFingerprint !== reviewedRuntime.mappingFingerprint) {
+    ctx.alert(
+      'Import did not run because the field mapping or target locale changed while the modal was open. Review the movie again.',
+    );
+    return;
+  }
   reportStatus('applying');
 
   const result = await dependencies.applyPrepared(
     prepared,
-    { ...latestParams, targetLocale: executionLocale },
-    dependencies.createGateway(ctx, executionLocale),
-    executorOptionsForMappedFields(latestFieldMetadata),
+    {
+      ...executionRuntime.params,
+      targetLocale: executionRuntime.targetLocale,
+    },
+    dependencies.createGateway(ctx, executionRuntime.targetLocale),
+    executorOptionsForMappedFields(executionRuntime.fieldMetadata),
   );
   if (result.status === 'success') {
     ctx.notice('TMDB import applied to the unsaved movie.');
   } else {
     ctx.alert(result.message);
   }
+}
+
+async function readRuntimeSnapshot(ctx: FieldExtensionAdapterContext) {
+  const params = parsePluginParameters(ctx.plugin.attributes.parameters);
+  const schema = await loadSchemaForRuntimeValidation(params, ctx);
+  const issues = validateRuntimeConfiguration(params, schema);
+  const targetLocale = activeTargetLocale(params, ctx.locale);
+  const fieldMetadata = mappedFieldMetadata(params.movieFields, ctx.fields);
+
+  return {
+    params,
+    issues,
+    targetLocale,
+    fieldMetadata,
+    mappingFingerprint: fieldMappingFingerprint(
+      targetLocale,
+      fieldMetadata,
+    ),
+  };
+}
+
+function fieldMappingFingerprint(
+  targetLocale: string,
+  fields: ReturnType<typeof mappedFieldMetadata>,
+) {
+  return JSON.stringify({
+    targetLocale,
+    fields: fields
+      .map(({ key, apiKey, localized, fieldType }) => ({
+        key,
+        apiKey,
+        localized,
+        fieldType,
+      }))
+      .sort((left, right) => left.key.localeCompare(right.key)),
+  });
 }
 
 function validTmdbId(value: unknown): number | null {

@@ -9,7 +9,7 @@ import { createDatoGateway, type GatewayClient, type UploadStageTiming } from '.
 import { activeTargetLocale, parsePluginParameters } from './plugin/parameters';
 import { manualFieldExtensions } from './plugin/fieldExtensions';
 import { modalCurrentValues, modalInitialTitle, modalInitialTmdbId, modalInitialYear, modalMappedFields } from './plugin/modalRuntime';
-import { loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './plugin/runtimeValidation';
+import { ImportConfigurationError, loadSchemaForRuntimeValidation, validateRuntimeConfiguration } from './plugin/runtimeValidation';
 import { runFieldExtensionImport } from './plugin/fieldExtensionAdapter';
 import { TmdbClient } from './providers/tmdbClient';
 import { normalizeTmdbMovie } from './providers/tmdbNormalizer';
@@ -129,7 +129,7 @@ connect({
         const latestSchema = await loadSchemaForRuntimeValidation(latestParams, ctx);
         const preparationIssues = validateRuntimeConfiguration(latestParams, latestSchema);
         if (preparationIssues.length > 0) {
-          throw new Error(`Import did not run because the configuration is incomplete: ${preparationIssues.map((issue) => issue.message).join(' ')}`);
+          throw new ImportConfigurationError(preparationIssues);
         }
 
         const preparationLocale = activeTargetLocale(latestParams, ctx.parameters.targetLocale);

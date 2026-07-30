@@ -18,6 +18,7 @@ const modalScreen: Extract<PluginScreen, { type: 'modal' }> = {
     status: 'dependency_failed',
     failedPhase: 'images',
     message: 'Image upload failed.',
+    sideEffectsPossible: true,
     createdPeople: [],
     uploadedAssets: [],
   }),

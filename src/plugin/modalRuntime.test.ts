@@ -170,6 +170,21 @@ describe('modalRuntime', () => {
       ...change,
     })).toBe(false);
   });
+
+  it.each([
+    { key: 'title', value: 123 },
+    { key: 'title', value: '   ' },
+    { key: 'yearReleased', value: '2024' },
+    { key: 'runtime', value: Number.NaN },
+    { key: 'tmdbId', value: 0 },
+    { key: 'description', value: { schema: 'dast' } },
+    { key: 'poster', value: 'upload-1' },
+  ])('rejects an invalid $key field-change value', (fieldChange) => {
+    expect(isPreparedImport({
+      ...validPreparedImport(),
+      fieldChanges: [fieldChange],
+    })).toBe(false);
+  });
 });
 
 function validPreparedImport(): PreparedImport {
