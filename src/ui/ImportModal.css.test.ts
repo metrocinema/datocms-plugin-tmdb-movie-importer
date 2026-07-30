@@ -124,14 +124,18 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(rule).not.toContain('--color--field-group-media--surface');
   });
 
-  it('contains complete media previews inside a fixed native-style canvas', () => {
+  it('uses roomier native-style media card geometry without cropping previews', () => {
+    const gridRule = ruleFor('.movie-import-modal__image-grid');
     const canvasRule = ruleFor('.movie-import-modal__image-canvas');
     const imageRule = ruleFor('.movie-import-modal__image-thumb');
     const posterRule = ruleFor('.movie-import-modal__image-thumb--poster');
     const backdropRule = ruleFor('.movie-import-modal__image-thumb--backdrop');
 
+    expect(gridRule).toContain('gap: var(--spacing-l)');
+    expect(gridRule).toContain('grid-template-columns: repeat(auto-fill, minmax(190px, 200px))');
+    expect(gridRule).toContain('justify-content: start');
     expect(canvasRule).toContain('align-items: center');
-    expect(canvasRule).toContain('height: 160px');
+    expect(canvasRule).toContain('height: 144px');
     expect(canvasRule).toContain('justify-content: center');
     expect(canvasRule).toContain('background: var(--color--surface');
     expect(imageRule).toContain('height: auto');
@@ -145,9 +149,16 @@ describe('ImportModal.css accessibility tokens', () => {
 
   it('keeps a contained fixed preview canvas at narrow widths', () => {
     const condition = '(max-width: 540px)';
+    const gridRule = ruleInMedia(condition, '.movie-import-modal__image-grid');
+    const destinationGridRule = ruleInMedia(
+      condition,
+      '.movie-import-modal__destination-lane .movie-import-modal__image-grid',
+    );
     const previewRule = ruleInMedia(condition, '.movie-import-modal__image-preview');
     const canvasRule = ruleInMedia(condition, '.movie-import-modal__image-canvas');
 
+    expect(gridRule).toContain('grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))');
+    expect(destinationGridRule).toContain('grid-template-columns: 1fr');
     expect(previewRule).toContain('padding: var(--spacing-m)');
     expect(canvasRule).toContain('height: 140px');
   });
