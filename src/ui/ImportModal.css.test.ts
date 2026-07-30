@@ -124,6 +124,34 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(rule).not.toContain('--color--field-group-media--surface');
   });
 
+  it('contains complete media previews inside a fixed native-style canvas', () => {
+    const canvasRule = ruleFor('.movie-import-modal__image-canvas');
+    const imageRule = ruleFor('.movie-import-modal__image-thumb');
+    const posterRule = ruleFor('.movie-import-modal__image-thumb--poster');
+    const backdropRule = ruleFor('.movie-import-modal__image-thumb--backdrop');
+
+    expect(canvasRule).toContain('align-items: center');
+    expect(canvasRule).toContain('height: 160px');
+    expect(canvasRule).toContain('justify-content: center');
+    expect(canvasRule).toContain('background: var(--color--surface');
+    expect(imageRule).toContain('height: auto');
+    expect(imageRule).toContain('max-height: 100%');
+    expect(imageRule).toContain('max-width: 100%');
+    expect(imageRule).toContain('object-fit: contain');
+    expect(imageRule).toContain('width: auto');
+    expect(posterRule).not.toContain('aspect-ratio');
+    expect(backdropRule).not.toContain('aspect-ratio');
+  });
+
+  it('keeps a contained fixed preview canvas at narrow widths', () => {
+    const condition = '(max-width: 540px)';
+    const previewRule = ruleInMedia(condition, '.movie-import-modal__image-preview');
+    const canvasRule = ruleInMedia(condition, '.movie-import-modal__image-canvas');
+
+    expect(previewRule).toContain('padding: var(--spacing-m)');
+    expect(canvasRule).toContain('height: 140px');
+  });
+
   it('stacks Review fields and compacts the footer summary at narrow widths', () => {
     const condition = '(max-width: 540px)';
     const rowRule = ruleInMedia(condition, '.movie-import-modal__field-table tbody .movie-import-modal__field-table-row');

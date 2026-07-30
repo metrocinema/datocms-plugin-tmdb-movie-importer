@@ -567,6 +567,11 @@ describe('ImportModal data flow', () => {
     expect(screen.getByText('Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.')).toBeInTheDocument();
     expect(screen.getByText('1 poster, 1 Hero Image, and 2 Other Images selected for import.')).toBeInTheDocument();
     expect(screen.getAllByRole('img', { name: /Backdrop option/i })).toHaveLength(4);
+    const candidateImages = screen.getAllByRole('img', { name: /option \d+/i });
+    expect(candidateImages.length).toBeGreaterThan(0);
+    candidateImages.forEach((image) => {
+      expect(image.parentElement).toHaveClass('movie-import-modal__image-canvas');
+    });
     expect(screen.getByRole('radio', { name: 'Do not import a Hero Image' })).not.toBeChecked();
     const heroOptions = screen.getAllByRole('radio', { name: /Use as Hero Image/i });
     const otherImageOptions = screen.getAllByRole('checkbox', { name: /Add to Other Images/i });

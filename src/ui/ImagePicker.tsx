@@ -131,21 +131,23 @@ function ImageOption({ image, index, inputType, inputName, label, selected, onCh
   return (
     <label className="movie-import-modal__image-option" style={touchTargetStyle}>
       <span className="movie-import-modal__image-preview">
-        {!previewFailed ? (
-          <img
-            className={`movie-import-modal__image-thumb movie-import-modal__image-thumb--${image.type}`}
-            src={image.previewUrl ?? image.originalUrl}
-            alt={`${capitalize(imageKind)} option ${optionNumber}`}
-            loading="lazy"
-            width={120}
-            height={image.type === 'poster' ? 180 : 68}
-            onError={() => setPreviewFailed(true)}
-          />
-        ) : (
-          <span className="movie-import-modal__image-fallback" role="img" aria-label={`${imageKind} preview unavailable`}>
-            Preview unavailable
-          </span>
-        )}
+        <span className="movie-import-modal__image-canvas">
+          {!previewFailed ? (
+            <img
+              className={`movie-import-modal__image-thumb movie-import-modal__image-thumb--${image.type}`}
+              src={image.previewUrl ?? image.originalUrl}
+              alt={`${capitalize(imageKind)} option ${optionNumber}`}
+              loading="lazy"
+              width={120}
+              height={image.type === 'poster' ? 180 : 68}
+              onError={() => setPreviewFailed(true)}
+            />
+          ) : (
+            <span className="movie-import-modal__image-fallback" role="img" aria-label={`${imageKind} preview unavailable`}>
+              Preview unavailable
+            </span>
+          )}
+        </span>
         <span className="movie-import-modal__image-meta">{provider} · {dimensions} · {language}</span>
       </span>
       <span className="movie-import-modal__image-footer">
@@ -165,8 +167,10 @@ function NoHeroImageOption({ selected, onChange }: NoHeroImageOptionProps) {
   return (
     <label className="movie-import-modal__image-option movie-import-modal__image-option--none" style={touchTargetStyle}>
       <span className="movie-import-modal__image-preview">
-        <span className="movie-import-modal__image-fallback movie-import-modal__image-fallback--none" aria-hidden="true">
-          No image
+        <span className="movie-import-modal__image-canvas">
+          <span className="movie-import-modal__image-fallback movie-import-modal__image-fallback--none" aria-hidden="true">
+            No image
+          </span>
         </span>
         <span className="movie-import-modal__image-meta">Leave Hero Image unchanged</span>
       </span>
@@ -211,21 +215,23 @@ function BackdropDestinationOption({ image, index, destination, selected, second
         {secondaryStatus ? <span className="movie-import-modal__image-chip movie-import-modal__image-chip--muted">{secondaryStatus}</span> : null}
       </span>
       <span className="movie-import-modal__image-preview">
-        {!previewFailed ? (
-          <img
-            className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop"
-            src={image.previewUrl ?? image.originalUrl}
-            alt={`Backdrop option ${optionNumber}`}
-            loading="lazy"
-            width={120}
-            height={68}
-            onError={() => setPreviewFailed(true)}
-          />
-        ) : (
-          <span className="movie-import-modal__image-fallback" role="img" aria-label="backdrop preview unavailable">
-            Preview unavailable
-          </span>
-        )}
+        <span className="movie-import-modal__image-canvas">
+          {!previewFailed ? (
+            <img
+              className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop"
+              src={image.previewUrl ?? image.originalUrl}
+              alt={`Backdrop option ${optionNumber}`}
+              loading="lazy"
+              width={120}
+              height={68}
+              onError={() => setPreviewFailed(true)}
+            />
+          ) : (
+            <span className="movie-import-modal__image-fallback" role="img" aria-label="backdrop preview unavailable">
+              Preview unavailable
+            </span>
+          )}
+        </span>
         <span className="movie-import-modal__image-meta">{provider} · {dimensions} · {language}</span>
       </span>
       <span className="movie-import-modal__image-footer">
