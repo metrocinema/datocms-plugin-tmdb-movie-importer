@@ -125,7 +125,7 @@ function ImageOption({ image, index, inputType, inputName, label, selected, onCh
   const optionNumber = index + 1;
   const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
   const provider = image.attribution ?? image.providerKey.toUpperCase();
-  const language = image.language ? image.language.toUpperCase() : 'No language metadata';
+  const language = image.language ? image.language.toUpperCase() : 'NA';
   const ariaLabel = `${label}: ${imageKind} option ${optionNumber}`;
 
   return (
@@ -196,7 +196,7 @@ function BackdropDestinationOption({ image, index, destination, selected, second
   const optionNumber = index + 1;
   const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
   const provider = image.attribution ?? image.providerKey.toUpperCase();
-  const language = image.language ? image.language.toUpperCase() : 'No language metadata';
+  const language = image.language ? image.language.toUpperCase() : 'NA';
   const isHeroDestination = destination === 'hero';
   const inputType = isHeroDestination ? 'radio' : 'checkbox';
   const inputName = isHeroDestination ? 'hero-image-selection' : undefined;

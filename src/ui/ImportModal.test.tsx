@@ -606,6 +606,22 @@ describe('ImportModal data flow', () => {
     expect(screen.queryByRole('img', { name: 'Backdrop option 11' })).not.toBeInTheDocument();
   });
 
+  it('labels missing image language metadata as NA', async () => {
+    const movieWithMissingBackdropLanguage: NormalizedMovie = {
+      ...movieWithBackdrops,
+      images: movieWithBackdrops.images.map((image, index) => (
+        index === 1 ? { ...image, language: null } : image
+      )),
+    };
+
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: null, backdrops: [] }} mappedFields={['title', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithMissingBackdropLanguage} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+
+    expect(screen.getAllByText('TMDB · 1920 × 1080 · NA')).toHaveLength(2);
+    expect(screen.queryByText(/No language metadata/i)).not.toBeInTheDocument();
+  });
+
   it('allows editors to skip importing a hero image while keeping other image choices', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
