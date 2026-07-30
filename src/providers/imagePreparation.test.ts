@@ -69,4 +69,37 @@ describe('prepareSelectableImages', () => {
       '/backdrop-distinct.jpg',
     ]);
   });
+
+  it('caps fingerprint loading at four across poster and backdrop preparation', async () => {
+    const images = [
+      ...Array.from({ length: 5 }, (_, index) =>
+        candidate(`/poster-${index}.jpg`, 'poster', index, 'en'),
+      ),
+      ...Array.from({ length: 5 }, (_, index) =>
+        candidate(`/backdrop-${index}.jpg`, 'backdrop', index, null),
+      ),
+    ];
+    let active = 0;
+    let maximumActive = 0;
+    let releaseLoads: (() => void) | undefined;
+    const allLoadsReleased = new Promise<void>((resolve) => {
+      releaseLoads = resolve;
+    });
+    const loadFingerprint: ImageFingerprintLoader = async () => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      await allLoadsReleased;
+      active -= 1;
+      return { hash: 1n, aspectRatio: 1 };
+    };
+    const prepared = prepareSelectableImages(images, loadFingerprint);
+
+    await Promise.resolve();
+    try {
+      expect(maximumActive).toBe(4);
+    } finally {
+      releaseLoads?.();
+      await prepared;
+    }
+  });
 });

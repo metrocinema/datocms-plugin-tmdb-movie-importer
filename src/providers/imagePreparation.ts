@@ -13,10 +13,8 @@ export async function prepareSelectableImages(
 ): Promise<NormalizedImageCandidate[]> {
   const englishPosters = images.filter(isEnglishPoster);
   const backdrops = images.filter((image) => image.type === 'backdrop');
-  const [uniquePosters, uniqueBackdrops] = await Promise.all([
-    deduplicateImageCandidates(englishPosters, loadFingerprint),
-    deduplicateImageCandidates(backdrops, loadFingerprint),
-  ]);
+  const uniquePosters = await deduplicateImageCandidates(englishPosters, loadFingerprint);
+  const uniqueBackdrops = await deduplicateImageCandidates(backdrops, loadFingerprint);
 
   return [...uniquePosters, ...uniqueBackdrops];
 }
