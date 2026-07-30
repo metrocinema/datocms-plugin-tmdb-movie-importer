@@ -154,4 +154,44 @@ describe('devHarness', () => {
       mpaaRating: 'R',
     });
   });
+
+  it.each(['default', 'odyssey-existing'] as const)(
+    'offers twelve unique English posters and backdrops in the %s modal scenario',
+    async (scenario) => {
+    const screen = screenForHarnessMode('modal', scenario);
+    expect(screen.type).toBe('modal');
+    if (screen.type !== 'modal') return;
+
+    const movie = await screen.loadMovie(scenario === 'default' ? 843 : 1368337);
+    const posters = movie.images.filter((image) => image.type === 'poster');
+    const backdrops = movie.images.filter((image) => image.type === 'backdrop');
+    const identities = movie.images.map((image) => `${image.providerKey}:${image.providerImageId}`);
+    const previewUrls = movie.images.map((image) => image.previewUrl);
+
+    expect(posters).toHaveLength(12);
+    expect(backdrops).toHaveLength(12);
+    expect(movie.images.every((image) => image.language === 'en')).toBe(true);
+    expect(new Set(identities).size).toBe(24);
+    expect(new Set(previewUrls).size).toBe(24);
+    expect(previewUrls.every((url) => url?.startsWith('data:image/svg+xml,'))).toBe(true);
+  });
+
+  it('uses actual default harness values to retain selected examples inside and outside the first batch', async () => {
+    const screen = screenForHarnessMode('modal');
+    expect(screen.type).toBe('modal');
+    if (screen.type !== 'modal') return;
+
+    const movie = await screen.loadMovie(843);
+    const posters = movie.images.filter((image) => image.type === 'poster');
+    const backdrops = movie.images.filter((image) => image.type === 'backdrop');
+    const selection = defaultImageSelection(
+      screen.currentValues,
+      movie.images,
+      { poster: true, heroImage: true, backdrops: true },
+    );
+
+    expect(posters.slice(0, 10)).not.toContain(selection.poster);
+    expect(backdrops.slice(0, 10)).toContain(selection.backdrops[0]);
+    expect(backdrops.slice(0, 10)).not.toContain(selection.heroImage);
+  });
 });

@@ -109,21 +109,50 @@ describe('ImportModal.css accessibility tokens', () => {
 
   it('matches native MediaCard selected image states', () => {
     const cardRule = ruleFor('.movie-import-modal__image-option:has(input:checked)');
-    const footerRule = ruleFor('.movie-import-modal__image-option:has(input:checked) .movie-import-modal__image-footer');
+    const footerRule = ruleFor(`.movie-import-modal__image-option:has(input:checked)
+  .movie-import-modal__image-footer--destinations`);
 
-    expect(cardRule).toContain('var(--color--selected--border');
+    expect(cardRule).toContain('0 0 0 3px var(--movie-import-selected-control-border)');
     expect(cardRule).not.toContain('background: var(--color--selected--surface');
-    expect(footerRule).toContain('var(--color--selected--surface');
-    expect(footerRule).toContain('var(--color--selected--border');
-    expect(footerRule).toContain('var(--color--selected--ink');
+    expect(footerRule).toContain('background: var(--movie-import-selected-control-surface)');
+    expect(footerRule).toContain('border-color: var(--movie-import-selected-control-border)');
+    expect(footerRule).toContain('color: var(--movie-import-selected-control-ink)');
   });
 
-  it('uses a neutral surface for unselected image cards', () => {
+  it('uses neutral surface and border tokens for unselected image cards', () => {
     const rule = rulesFor('.movie-import-modal__image-option')
       .find((candidate) => candidate.includes('cursor: pointer')) ?? '';
 
     expect(rule).toContain('background: var(--color--surface');
+    expect(rule).toContain('box-shadow: 0 0 0 1px var(--color--border)');
     expect(rule).not.toContain('--color--field-group-media--surface');
+    expect(rule).not.toContain('--color--success');
+  });
+
+  it('stacks shared destination controls as independent native targets', () => {
+    const footerRule = ruleFor('.movie-import-modal__image-footer--destinations');
+    const destinationRule = ruleFor('.movie-import-modal__image-destination');
+    const dividerRule = ruleFor('.movie-import-modal__image-destination + .movie-import-modal__image-destination');
+    const focusRule = ruleFor('.movie-import-modal__image-destination:focus-within');
+
+    expect(footerRule).toContain('display: grid');
+    expect(footerRule).toContain('padding: 0');
+    expect(destinationRule).toContain('display: flex');
+    expect(destinationRule).toContain('min-height: 44px');
+    expect(destinationRule).toContain('padding: var(--spacing-s)');
+    expect(dividerRule).toContain('border-top: 1px solid var(--color--border)');
+    expect(focusRule).toContain('var(--color--focus--outline)');
+    expect(css).not.toMatch(/\.movie-import-modal__image-destination input\s*\{[^}]*appearance:/s);
+  });
+
+  it('aligns each reveal action below its own grid without changing card width', () => {
+    const revealRule = ruleFor('.movie-import-modal__image-reveal');
+    const gridRule = ruleFor('.movie-import-modal__image-grid');
+
+    expect(revealRule).toContain('display: flex');
+    expect(revealRule).toContain('justify-content: flex-start');
+    expect(revealRule).toContain('margin-top: var(--spacing-m)');
+    expect(gridRule).toContain('grid-template-columns: repeat(auto-fill, minmax(190px, 200px))');
   });
 
   it('uses roomier native-style media card geometry without cropping previews', () => {
@@ -152,17 +181,14 @@ describe('ImportModal.css accessibility tokens', () => {
   it('keeps a contained fixed preview canvas at narrow widths', () => {
     const condition = '(max-width: 540px)';
     const gridRule = ruleInMedia(condition, '.movie-import-modal__image-grid');
-    const destinationGridRule = ruleInMedia(
-      condition,
-      '.movie-import-modal__destination-lane .movie-import-modal__image-grid',
-    );
     const previewRule = ruleInMedia(condition, '.movie-import-modal__image-preview');
     const canvasRule = ruleInMedia(condition, '.movie-import-modal__image-canvas');
 
     expect(gridRule).toContain('grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))');
-    expect(destinationGridRule).toContain('grid-template-columns: 1fr');
+    expect(gridRule).toContain('min-width: 0');
     expect(previewRule).toContain('padding: var(--spacing-m)');
-    expect(canvasRule).toContain('height: 140px');
+    expect(canvasRule).toContain('height: 144px');
+    expect(css).not.toContain('.movie-import-modal__destination-lane');
   });
 
   it('allows modal steps to shrink without clipping before the compact layout takes over', () => {

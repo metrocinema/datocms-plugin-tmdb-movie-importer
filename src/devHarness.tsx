@@ -324,45 +324,8 @@ const fixtureMovie: NormalizedMovie = {
     { tmdbId: 1620, name: 'Maggie Cheung', order: 1, role: 'actor' },
   ],
   images: [
-    {
-      providerKey: 'tmdb',
-      providerImageId: '/iYypPT4bhqXfq1b6EnmxvRt6b2Y.jpg',
-      movieIdentity: { providerKey: 'tmdb', tmdbId: 843 },
-      type: 'poster',
-      originalUrl: 'https://image.tmdb.org/t/p/original/iYypPT4bhqXfq1b6EnmxvRt6b2Y.jpg',
-      previewUrl: 'https://image.tmdb.org/t/p/w342/iYypPT4bhqXfq1b6EnmxvRt6b2Y.jpg',
-      width: 1000,
-      height: 1500,
-      language: 'en',
-      rank: 1,
-      attribution: 'TMDB',
-    },
-    {
-      providerKey: 'tmdb',
-      providerImageId: '/5mO2F1HKLk7thS2FSNm4LaDkpoZ.jpg',
-      movieIdentity: { providerKey: 'tmdb', tmdbId: 843 },
-      type: 'backdrop',
-      originalUrl: 'https://image.tmdb.org/t/p/original/5mO2F1HKLk7thS2FSNm4LaDkpoZ.jpg',
-      previewUrl: 'https://image.tmdb.org/t/p/w780/5mO2F1HKLk7thS2FSNm4LaDkpoZ.jpg',
-      width: 1920,
-      height: 1080,
-      language: null,
-      rank: 1,
-      attribution: 'TMDB',
-    },
-    {
-      providerKey: 'tmdb',
-      providerImageId: '/m6Nq7VwTAeA5H7mbISNjxTWEqdd.jpg',
-      movieIdentity: { providerKey: 'tmdb', tmdbId: 843 },
-      type: 'backdrop',
-      originalUrl: 'https://image.tmdb.org/t/p/original/m6Nq7VwTAeA5H7mbISNjxTWEqdd.jpg',
-      previewUrl: 'https://image.tmdb.org/t/p/w780/m6Nq7VwTAeA5H7mbISNjxTWEqdd.jpg',
-      width: 1920,
-      height: 1080,
-      language: null,
-      rank: 2,
-      attribution: 'TMDB',
-    },
+    ...posterCandidatesFor(843),
+    ...backdropCandidatesFor(843),
   ],
 };
 
@@ -396,8 +359,7 @@ const odysseyFixtureMovie: NormalizedMovie = {
 };
 
 function posterCandidatesFor(tmdbId: number) {
-  return Array.from({ length: 10 }, (_, index) => {
-    const rank = index + 1;
+  return harnessCandidateRanks().map((rank) => {
     const id = `/odyssey-poster-${rank}.jpg`;
     return {
       providerKey: 'tmdb',
@@ -405,7 +367,7 @@ function posterCandidatesFor(tmdbId: number) {
       movieIdentity: { providerKey: 'tmdb' as const, tmdbId },
       type: 'poster' as const,
       originalUrl: `https://image.tmdb.org/t/p/original${id}`,
-      previewUrl: `https://image.tmdb.org/t/p/w342${id}`,
+      previewUrl: harnessPreviewUrl('poster', rank),
       width: 1000,
       height: 1500,
       language: 'en',
@@ -416,8 +378,7 @@ function posterCandidatesFor(tmdbId: number) {
 }
 
 function backdropCandidatesFor(tmdbId: number) {
-  return Array.from({ length: 10 }, (_, index) => {
-    const rank = index + 1;
+  return harnessCandidateRanks().map((rank) => {
     const id = `/odyssey-backdrop-${rank}.jpg`;
     return {
       providerKey: 'tmdb',
@@ -425,14 +386,25 @@ function backdropCandidatesFor(tmdbId: number) {
       movieIdentity: { providerKey: 'tmdb' as const, tmdbId },
       type: 'backdrop' as const,
       originalUrl: `https://image.tmdb.org/t/p/original${id}`,
-      previewUrl: `https://image.tmdb.org/t/p/w780${id}`,
+      previewUrl: harnessPreviewUrl('backdrop', rank),
       width: 1920,
       height: 1080,
-      language: null,
+      language: 'en',
       rank,
       attribution: 'TMDB',
     };
   });
+}
+
+function harnessCandidateRanks() {
+  return [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1];
+}
+
+function harnessPreviewUrl(type: 'poster' | 'backdrop', rank: number) {
+  const viewBox = type === 'poster' ? '0 0 1000 1500' : '0 0 1920 1080';
+  const label = `${type === 'poster' ? 'Poster' : 'Backdrop'} ${rank}`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"><rect width="100%" height="100%" fill="currentColor" fill-opacity=".08"/><text x="50%" y="50%" fill="currentColor" font-family="sans-serif" font-size="72" text-anchor="middle">${label}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 const lightDesignTokens = {
