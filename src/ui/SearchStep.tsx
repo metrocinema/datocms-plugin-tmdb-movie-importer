@@ -5,6 +5,7 @@ import { ModalStepIndicator } from './ModalStepIndicator';
 export type SearchActivity =
   | 'searching'
   | 'loading_movie'
+  | 'checking_artwork'
   | 'matching_people'
   | null;
 
@@ -26,7 +27,9 @@ type SearchStepProps = {
 export function SearchStep({ title, year, results, hasSearched, onTitleChange, onYearChange, onSearch, onSelect, tmdbId, onTmdbIdChange, onLoadTmdbId, searchActivity }: SearchStepProps) {
   const isBusy = searchActivity !== null;
   const isSearching = searchActivity === 'searching';
-  const isLoadingMovie = searchActivity === 'loading_movie' || searchActivity === 'matching_people';
+  const isLoadingMovie = searchActivity === 'loading_movie'
+    || searchActivity === 'checking_artwork'
+    || searchActivity === 'matching_people';
 
   return (
     <section className="movie-import-modal__step-frame">
@@ -112,5 +115,6 @@ export function SearchStep({ title, year, results, hasSearched, onTitleChange, o
 function searchActivityMessage(searchActivity: Exclude<SearchActivity, null>, title: string) {
   if (searchActivity === 'searching') return `Searching TMDB for “${title.trim()}”…`;
   if (searchActivity === 'loading_movie') return 'Loading movie details…';
+  if (searchActivity === 'checking_artwork') return 'Checking artwork…';
   return 'Matching directors and actors…';
 }

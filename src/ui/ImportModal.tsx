@@ -6,7 +6,8 @@ import type { MovieFieldKey, NormalizedImageCandidate, NormalizedMovie, PersonCa
 import { matchPerson, type ExistingPersonRecord, type PersonMatchDecision } from '../domain/personMatching';
 import type { TmdbSearchQuery, TmdbSearchResult } from '../providers/tmdbTypes';
 import { TmdbError } from '../providers/tmdbClient';
-import { defaultImageSelection, type ImageSelection } from '../providers/imageProvider';
+import { defaultImageSelection, selectHeroImage, toggleOtherImage, type ImageSelection } from '../providers/imageProvider';
+import { prepareSelectableImages } from '../providers/imagePreparation';
 import { ImportConfigurationError } from '../plugin/runtimeValidation';
 import { ConfirmStep } from './ConfirmStep';
 import './ImportModal.css';
@@ -33,10 +34,12 @@ export type ImportModalProps = {
   searchMovies: (query: TmdbSearchQuery) => Promise<TmdbSearchResult[]>;
   loadMovie: (tmdbId: number) => Promise<NormalizedMovie>;
   resolvePeople?: (candidates: PersonCandidate[]) => Promise<ExistingPersonRecord[]>;
+  prepareImages?: (images: NormalizedImageCandidate[]) => Promise<NormalizedImageCandidate[]>;
   tmdbIdFieldConfigured?: boolean;
 } & PreparationLifecycleProps;
 
 export function ImportModal(props: ImportModalProps) {
+  const prepareImages = props.prepareImages ?? prepareSelectableImages;
   const [step, setStep] = useState<Step>('search');
   const [title, setTitle] = useState(props.initialTitle);
   const [year, setYear] = useState<number | null>(props.initialYear);
@@ -60,28 +63,38 @@ export function ImportModal(props: ImportModalProps) {
       setSearchActivity('loading_movie');
       const loaded = await props.loadMovie(tmdbId);
       const peopleCandidates = peopleCandidatesForMappedFields(loaded, props.mappedFields);
-      let records: ExistingPersonRecord[] = [];
+      const peoplePromise = (props.resolvePeople?.(peopleCandidates) ?? Promise.resolve([]))
+        .then(
+          (value) => ({ status: 'fulfilled' as const, value }),
+          (reason: unknown) => ({ status: 'rejected' as const, reason }),
+        );
 
-      try {
-        setSearchActivity('matching_people');
-        records = await props.resolvePeople?.(peopleCandidates) ?? [];
-      } catch (error) {
-        console.error('MCS Movie Importer person matching failed', tokenSafeErrorDetails(error));
+      setSearchActivity('checking_artwork');
+      const preparedImages = await prepareImages(loaded.images).catch((reason) => {
+        console.error(
+          'MCS Movie Importer artwork preparation failed',
+          tokenSafeErrorDetails(reason),
+        );
+        return loaded.images;
+      });
+
+      setSearchActivity('matching_people');
+      const peopleResult = await peoplePromise;
+      if (peopleResult.status === 'rejected') {
+        console.error('MCS Movie Importer person matching failed', tokenSafeErrorDetails(peopleResult.reason));
         setError('The TMDB movie loaded, but Person matching failed. Check that this editor can list Person records, then try again.');
         setStep('search');
         return;
       }
 
-      setMovie(loaded);
-      setComparisons(compareMovieFields(props.currentValues, loaded, props.mappedFields));
-      setPeople(peopleCandidates.map((candidate) => ({ candidate, decision: matchPerson(candidate, records, props.tmdbIdFieldConfigured ?? true) })));
-      setImageSelection(imageSelectionForMappedFields(
-        defaultImageSelection(
-          props.currentValues,
-          loaded.images,
-          imageDestinationAvailabilityForMappedFields(props.mappedFields),
-        ),
-        props.mappedFields,
+      const preparedMovie = { ...loaded, images: preparedImages };
+      setMovie(preparedMovie);
+      setComparisons(compareMovieFields(props.currentValues, preparedMovie, props.mappedFields));
+      setPeople(peopleCandidates.map((candidate) => ({ candidate, decision: matchPerson(candidate, peopleResult.value, props.tmdbIdFieldConfigured ?? true) })));
+      setImageSelection(defaultImageSelection(
+        props.currentValues,
+        preparedImages,
+        imageDestinationAvailabilityForMappedFields(props.mappedFields),
       ));
       setStep('review');
     } catch (error) {
@@ -214,9 +227,9 @@ export function ImportModal(props: ImportModalProps) {
         }))} images={movie?.images ?? []} imageSelection={imageSelection} onTogglePoster={(image) => setImageSelection((selection) => {
           return { ...selection, poster: selection.poster && sameImage(selection.poster, image) ? null : image };
         })} onSelectHeroImage={(image) => setImageSelection((selection) => {
-          return { ...selection, heroImage: image };
+          return selectHeroImage(selection, image);
         })} onToggleBackdrop={(image) => setImageSelection((selection) => {
-          return { ...selection, backdrops: selection.backdrops.some((candidate) => sameImage(candidate, image)) ? selection.backdrops.filter((candidate) => !sameImage(candidate, image)) : [...selection.backdrops, image] };
+          return toggleOtherImage(selection, image);
         })} onContinue={() => setStep('confirm')} />
       </div>
     );
@@ -251,14 +264,6 @@ function peopleCandidatesForMappedFields(movie: NormalizedMovie, mappedFields: M
     ...(mappedFields.includes('directors') ? movie.directors : []),
     ...(mappedFields.includes('actors') ? movie.actors : []),
   ];
-}
-
-function imageSelectionForMappedFields(selection: ImageSelection, mappedFields: MovieFieldKey[]): ImageSelection {
-  return {
-    poster: mappedFields.includes('poster') ? selection.poster : null,
-    heroImage: mappedFields.includes('heroImage') ? selection.heroImage : null,
-    backdrops: mappedFields.includes('backdrops') ? selection.backdrops : [],
-  };
 }
 
 function imageDestinationAvailabilityForMappedFields(mappedFields: MovieFieldKey[]) {

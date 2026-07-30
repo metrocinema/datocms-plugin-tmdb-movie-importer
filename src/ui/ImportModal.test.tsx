@@ -7,6 +7,10 @@ import type { ImportPlan } from '../domain/importPlanning';
 import { TmdbError } from '../providers/tmdbClient';
 import { ImportConfigurationError } from '../plugin/runtimeValidation';
 
+vi.mock('../providers/imagePreparation', () => ({
+  prepareSelectableImages: async (images: NormalizedMovie['images']) => images,
+}));
+
 const pendingLifecycle = {
   prepare: () => new Promise<PrepareImportResult>(() => undefined),
   resolve: async () => undefined,
@@ -198,25 +202,32 @@ describe('ImportModal', () => {
     resolveSecondSearch?.([]);
   });
 
-  it('shows movie loading and person matching progress while preparing a selected result', async () => {
+  it('prepares artwork while Person matching runs after loading a selected result', async () => {
     let resolveMovie: ((value: NormalizedMovie) => void) | undefined;
+    let resolveArtwork: ((value: NormalizedMovie['images']) => void) | undefined;
     let resolvePeople: ((value: []) => void) | undefined;
+    const processedImages = [movieWithBackdrops.images[2]!];
+    const prepareImages = vi.fn(() => new Promise<NormalizedMovie['images']>((resolve) => {
+      resolveArtwork = resolve;
+    }));
+    const matchPeople = vi.fn(() => new Promise<[]>((resolve) => {
+      resolvePeople = resolve;
+    }));
 
     render(
       <ImportModal
         initialTitle="Example"
         initialYear={2024}
         currentValues={{ title: '' }}
-        mappedFields={['title', 'directors', 'actors']}
+        mappedFields={['title', 'directors', 'actors', 'heroImage']}
         searchMovies={async () => [
           { id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null },
         ]}
         loadMovie={() => new Promise((resolve) => {
           resolveMovie = resolve;
         })}
-        resolvePeople={() => new Promise((resolve) => {
-          resolvePeople = resolve;
-        })}
+        prepareImages={prepareImages}
+        resolvePeople={matchPeople}
         {...pendingLifecycle}
       />,
     );
@@ -226,13 +237,24 @@ describe('ImportModal', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading movie details…');
 
-    resolveMovie?.(movie);
+    resolveMovie?.(movieWithBackdrops);
+
+    await waitFor(() => expect(prepareImages).toHaveBeenCalledWith(movieWithBackdrops.images));
+    expect(matchPeople).toHaveBeenCalledWith([
+      movieWithBackdrops.directors[0],
+      movieWithBackdrops.actors[0],
+    ]);
+    expect(screen.getByRole('status')).toHaveTextContent('Checking artwork…');
+
+    resolveArtwork?.(processedImages);
 
     expect(await screen.findByRole('status')).toHaveTextContent('Matching directors and actors…');
 
     resolvePeople?.([]);
 
     expect(await screen.findByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Backdrop option 1' })).toHaveAttribute('src', processedImages[0]!.originalUrl);
+    expect(screen.queryByRole('img', { name: 'Backdrop option 2' })).not.toBeInTheDocument();
   });
 
   it('shows a useful empty state when TMDB search has no matches', async () => {
@@ -592,7 +614,7 @@ describe('ImportModal data flow', () => {
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
     expect(execute.mock.calls[0][0].heroImageToUpload.providerImageId).toBe('/backdrop-2.jpg');
-    expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg']);
+    expect(execute.mock.calls[0][0].otherImagesToUpload).toEqual([]);
     expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg']);
   });
 
@@ -1024,7 +1046,7 @@ describe('ImportModal data flow', () => {
   });
 
   it('distinguishes person matching failures from TMDB ID loading failures', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => []} loadMovie={async () => movie} resolvePeople={async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => []} loadMovie={async () => movie} prepareImages={async (images) => images} resolvePeople={async () => {
       throw new Error('DatoCMS item list permission is unavailable.');
     }} {...pendingLifecycle} />);
 
@@ -1032,6 +1054,44 @@ describe('ImportModal data flow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The TMDB movie loaded, but Person matching failed.');
+    expect(screen.getByRole('heading', { name: 'Find movie' })).toBeInTheDocument();
+  });
+
+  it('falls back to raw artwork and logs safe diagnostics when artwork preparation fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const artworkFailure = {
+      message: 'Fingerprint request failed',
+      imageUrl: 'https://image.tmdb.org/t/p/original/secret-image.jpg',
+      request: {
+        headers: {
+          authorization: 'Bearer secret-artwork-token',
+        },
+      },
+    };
+
+    try {
+      render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, heroImage: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => []} loadMovie={async () => movieWithBackdrops} prepareImages={async () => {
+        throw artworkFailure;
+      }} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+      await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
+      await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
+
+      expect(await screen.findByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
+      expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', movieWithBackdrops.images[0]!.originalUrl);
+      expect(screen.getAllByRole('img', { name: 'Backdrop option 1' })).toHaveLength(2);
+      expect(screen.getAllByRole('img', { name: 'Backdrop option 1' })[0]).toHaveAttribute('src', movieWithBackdrops.images[1]!.originalUrl);
+      expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })).toHaveLength(2);
+      expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })[0]).toHaveAttribute('src', movieWithBackdrops.images[2]!.originalUrl);
+      await waitFor(() => expect(consoleError).toHaveBeenCalledWith(
+        'MCS Movie Importer artwork preparation failed',
+        { message: '[object Object]' },
+      ));
+      expect(JSON.stringify(consoleError.mock.calls)).not.toContain('secret-image.jpg');
+      expect(JSON.stringify(consoleError.mock.calls)).not.toContain('secret-artwork-token');
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('logs token-safe details when person matching fails', async () => {
