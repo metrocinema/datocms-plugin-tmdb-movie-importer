@@ -63,10 +63,17 @@ export function ImportModal(props: ImportModalProps) {
       setSearchActivity('loading_movie');
       const loaded = await props.loadMovie(tmdbId);
       const peopleCandidates = peopleCandidatesForMappedFields(loaded, props.mappedFields);
+      let peoplePending = true;
       const peoplePromise = (props.resolvePeople?.(peopleCandidates) ?? Promise.resolve([]))
         .then(
-          (value) => ({ status: 'fulfilled' as const, value }),
-          (reason: unknown) => ({ status: 'rejected' as const, reason }),
+          (value) => {
+            peoplePending = false;
+            return { status: 'fulfilled' as const, value };
+          },
+          (reason: unknown) => {
+            peoplePending = false;
+            return { status: 'rejected' as const, reason };
+          },
         );
 
       setSearchActivity('checking_artwork');
@@ -78,7 +85,9 @@ export function ImportModal(props: ImportModalProps) {
         return loaded.images;
       });
 
-      setSearchActivity('matching_people');
+      if (peoplePending) {
+        setSearchActivity('matching_people');
+      }
       const peopleResult = await peoplePromise;
       if (peopleResult.status === 'rejected') {
         console.error('MCS Movie Importer person matching failed', tokenSafeErrorDetails(peopleResult.reason));

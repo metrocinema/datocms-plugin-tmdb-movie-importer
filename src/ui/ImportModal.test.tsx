@@ -257,6 +257,74 @@ describe('ImportModal', () => {
     expect(screen.queryByRole('img', { name: 'Backdrop option 2' })).not.toBeInTheDocument();
   });
 
+  it('does not show Person matching after it finishes before slower artwork', async () => {
+    let resolveArtwork: ((value: NormalizedMovie['images']) => void) | undefined;
+    const matchingPhaseVisible = vi.fn();
+    const observer = new MutationObserver(() => {
+      if (document.body.textContent?.includes('Matching directors and actors…')) {
+        matchingPhaseVisible();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+    try {
+      render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => []} loadMovie={async () => movie} prepareImages={() => new Promise((resolve) => {
+        resolveArtwork = resolve;
+      })} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+      await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
+      await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
+      expect(await screen.findByRole('status')).toHaveTextContent('Checking artwork…');
+
+      await act(async () => {
+        resolveArtwork?.(movie.images);
+      });
+
+      expect(await screen.findByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
+      expect(matchingPhaseVisible).not.toHaveBeenCalled();
+    } finally {
+      observer.disconnect();
+    }
+  });
+
+  it('waits for artwork before surfacing a fast Person-matching rejection', async () => {
+    let resolveArtwork: ((value: NormalizedMovie['images']) => void) | undefined;
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const unhandledRejection = vi.fn();
+    window.addEventListener('unhandledrejection', unhandledRejection);
+
+    try {
+      render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors']} searchMovies={async () => []} loadMovie={async () => movie} prepareImages={() => new Promise((resolve) => {
+        resolveArtwork = resolve;
+      })} resolvePeople={async () => {
+        throw new Error('Person list permission is unavailable.');
+      }} {...pendingLifecycle} />);
+
+      await userEvent.type(screen.getByLabelText('TMDB ID'), '123');
+      await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
+      expect(await screen.findByRole('status')).toHaveTextContent('Checking artwork…');
+
+      await act(async () => undefined);
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(consoleError).not.toHaveBeenCalledWith(
+        'MCS Movie Importer person matching failed',
+        expect.anything(),
+      );
+      expect(unhandledRejection).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resolveArtwork?.(movie.images);
+      });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('The TMDB movie loaded, but Person matching failed.');
+      expect(screen.getByRole('heading', { name: 'Find movie' })).toBeInTheDocument();
+    } finally {
+      window.removeEventListener('unhandledrejection', unhandledRejection);
+      consoleError.mockRestore();
+    }
+  });
+
   it('shows a useful empty state when TMDB search has no matches', async () => {
     render(
       <ImportModal
