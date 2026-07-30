@@ -110,6 +110,8 @@ Within a duplicate group, choose the representative deterministically:
 
 The representative keeps its original normalized candidate identity and URLs. Downstream selection and import planning therefore continue using the existing `NormalizedImageCandidate` contract.
 
+The duplicate group keeps the best rank among its members for display ordering. Choosing a higher-resolution representative must not push an otherwise highly ranked artwork group lower in the grid.
+
 ## Data Flow
 
 1. Load the complete TMDB movie package.
