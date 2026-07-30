@@ -76,11 +76,10 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
             <Button
               buttonType="muted"
               type="button"
-              aria-label="Show 10 more posters"
               onClick={() => setVisiblePosterCount((count) =>
                 Math.min(count + IMAGE_REVEAL_BATCH_SIZE, posters.length))}
             >
-              Show 10 more
+              Show 10 more <span className="movie-import-modal__visually-hidden">posters</span>
             </Button>
           </div>
         ) : null}
@@ -106,11 +105,10 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
             <Button
               buttonType="muted"
               type="button"
-              aria-label="Show 10 more backdrops"
               onClick={() => setVisibleBackdropCount((count) =>
                 Math.min(count + IMAGE_REVEAL_BATCH_SIZE, backdrops.length))}
             >
-              Show 10 more
+              Show 10 more <span className="movie-import-modal__visually-hidden">backdrops</span>
             </Button>
           </div>
         ) : null}

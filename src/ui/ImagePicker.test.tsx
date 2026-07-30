@@ -100,8 +100,12 @@ describe('ImagePicker', () => {
     expect(screen.getAllByRole('img', { name: /Backdrop option/i })).toHaveLength(10);
     expect(screen.queryByRole('img', { name: 'Poster option 11' })).not.toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'Backdrop option 11' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Show 10 more posters' })).toHaveTextContent('Show 10 more');
-    expect(screen.getByRole('button', { name: 'Show 10 more backdrops' })).toHaveTextContent('Show 10 more');
+    const posterReveal = screen.getByRole('button', { name: 'Show 10 more posters' });
+    const backdropReveal = screen.getByRole('button', { name: 'Show 10 more backdrops' });
+    expect(posterReveal).not.toHaveAttribute('aria-label');
+    expect(backdropReveal).not.toHaveAttribute('aria-label');
+    expect(posterReveal.querySelector('.movie-import-modal__visually-hidden')).toHaveTextContent('posters');
+    expect(backdropReveal.querySelector('.movie-import-modal__visually-hidden')).toHaveTextContent('backdrops');
   });
 
   it('reveals ten more posters without revealing more backdrops', async () => {
