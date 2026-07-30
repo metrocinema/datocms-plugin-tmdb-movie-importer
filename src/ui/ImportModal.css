@@ -109,7 +109,7 @@
 .movie-import-modal__step-progress {
   box-sizing: border-box;
   min-width: 0;
-  padding: var(--spacing-xs) var(--spacing-xl);
+  padding: var(--spacing-xxs, 4px) var(--spacing-xl);
 }
 
 .movie-import-modal__step-summary {
@@ -125,27 +125,48 @@
   gap: var(--spacing-xs);
   grid-template-columns: repeat(3, minmax(0, 1fr));
   list-style: none;
-  margin: 0;
-  min-height: 60px;
+  margin: 0 auto;
+  max-width: 720px;
+  min-height: 52px;
   min-width: 0;
   padding: 0;
+  position: relative;
+}
+
+.movie-import-modal__steps::before {
+  background: var(--color--border);
+  content: '';
+  height: 1px;
+  left: calc(100% / 6);
+  position: absolute;
+  right: calc(100% / 6);
+  top: calc(var(--spacing-xxs, 4px) + 10px);
+  transform: translateY(-50%);
 }
 
 .movie-import-modal__step {
   align-items: center;
   color: var(--movie-import-readable-muted);
   display: flex;
+  flex-direction: column;
   font-size: var(--font-size-s);
-  gap: var(--spacing-xs);
-  justify-content: center;
+  gap: var(--spacing-xxs, 4px);
+  justify-content: flex-start;
   min-width: 0;
   overflow-wrap: anywhere;
-  padding: var(--spacing-xs);
+  padding: var(--spacing-xxs, 4px);
+  position: relative;
   text-align: center;
+}
+
+.movie-import-modal__step-label {
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
 .movie-import-modal__step-marker {
   align-items: center;
+  background: var(--color--surface);
   border: 1px solid var(--color--border);
   border-radius: 50%;
   box-sizing: border-box;
@@ -153,11 +174,14 @@
   display: inline-flex;
   flex: 0 0 auto;
   font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
   height: 20px;
   justify-content: center;
   line-height: 1;
+  position: relative;
   width: 20px;
+  z-index: 1;
 }
 
 .movie-import-modal__step--complete {
@@ -1330,7 +1354,7 @@
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .movie-import-modal__step-progress {
     padding: var(--spacing-s) var(--spacing-m);
   }
@@ -1346,11 +1370,14 @@
     color: var(--movie-import-readable-muted);
     flex: 0 0 auto;
     font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
   }
 
   .movie-import-modal__step-summary-separator {
     color: var(--movie-import-readable-muted);
     flex: 0 0 auto;
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
   }
 
   .movie-import-modal__step-summary-label {
@@ -1364,6 +1391,10 @@
     gap: var(--spacing-xxs, 4px);
     margin-top: var(--spacing-xs);
     min-height: 3px;
+  }
+
+  .movie-import-modal__steps::before {
+    display: none;
   }
 
   .movie-import-modal__step {

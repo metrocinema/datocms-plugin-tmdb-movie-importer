@@ -59,7 +59,7 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(ruleFor('.movie-import-modal__chrome-header')).toContain('border-bottom: 1px solid var(--color--border)');
     expect(ruleFor('.movie-import-modal__chrome-header')).not.toContain('box-shadow');
     expect(ruleFor('.movie-import-modal__steps')).not.toContain('border-bottom');
-    expect(ruleFor('.movie-import-modal__steps')).toContain('min-height: 60px');
+    expect(ruleFor('.movie-import-modal__steps')).toContain('min-height: 52px');
     expect(ruleFor('.movie-import-modal__scroll-body')).toContain('overflow-y: auto');
     expect(ruleFor('.movie-import-modal__actions--sticky')).toContain('border-top: 1px solid var(--color--border)');
     expect(ruleFor('.movie-import-modal__actions--sticky')).toContain('min-height: 60px');
@@ -170,7 +170,7 @@ describe('ImportModal.css accessibility tokens', () => {
     const headerRule = ruleFor('.movie-import-modal__chrome-header');
     const stepsRule = ruleFor('.movie-import-modal__steps');
     const stepRule = ruleFor('.movie-import-modal__step');
-    const compactStepRule = ruleInMedia('(max-width: 420px)', '.movie-import-modal__step');
+    const compactStepRule = ruleInMedia('(max-width: 480px)', '.movie-import-modal__step');
 
     expect(frameRule).toContain('grid-template-columns: minmax(0, 1fr)');
     expect(frameRule).toContain('min-width: 0');
@@ -194,8 +194,46 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(markerRule).toContain('border: 1px solid var(--color--border)');
   });
 
+  it('groups the desktop steps on a compact centered connector rail', () => {
+    const progressRule = ruleFor('.movie-import-modal__step-progress');
+    const stepsRule = ruleFor('.movie-import-modal__steps');
+    const railRule = ruleFor('.movie-import-modal__steps::before');
+    const stepRule = ruleFor('.movie-import-modal__step');
+    const markerRule = ruleFor('.movie-import-modal__step-marker');
+    const compactRailRule = ruleInMedia('(max-width: 480px)', '.movie-import-modal__steps::before');
+
+    expect(progressRule).toContain('padding: var(--spacing-xxs, 4px) var(--spacing-xl)');
+    expect(stepsRule).toContain('max-width: 720px');
+    expect(stepsRule).toContain('min-height: 52px');
+    expect(stepsRule).toContain('position: relative');
+    expect(railRule).toContain('background: var(--color--border)');
+    expect(railRule).toContain('height: 1px');
+    expect(railRule).toContain('left: calc(100% / 6)');
+    expect(railRule).toContain('right: calc(100% / 6)');
+    expect(stepRule).toContain('flex-direction: column');
+    expect(stepRule).toContain('position: relative');
+    expect(markerRule).toContain('background: var(--color--surface)');
+    expect(markerRule).toContain('position: relative');
+    expect(markerRule).toContain('z-index: 1');
+    expect(compactRailRule).toContain('display: none');
+  });
+
+  it('typesets step labels and numeric progress metadata precisely', () => {
+    const labelRule = ruleFor('.movie-import-modal__step-label');
+    const markerRule = ruleFor('.movie-import-modal__step-marker');
+    const compactPositionRule = ruleInMedia('(max-width: 480px)', '.movie-import-modal__step-summary-position');
+    const compactSeparatorRule = ruleInMedia('(max-width: 480px)', '.movie-import-modal__step-summary-separator');
+
+    expect(labelRule).toContain('line-height: 1.25');
+    expect(labelRule).toContain('text-wrap: balance');
+    expect(markerRule).toContain('font-variant-numeric: tabular-nums');
+    expect(compactPositionRule).toContain('font-variant-numeric: tabular-nums');
+    expect(compactSeparatorRule).toContain('font-size: var(--font-size-xs)');
+    expect(compactSeparatorRule).toContain('line-height: 1.5');
+  });
+
   it('collapses the stepper to an active-step summary and marker track on compact screens', () => {
-    const condition = '(max-width: 420px)';
+    const condition = '(max-width: 480px)';
     const summaryRule = ruleInMedia(condition, '.movie-import-modal__step-summary');
     const labelRule = ruleInMedia(condition, '.movie-import-modal__step-label');
     const stepRule = ruleInMedia(condition, '.movie-import-modal__step');
