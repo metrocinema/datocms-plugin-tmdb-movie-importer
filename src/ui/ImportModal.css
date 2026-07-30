@@ -44,16 +44,18 @@
 .movie-import-modal__step-frame {
   display: grid;
   flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
+  min-width: 0;
 }
 
 .movie-import-modal__chrome-header {
   background: var(--color--surface);
   border-bottom: 1px solid var(--color--border);
-  box-shadow: 0 1px 0 var(--color--border);
   flex: 0 0 auto;
+  min-width: 0;
   padding: 0;
   position: relative;
   z-index: 2;
@@ -104,33 +106,79 @@
   text-wrap: pretty;
 }
 
-.movie-import-modal__steps {
-  align-items: center;
-  border: 0;
-  border-bottom: 1px solid var(--color--border);
-  border-radius: 0;
-  display: grid;
-  gap: var(--spacing-xs);
-  grid-template-columns: repeat(3, 1fr);
-  list-style: none;
-  margin: 0;
-  min-height: 60px;
+.movie-import-modal__step-progress {
+  box-sizing: border-box;
+  min-width: 0;
   padding: var(--spacing-xs) var(--spacing-xl);
 }
 
+.movie-import-modal__step-summary {
+  display: none;
+}
+
+.movie-import-modal__steps {
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--spacing-xs);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  min-height: 60px;
+  min-width: 0;
+  padding: 0;
+}
+
 .movie-import-modal__step {
-  background: var(--color--surface);
-  border-radius: 3px;
+  align-items: center;
   color: var(--movie-import-readable-muted);
+  display: flex;
   font-size: var(--font-size-s);
-  padding: var(--spacing-s);
+  gap: var(--spacing-xs);
+  justify-content: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: var(--spacing-xs);
   text-align: center;
 }
 
-.movie-import-modal__step--active {
-  background: var(--color--primary-soft--surface);
-  color: var(--color--primary-soft--ink);
+.movie-import-modal__step-marker {
+  align-items: center;
+  border: 1px solid var(--color--border);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--movie-import-readable-muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: var(--font-size-xs);
   font-weight: 600;
+  height: 20px;
+  justify-content: center;
+  line-height: 1;
+  width: 20px;
+}
+
+.movie-import-modal__step--complete {
+  color: var(--color--ink);
+}
+
+.movie-import-modal__step--complete .movie-import-modal__step-marker {
+  background: var(--color--surface-muted);
+  border-color: var(--color--border-hover);
+  color: var(--color--ink);
+}
+
+.movie-import-modal__step--current {
+  color: var(--color--ink);
+  font-weight: 600;
+}
+
+.movie-import-modal__step--current .movie-import-modal__step-marker {
+  background: var(--color--primary--surface);
+  border-color: var(--color--primary--surface);
+  color: var(--color--primary--ink);
 }
 
 .movie-import-modal__grid {
@@ -1282,18 +1330,74 @@
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 420px) {
+  .movie-import-modal__step-progress {
+    padding: var(--spacing-s) var(--spacing-m);
+  }
+
+  .movie-import-modal__step-summary {
+    align-items: baseline;
+    display: flex;
+    gap: var(--spacing-xs);
+    min-width: 0;
+  }
+
+  .movie-import-modal__step-summary-position {
+    color: var(--movie-import-readable-muted);
+    flex: 0 0 auto;
+    font-size: var(--font-size-xs);
+  }
+
+  .movie-import-modal__step-summary-separator {
+    color: var(--movie-import-readable-muted);
+    flex: 0 0 auto;
+  }
+
+  .movie-import-modal__step-summary-label {
+    color: var(--color--ink);
+    font-size: var(--font-size-s);
+    font-weight: 600;
+    min-width: 0;
+  }
+
   .movie-import-modal__steps {
     gap: var(--spacing-xxs, 4px);
-    padding: var(--spacing-xxs, 4px);
+    margin-top: var(--spacing-xs);
+    min-height: 3px;
   }
 
   .movie-import-modal__step {
-    font-size: var(--font-size-xs);
-    min-height: 44px;
-    padding: var(--spacing-xs);
+    display: block;
+    min-height: 0;
+    padding: 0;
   }
 
+  .movie-import-modal__step-label {
+    display: none;
+  }
+
+  .movie-import-modal__step-marker {
+    background: var(--color--border);
+    border: 0;
+    border-radius: 2px;
+    color: transparent;
+    display: block;
+    font-size: 0;
+    height: 3px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .movie-import-modal__step--complete .movie-import-modal__step-marker {
+    background: var(--color--ink-subtle);
+  }
+
+  .movie-import-modal__step--current .movie-import-modal__step-marker {
+    background: var(--color--primary--surface);
+  }
+}
+
+@media (max-width: 360px) {
   .movie-import-modal__field-table-value {
     color: var(--movie-import-readable-muted);
   }

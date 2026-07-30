@@ -334,6 +334,7 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: /Example Movie/i }));
 
     expect(screen.getByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
+    expect(screen.getByText('TMDB movie importer')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Review changes' }).closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Choose which TMDB values to prepare. Nothing is saved or published until you save the DatoCMS movie.').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Field changes').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();

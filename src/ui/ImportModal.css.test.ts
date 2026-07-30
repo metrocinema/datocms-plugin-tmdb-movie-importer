@@ -57,6 +57,8 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(ruleFor('.movie-import-modal__step-frame')).toContain('grid-template-rows: auto minmax(0, 1fr) auto');
     expect(ruleFor('.movie-import-modal__step-frame')).toContain('height: 100%');
     expect(ruleFor('.movie-import-modal__chrome-header')).toContain('border-bottom: 1px solid var(--color--border)');
+    expect(ruleFor('.movie-import-modal__chrome-header')).not.toContain('box-shadow');
+    expect(ruleFor('.movie-import-modal__steps')).not.toContain('border-bottom');
     expect(ruleFor('.movie-import-modal__steps')).toContain('min-height: 60px');
     expect(ruleFor('.movie-import-modal__scroll-body')).toContain('overflow-y: auto');
     expect(ruleFor('.movie-import-modal__actions--sticky')).toContain('border-top: 1px solid var(--color--border)');
@@ -161,6 +163,46 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(destinationGridRule).toContain('grid-template-columns: 1fr');
     expect(previewRule).toContain('padding: var(--spacing-m)');
     expect(canvasRule).toContain('height: 140px');
+  });
+
+  it('allows modal steps to shrink without clipping before the compact layout takes over', () => {
+    const frameRule = ruleFor('.movie-import-modal__step-frame');
+    const headerRule = ruleFor('.movie-import-modal__chrome-header');
+    const stepsRule = ruleFor('.movie-import-modal__steps');
+    const stepRule = ruleFor('.movie-import-modal__step');
+    const compactStepRule = ruleInMedia('(max-width: 420px)', '.movie-import-modal__step');
+
+    expect(frameRule).toContain('grid-template-columns: minmax(0, 1fr)');
+    expect(frameRule).toContain('min-width: 0');
+    expect(headerRule).toContain('min-width: 0');
+    expect(stepsRule).toContain('box-sizing: border-box');
+    expect(stepsRule).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
+    expect(stepsRule).toContain('min-width: 0');
+    expect(stepRule).toContain('min-width: 0');
+    expect(stepRule).toContain('overflow-wrap: anywhere');
+    expect(compactStepRule).toContain('min-height: 0');
+  });
+
+  it('keeps the modal stepper visually secondary to the page heading', () => {
+    const stepRule = ruleFor('.movie-import-modal__step');
+    const currentRule = ruleFor('.movie-import-modal__step--current');
+    const markerRule = ruleFor('.movie-import-modal__step-marker');
+
+    expect(stepRule).not.toContain('background: var(--color--surface)');
+    expect(currentRule).not.toContain('background: var(--color--primary-soft--surface)');
+    expect(currentRule).toContain('color: var(--color--ink)');
+    expect(markerRule).toContain('border: 1px solid var(--color--border)');
+  });
+
+  it('collapses the stepper to an active-step summary and marker track on compact screens', () => {
+    const condition = '(max-width: 420px)';
+    const summaryRule = ruleInMedia(condition, '.movie-import-modal__step-summary');
+    const labelRule = ruleInMedia(condition, '.movie-import-modal__step-label');
+    const stepRule = ruleInMedia(condition, '.movie-import-modal__step');
+
+    expect(summaryRule).toContain('display: flex');
+    expect(labelRule).toContain('display: none');
+    expect(stepRule).toContain('min-height: 0');
   });
 
   it('stacks Review fields and compacts the footer summary at narrow widths', () => {
