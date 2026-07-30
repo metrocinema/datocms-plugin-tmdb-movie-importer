@@ -1,6 +1,7 @@
 import type { NormalizedImageCandidate } from '../domain/movie';
 import type { ImageFingerprint, ImageFingerprintLoader } from './imageFingerprint';
 import { deduplicateImageCandidates } from './imageDeduplication';
+import { defaultImageSelection } from './imageProvider';
 
 function candidate(
   providerImageId: string,
@@ -53,6 +54,14 @@ describe('deduplicateImageCandidates', () => {
 
     expect(result.map((image) => image.providerImageId))
       .toEqual(['/large.jpg', '/distinct.jpg']);
+    expect(result[0]?.rank).toBe(1);
+
+    const selection = defaultImageSelection(
+      { heroImage: null, backdrops: [] },
+      result,
+      { poster: false, heroImage: true, backdrops: true },
+    );
+    expect(selection.heroImage?.providerImageId).toBe('/large.jpg');
   });
 
   it('never groups posters with backdrops', async () => {

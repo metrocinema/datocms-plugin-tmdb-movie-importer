@@ -65,11 +65,18 @@ export async function deduplicateImageCandidates(
       left.bestRank - right.bestRank ||
       left.stableKey.localeCompare(right.stableKey),
     )
-    .map((group) => [...group.members]
-      .sort((left, right) =>
-        pixelArea(right.candidate) - pixelArea(left.candidate) ||
-        compareRankThenIdentity(left.candidate, right.candidate),
-      )[0].candidate);
+    .map((group) => {
+      const representative = [...group.members]
+        .sort((left, right) =>
+          pixelArea(right.candidate) - pixelArea(left.candidate) ||
+          compareRankThenIdentity(left.candidate, right.candidate),
+        )[0].candidate;
+
+      return {
+        ...representative,
+        rank: group.bestRank,
+      };
+    });
 }
 
 function isDuplicate(
