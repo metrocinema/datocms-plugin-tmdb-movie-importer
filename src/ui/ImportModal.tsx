@@ -75,7 +75,14 @@ export function ImportModal(props: ImportModalProps) {
       setMovie(loaded);
       setComparisons(compareMovieFields(props.currentValues, loaded, props.mappedFields));
       setPeople(peopleCandidates.map((candidate) => ({ candidate, decision: matchPerson(candidate, records, props.tmdbIdFieldConfigured ?? true) })));
-      setImageSelection(imageSelectionForMappedFields(defaultImageSelection(props.currentValues, loaded.images), props.mappedFields));
+      setImageSelection(imageSelectionForMappedFields(
+        defaultImageSelection(
+          props.currentValues,
+          loaded.images,
+          imageDestinationAvailabilityForMappedFields(props.mappedFields),
+        ),
+        props.mappedFields,
+      ));
       setStep('review');
     } catch (error) {
       console.error('MCS Movie Importer TMDB movie load failed', tokenSafeErrorDetails(error));
@@ -251,6 +258,14 @@ function imageSelectionForMappedFields(selection: ImageSelection, mappedFields: 
     poster: mappedFields.includes('poster') ? selection.poster : null,
     heroImage: mappedFields.includes('heroImage') ? selection.heroImage : null,
     backdrops: mappedFields.includes('backdrops') ? selection.backdrops : [],
+  };
+}
+
+function imageDestinationAvailabilityForMappedFields(mappedFields: MovieFieldKey[]) {
+  return {
+    poster: mappedFields.includes('poster'),
+    heroImage: mappedFields.includes('heroImage'),
+    backdrops: mappedFields.includes('backdrops'),
   };
 }
 

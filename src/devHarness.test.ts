@@ -41,7 +41,11 @@ describe('devHarness', () => {
     expect(screen.type).toBe('modal');
     if (screen.type !== 'modal') return;
     const movie = await screen.loadMovie(843);
-    const selection = defaultImageSelection(screen.currentValues, movie.images);
+    const selection = defaultImageSelection(screen.currentValues, movie.images, {
+      poster: true,
+      heroImage: true,
+      backdrops: true,
+    });
     const selectedAssets = [selection.poster, selection.heroImage, ...selection.backdrops]
       .filter((image): image is NormalizedImageCandidate => image !== null);
 

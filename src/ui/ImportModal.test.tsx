@@ -566,7 +566,7 @@ describe('ImportModal data flow', () => {
     await reachReview();
     expect(screen.getByText('Choose exactly which TMDB artwork destinations to import.')).toBeInTheDocument();
     expect(screen.getByText('Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.')).toBeInTheDocument();
-    expect(screen.getByText('1 poster, 1 Hero Image, and 2 Other Images selected for import.')).toBeInTheDocument();
+    expect(screen.getByText('1 poster, 1 Hero Image, and 1 Other Image selected for import.')).toBeInTheDocument();
     expect(screen.getAllByRole('img', { name: /Backdrop option/i })).toHaveLength(4);
     const candidateImages = screen.getAllByRole('img', { name: /option \d+/i });
     expect(candidateImages.length).toBeGreaterThan(0);
@@ -578,10 +578,10 @@ describe('ImportModal data flow', () => {
     const otherImageOptions = screen.getAllByRole('checkbox', { name: /Add to Other Images/i });
     expect(heroOptions[0]).toBeChecked();
     expect(heroOptions[1]).not.toBeChecked();
-    expect(otherImageOptions[0]).toBeChecked();
+    expect(otherImageOptions[0]).not.toBeChecked();
     expect(otherImageOptions[1]).toBeChecked();
-    expect(heroOptions[0]).toHaveAccessibleName(/selected for Hero Image; also selected for Other Images/i);
-    expect(otherImageOptions[0]).toHaveAccessibleName(/selected for Other Images; also selected as Hero Image/i);
+    expect(heroOptions[0]).not.toHaveAccessibleName(/also selected for Other Images/i);
+    expect(otherImageOptions[0]).toHaveAccessibleName(/not selected for Other Images; also selected as Hero Image/i);
     expect(screen.getAllByText('Other Images').length).toBeGreaterThan(0);
 
     await userEvent.click(heroOptions[1]);
@@ -592,8 +592,8 @@ describe('ImportModal data flow', () => {
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
     expect(execute.mock.calls[0][0].heroImageToUpload.providerImageId).toBe('/backdrop-2.jpg');
-    expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-1.jpg', '/backdrop-2.jpg']);
-    expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg', '/backdrop-1.jpg']);
+    expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg']);
+    expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg']);
   });
 
   it('shows only the first 10 poster candidates and first 10 backdrop candidates', async () => {
@@ -631,14 +631,14 @@ describe('ImportModal data flow', () => {
 
     await reachReview();
     await userEvent.click(screen.getByRole('radio', { name: 'Do not import a Hero Image' }));
-    expect(screen.getByText('1 poster and 2 Other Images selected for import.')).toBeInTheDocument();
+    expect(screen.getByText('1 poster and 1 Other Image selected for import.')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
     expect(execute.mock.calls[0][0].heroImageToUpload).toBeNull();
-    expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-1.jpg', '/backdrop-2.jpg']);
+    expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg']);
   });
 
   it('describes the backdrop picker as hero-only when only the hero image field is mapped', async () => {
