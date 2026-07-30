@@ -70,7 +70,7 @@ describe('prepareSelectableImages', () => {
     ]);
   });
 
-  it('caps fingerprint loading at four across poster and backdrop preparation', async () => {
+  it('starts poster and backdrop preparation concurrently while capping fingerprint loading at four', async () => {
     const images = [
       ...Array.from({ length: 5 }, (_, index) =>
         candidate(`/poster-${index}.jpg`, 'poster', index, 'en'),
@@ -81,24 +81,37 @@ describe('prepareSelectableImages', () => {
     ];
     let active = 0;
     let maximumActive = 0;
-    let releaseLoads: (() => void) | undefined;
-    const allLoadsReleased = new Promise<void>((resolve) => {
-      releaseLoads = resolve;
-    });
-    const loadFingerprint: ImageFingerprintLoader = async () => {
+    let releaseAll = false;
+    const releaseBlockedLoads: (() => void)[] = [];
+    const startedTypes: NormalizedImageCandidate['type'][] = [];
+    const loadFingerprint: ImageFingerprintLoader = async (image) => {
       active += 1;
       maximumActive = Math.max(maximumActive, active);
-      await allLoadsReleased;
+      startedTypes.push(image.type);
+      if (!releaseAll) {
+        await new Promise<void>((resolve) => {
+          releaseBlockedLoads.push(resolve);
+        });
+      }
       active -= 1;
       return { hash: 1n, aspectRatio: 1 };
     };
     const prepared = prepareSelectableImages(images, loadFingerprint);
 
-    await Promise.resolve();
     try {
+      await vi.waitFor(() => {
+        expect(releaseBlockedLoads).toHaveLength(4);
+      });
+      expect(maximumActive).toBe(4);
+      releaseBlockedLoads.shift()?.();
+      await vi.waitFor(() => {
+        expect(startedTypes).toContain('poster');
+        expect(startedTypes).toContain('backdrop');
+      });
       expect(maximumActive).toBe(4);
     } finally {
-      releaseLoads?.();
+      releaseAll = true;
+      releaseBlockedLoads.splice(0).forEach((release) => release());
       await prepared;
     }
   });
