@@ -151,6 +151,31 @@ describe('deduplicateImageCandidates', () => {
     await resultPromise;
   });
 
+  it('caps caller-provided fingerprint concurrency at four', async () => {
+    const images = Array.from({ length: 6 }, (_, index) =>
+      candidate(`/override-${index}.jpg`, 'backdrop', index + 1),
+    );
+    let active = 0;
+    let maximumActive = 0;
+    let releaseLoad: (() => void) | undefined;
+    const allLoadsReleased = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+
+    const resultPromise = deduplicateImageCandidates(images, async () => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      await allLoadsReleased;
+      active -= 1;
+      return { hash: 0b1010n, aspectRatio: 16 / 9 };
+    }, 5);
+
+    await Promise.resolve();
+    expect(maximumActive).toBe(4);
+    releaseLoad?.();
+    await resultPromise;
+  });
+
   it('orders groups deterministically when input order changes', async () => {
     const first = candidate('/first.jpg', 'backdrop', 1);
     const second = candidate('/second.jpg', 'backdrop', 2);

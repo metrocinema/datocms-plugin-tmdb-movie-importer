@@ -27,9 +27,10 @@ export async function deduplicateImageCandidates(
   concurrency = DEFAULT_CONCURRENCY,
 ): Promise<NormalizedImageCandidate[]> {
   const ranked = [...candidates].sort(compareRankThenIdentity);
+  const effectiveConcurrency = Math.min(concurrency, DEFAULT_CONCURRENCY);
   const fingerprinted = await mapWithConcurrency(
     ranked,
-    concurrency,
+    effectiveConcurrency,
     async (candidate): Promise<FingerprintedCandidate> => ({
       candidate,
       fingerprint: await loadFingerprint(candidate).catch(() => null),
