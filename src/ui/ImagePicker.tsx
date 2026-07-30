@@ -196,7 +196,8 @@ function BackdropDestinationOption({ image, index, destination, selected, second
   const optionNumber = index + 1;
   const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
   const provider = image.attribution ?? image.providerKey.toUpperCase();
-  const language = image.language ? image.language.toUpperCase() : 'NA';
+  const languageDisplay = image.language ? image.language.toUpperCase() : 'NA';
+  const languageDescription = image.language ? image.language.toUpperCase() : 'No language metadata';
   const isHeroDestination = destination === 'hero';
   const inputType = isHeroDestination ? 'radio' : 'checkbox';
   const inputName = isHeroDestination ? 'hero-image-selection' : undefined;
@@ -206,7 +207,7 @@ function BackdropDestinationOption({ image, index, destination, selected, second
     selected ? `selected for ${selectedStatus}` : `not selected for ${selectedStatus}`,
     secondaryStatus ? accessibleSecondaryStatus(secondaryStatus) : null,
   ].filter(Boolean);
-  const ariaLabel = `${label}: backdrop option ${optionNumber}, ${provider}, ${dimensions}, ${language}. Current status: ${statusParts.join('; ')}.`;
+  const ariaLabel = `${label}: backdrop option ${optionNumber}, ${provider}, ${dimensions}, ${languageDescription}. Current status: ${statusParts.join('; ')}.`;
 
   return (
     <label className="movie-import-modal__image-option" style={touchTargetStyle}>
@@ -232,7 +233,7 @@ function BackdropDestinationOption({ image, index, destination, selected, second
             </span>
           )}
         </span>
-        <span className="movie-import-modal__image-meta">{provider} · {dimensions} · {language}</span>
+        <span className="movie-import-modal__image-meta">{provider} · {dimensions} · {languageDisplay}</span>
       </span>
       <span className="movie-import-modal__image-footer">
         <input aria-label={ariaLabel} type={inputType} name={inputName} checked={selected} onChange={onChange} />

@@ -621,6 +621,8 @@ describe('ImportModal data flow', () => {
 
     expect(screen.getAllByText('TMDB · 1920 × 1080 · NA')).toHaveLength(2);
     expect(screen.queryByText(/No language metadata/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Use as Hero Image: backdrop option 1, TMDB, 1920 × 1080, No language metadata/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Add to Other Images: backdrop option 1, TMDB, 1920 × 1080, No language metadata/i })).toBeInTheDocument();
   });
 
   it('allows editors to skip importing a hero image while keeping other image choices', async () => {
