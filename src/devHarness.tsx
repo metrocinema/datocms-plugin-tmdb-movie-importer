@@ -360,7 +360,7 @@ const odysseyFixtureMovie: NormalizedMovie = {
 
 function posterCandidatesFor(tmdbId: number) {
   return harnessCandidateRanks().map((rank) => {
-    const id = `/odyssey-poster-${rank}.jpg`;
+    const id = `/tmdb-${tmdbId}-poster-${rank}.jpg`;
     return {
       providerKey: 'tmdb',
       providerImageId: id,
@@ -379,7 +379,7 @@ function posterCandidatesFor(tmdbId: number) {
 
 function backdropCandidatesFor(tmdbId: number) {
   return harnessCandidateRanks().map((rank) => {
-    const id = `/odyssey-backdrop-${rank}.jpg`;
+    const id = `/tmdb-${tmdbId}-backdrop-${rank}.jpg`;
     return {
       providerKey: 'tmdb',
       providerImageId: id,

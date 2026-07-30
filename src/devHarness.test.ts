@@ -194,4 +194,25 @@ describe('devHarness', () => {
     expect(backdrops.slice(0, 10)).toContain(selection.backdrops[0]);
     expect(backdrops.slice(0, 10)).not.toContain(selection.heroImage);
   });
+
+  it('keeps provider image identities isolated between movie scenarios', async () => {
+    const defaultScreen = screenForHarnessMode('modal', 'default');
+    const odysseyScreen = screenForHarnessMode('modal', 'odyssey-existing');
+    expect(defaultScreen.type).toBe('modal');
+    expect(odysseyScreen.type).toBe('modal');
+    if (defaultScreen.type !== 'modal' || odysseyScreen.type !== 'modal') return;
+
+    const [defaultMovie, odysseyMovie] = await Promise.all([
+      defaultScreen.loadMovie(843),
+      odysseyScreen.loadMovie(1368337),
+    ]);
+    const defaultIdentities = new Set(defaultMovie.images.map(
+      (image) => `${image.providerKey}:${image.providerImageId}`,
+    ));
+    const overlappingIdentities = odysseyMovie.images
+      .map((image) => `${image.providerKey}:${image.providerImageId}`)
+      .filter((identity) => defaultIdentities.has(identity));
+
+    expect(overlappingIdentities).toEqual([]);
+  });
 });
