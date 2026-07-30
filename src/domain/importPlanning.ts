@@ -35,14 +35,18 @@ export function buildImportPlan(input: BuildImportPlanInput): ImportPlan {
     heroImage: mappedFields.has('heroImage') ? input.imageSelection.heroImage : null,
     backdrops: mappedFields.has('backdrops') ? input.imageSelection.backdrops : [],
   };
+  const heroImage = imageSelection.heroImage;
+  const otherImages = heroImage
+    ? imageSelection.backdrops.filter((image) => !sameImage(image, heroImage))
+    : imageSelection.backdrops;
   const fieldChanges = input.fieldComparisons
     .filter((comparison) => comparison.selected && comparison.available && comparison.changed)
     .map((comparison) => ({ key: comparison.key, value: comparison.proposedValue }));
 
   const assetsToUpload = uniqueImages([
     imageSelection.poster,
-    imageSelection.heroImage,
-    ...imageSelection.backdrops,
+    heroImage,
+    ...otherImages,
   ]);
   const personResolutions = input.personResolutions.filter((resolution) => isMappedPersonRole(resolution.candidateRole, mappedFields));
 
@@ -56,10 +60,14 @@ export function buildImportPlan(input: BuildImportPlanInput): ImportPlan {
     peopleToReuse: personResolutions
       .filter((resolution): resolution is Extract<PersonResolution, { action: 'reuse' }> => resolution.action === 'reuse')
       .map((resolution) => ({ candidateTmdbId: resolution.candidateTmdbId, candidateRole: resolution.candidateRole, recordId: resolution.recordId, name: resolution.name, source: resolution.source })),
-    heroImageToUpload: imageSelection.heroImage,
-    otherImagesToUpload: [...imageSelection.backdrops],
+    heroImageToUpload: heroImage,
+    otherImagesToUpload: [...otherImages],
     assetsToUpload,
   };
+}
+
+function sameImage(left: NormalizedImageCandidate, right: NormalizedImageCandidate) {
+  return left.providerKey === right.providerKey && left.providerImageId === right.providerImageId;
 }
 
 function isMappedPersonRole(role: PersonCandidate['role'], mappedFields: Set<MovieFieldKey>) {

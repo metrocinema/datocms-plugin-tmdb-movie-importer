@@ -1,4 +1,5 @@
 import {
+  applyPreparedImport,
   executeImportPlan,
   prepareImport,
   type ImportPhaseTiming,
@@ -723,6 +724,86 @@ describe('executeImportPlan', () => {
 
     expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: assetReference('future-upload') });
     expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [assetReference('tmdb-upload')] });
+  });
+
+  it('excludes a prepared hero image from the other images gallery', async () => {
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+
+    await applyPreparedImport(
+      {
+        fieldChanges: [],
+        directors: [],
+        actors: [],
+        people: [],
+        images: [
+          { providerKey: 'tmdb', providerImageId: '/hero.jpg', type: 'backdrop', uploadId: 'hero-upload' },
+          { providerKey: 'tmdb', providerImageId: '/other.jpg', type: 'backdrop', uploadId: 'other-upload' },
+        ],
+        heroImage: { providerKey: 'tmdb', providerImageId: '/hero.jpg' },
+        otherImages: [
+          { providerKey: 'tmdb', providerImageId: '/hero.jpg' },
+          { providerKey: 'tmdb', providerImageId: '/other.jpg' },
+        ],
+        createdPeople: [],
+        uploadedAssets: ['hero-upload', 'other-upload'],
+      },
+      { ...params, movieFields: { ...params.movieFields, heroImage: 'hero_image', backdrops: 'other_images' } },
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'unused-upload' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+    );
+
+    expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: assetReference('hero-upload') });
+    expect(appliedChanges).toContainEqual({ fieldPath: 'other_images', value: [assetReference('other-upload')] });
+  });
+
+  it('does not write other images when its only prepared candidate is the hero image', async () => {
+    const appliedChanges: Array<{ fieldPath: string; value: unknown }> = [];
+
+    await applyPreparedImport(
+      {
+        fieldChanges: [],
+        directors: [],
+        actors: [],
+        people: [],
+        images: [
+          { providerKey: 'tmdb', providerImageId: '/hero.jpg', type: 'backdrop', uploadId: 'hero-upload' },
+        ],
+        heroImage: { providerKey: 'tmdb', providerImageId: '/hero.jpg' },
+        otherImages: [{ providerKey: 'tmdb', providerImageId: '/hero.jpg' }],
+        createdPeople: [],
+        uploadedAssets: ['hero-upload'],
+      },
+      { ...params, movieFields: { ...params.movieFields, heroImage: 'hero_image', backdrops: 'other_images' } },
+      {
+        async findPeople() {
+          return [];
+        },
+        async createPersonDraft() {
+          return { id: 'person-1' };
+        },
+        async uploadImage() {
+          return { id: 'unused-upload' };
+        },
+        async applyFormValues(changes) {
+          appliedChanges.push(...changes);
+        },
+      },
+    );
+
+    expect(appliedChanges).toContainEqual({ fieldPath: 'hero_image', value: assetReference('hero-upload') });
+    expect(appliedChanges.map((change) => change.fieldPath)).not.toContain('other_images');
   });
 
   it('uses the active editor locale path for configured localized fields', async () => {

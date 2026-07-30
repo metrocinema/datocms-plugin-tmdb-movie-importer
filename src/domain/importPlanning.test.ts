@@ -39,7 +39,7 @@ describe('buildImportPlan', () => {
     expect(plan.assetsToUpload).toHaveLength(1);
   });
 
-  it('keeps explicit hero image separate while uploading each backdrop once', () => {
+  it('removes the hero image from other images while uploading each selected asset once', () => {
     const hero = { providerKey: 'tmdb', providerImageId: '/hero.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/hero.jpg', width: 200, height: 100, language: null, rank: 1, attribution: 'TMDB' } as const;
     const other = { ...hero, providerImageId: '/other.jpg', originalUrl: 'https://image.tmdb.org/t/p/original/other.jpg', rank: 2 };
 
@@ -53,8 +53,26 @@ describe('buildImportPlan', () => {
     });
 
     expect(plan.heroImageToUpload).toBe(hero);
-    expect(plan.otherImagesToUpload).toEqual([hero, other]);
+    expect(plan.otherImagesToUpload).toEqual([other]);
     expect(plan.assetsToUpload.map((image) => image.providerImageId)).toEqual(['/hero.jpg', '/other.jpg']);
+  });
+
+  it('keeps the same provider image ID from a different provider in other images', () => {
+    const hero = { providerKey: 'tmdb', providerImageId: '/shared.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/shared.jpg', width: 200, height: 100, language: null, rank: 1, attribution: 'TMDB' } as const;
+    const otherProviderImage = { ...hero, providerKey: 'future', originalUrl: 'https://future.example/shared.jpg', attribution: 'Future Provider' } as const;
+
+    const plan = buildImportPlan({
+      fieldComparisons: [],
+      directors: [],
+      actors: [],
+      imageSelection: { poster: null, heroImage: hero, backdrops: [otherProviderImage] },
+      personResolutions: [],
+      mappedFields: ['heroImage', 'backdrops'],
+    });
+
+    expect(plan.heroImageToUpload).toBe(hero);
+    expect(plan.otherImagesToUpload).toEqual([otherProviderImage]);
+    expect(plan.assetsToUpload).toEqual([hero, otherProviderImage]);
   });
 
   it('excludes people and images whose destination fields are unmapped', () => {

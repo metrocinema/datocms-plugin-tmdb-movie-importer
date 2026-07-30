@@ -427,6 +427,7 @@ export async function applyPreparedImport(
 
   if (backdropField && backdrops.length > 0) {
     const otherImages = prepared.otherImages
+      .filter((image) => !heroImageIdentity || !sameImage(image, heroImageIdentity))
       .map((image) => backdrops.find((asset) => sameImage(asset, image)))
       .filter((asset): asset is PreparedImageReference => Boolean(asset));
 
