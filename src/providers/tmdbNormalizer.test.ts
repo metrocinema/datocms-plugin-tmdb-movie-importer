@@ -37,6 +37,7 @@ describe('normalizeTmdbMovie', () => {
       providerImageId: completeMovie.images.posters[0].file_path,
       originalUrl: `https://image.tmdb.org/t/p/original${completeMovie.images.posters[0].file_path}`,
       previewUrl: `https://image.tmdb.org/t/p/w342${completeMovie.images.posters[0].file_path}`,
+      analysisUrl: `https://image.tmdb.org/t/p/w300${completeMovie.images.posters[0].file_path}`,
       language: 'en',
       attribution: 'TMDB',
     });
@@ -45,6 +46,7 @@ describe('normalizeTmdbMovie', () => {
       providerImageId: completeMovie.images.backdrops[0].file_path,
       originalUrl: `https://image.tmdb.org/t/p/original${completeMovie.images.backdrops[0].file_path}`,
       previewUrl: `https://image.tmdb.org/t/p/w780${completeMovie.images.backdrops[0].file_path}`,
+      analysisUrl: `https://image.tmdb.org/t/p/w300${completeMovie.images.backdrops[0].file_path}`,
       language: null,
       attribution: 'TMDB',
     });

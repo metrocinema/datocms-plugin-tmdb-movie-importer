@@ -26,6 +26,7 @@ export type NormalizedImageCandidate = {
   type: 'poster' | 'backdrop';
   originalUrl: string;
   previewUrl?: string;
+  analysisUrl?: string;
   width: number | null;
   height: number | null;
   language: string | null;
