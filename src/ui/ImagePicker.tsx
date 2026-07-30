@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Button } from 'datocms-react-ui';
 import type { NormalizedImageCandidate } from '../domain/movie';
 import type { ImageSelection } from '../providers/imageProvider';
 import { isEnglishPoster } from '../providers/imageProvider';
 import { touchTargetStyle } from './touchTargets';
 
-const MAX_IMAGE_CANDIDATES_PER_TYPE = 10;
+const IMAGE_REVEAL_BATCH_SIZE = 10;
 
 type ImagePickerProps = {
   images: NormalizedImageCandidate[];
@@ -18,10 +19,22 @@ type ImagePickerProps = {
 };
 
 export function ImagePicker({ images, selection, allowPoster, allowHeroImage, allowOtherImages, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ImagePickerProps) {
-  const posters = images.filter(isEnglishPoster).slice(0, MAX_IMAGE_CANDIDATES_PER_TYPE);
-  const backdrops = images.filter((image) => image.type === 'backdrop').slice(0, MAX_IMAGE_CANDIDATES_PER_TYPE);
+  const [visiblePosterCount, setVisiblePosterCount] = useState(IMAGE_REVEAL_BATCH_SIZE);
+  const [visibleBackdropCount, setVisibleBackdropCount] = useState(IMAGE_REVEAL_BATCH_SIZE);
+  const posters = images.filter(isEnglishPoster);
+  const backdrops = images.filter((image) => image.type === 'backdrop');
+  const visiblePosters = visibleWithSelections(
+    posters,
+    visiblePosterCount,
+    [selection.poster],
+  );
+  const visibleBackdrops = visibleWithSelections(
+    backdrops,
+    visibleBackdropCount,
+    [selection.heroImage, ...selection.backdrops],
+  );
 
-  const posterOptions = posters.map((image, index) => (
+  const posterOptions = visiblePosters.map((image, index) => (
     <ImageOption
       key={`${image.providerKey}:${image.providerImageId}`}
       image={image}
@@ -33,37 +46,22 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
     />
   ));
 
-  const heroOptions = backdrops.map((image, index) => {
-    const otherSelected = selection.backdrops.some((selected) => sameImage(selected, image));
-
-    return (
-      <BackdropDestinationOption
-        key={`${image.providerKey}:${image.providerImageId}:hero`}
-        image={image}
-        index={index}
-        destination="hero"
-        selected={Boolean(selection.heroImage && sameImage(selection.heroImage, image))}
-        secondaryStatus={otherSelected ? 'Also in Other Images' : null}
-        onChange={() => onSelectHeroImage(image)}
-      />
-    );
-  });
-
-  const otherImageOptions = backdrops.map((image, index) => {
-    const heroSelected = Boolean(selection.heroImage && sameImage(selection.heroImage, image));
-
-    return (
-      <BackdropDestinationOption
-        key={`${image.providerKey}:${image.providerImageId}:other`}
-        image={image}
-        index={index}
-        destination="other"
-        selected={selection.backdrops.some((selected) => sameImage(selected, image))}
-        secondaryStatus={heroSelected ? 'Also Hero Image' : null}
-        onChange={() => onToggleBackdrop(image)}
-      />
-    );
-  });
+  const backdropOptions = visibleBackdrops.map((image, index) => (
+    <SharedBackdropOption
+      key={imageIdentity(image)}
+      image={image}
+      index={index}
+      allowHeroImage={allowHeroImage}
+      allowOtherImages={allowOtherImages}
+      heroSelected={Boolean(
+        selection.heroImage && sameImage(selection.heroImage, image),
+      )}
+      otherSelected={selection.backdrops.some((selected) =>
+        sameImage(selected, image))}
+      onSelectHero={() => onSelectHeroImage(image)}
+      onToggleOther={() => onToggleBackdrop(image)}
+    />
+  ));
 
   return (
     <div className="movie-import-modal__review-list">
@@ -73,37 +71,49 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
           <p>Use one vertical poster for listing and detail-page artwork. Selected posters upload after confirmation.</p>
         </div>
         {posters.length > 0 ? <div className="movie-import-modal__image-grid">{posterOptions}</div> : <p className="movie-import-modal__empty">TMDB did not return any English-language poster candidates.</p>}
+        {posters.length > visiblePosterCount ? (
+          <div className="movie-import-modal__image-reveal">
+            <Button
+              buttonType="muted"
+              type="button"
+              aria-label="Show 10 more posters"
+              onClick={() => setVisiblePosterCount((count) =>
+                Math.min(count + IMAGE_REVEAL_BATCH_SIZE, posters.length))}
+            >
+              Show 10 more
+            </Button>
+          </div>
+        ) : null}
       </div> : null}
       {allowHeroImage || allowOtherImages ? <div className="movie-import-modal__asset-group">
         <div className="movie-import-modal__asset-copy">
           <h4>Backdrop images</h4>
-          <p>{backdropHelperCopy(allowHeroImage, allowOtherImages)}</p>
+          <p>Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.</p>
         </div>
         {backdrops.length > 0 ? (
-          <div className="movie-import-modal__destination-stack">
+          <div className="movie-import-modal__image-grid">
             {allowHeroImage ? (
-              <div className="movie-import-modal__destination-lane">
-                <div className="movie-import-modal__destination-heading">
-                  <h5>Hero Image</h5>
-                  <p>Choose one backdrop for the Hero Image field, or skip this destination.</p>
-                </div>
-                <div className="movie-import-modal__image-grid">
-                  <NoHeroImageOption selected={selection.heroImage === null} onChange={() => onSelectHeroImage(null)} />
-                  {heroOptions}
-                </div>
-              </div>
+              <NoHeroImageOption
+                selected={selection.heroImage === null}
+                onChange={() => onSelectHeroImage(null)}
+              />
             ) : null}
-            {allowOtherImages ? (
-              <div className="movie-import-modal__destination-lane">
-                <div className="movie-import-modal__destination-heading">
-                  <h5>Other Images</h5>
-                  <p>Select every backdrop to upload to the Other Images gallery field.</p>
-                </div>
-                <div className="movie-import-modal__image-grid">{otherImageOptions}</div>
-              </div>
-            ) : null}
+            {backdropOptions}
           </div>
         ) : <p className="movie-import-modal__empty">TMDB did not return any backdrop candidates.</p>}
+        {backdrops.length > visibleBackdropCount ? (
+          <div className="movie-import-modal__image-reveal">
+            <Button
+              buttonType="muted"
+              type="button"
+              aria-label="Show 10 more backdrops"
+              onClick={() => setVisibleBackdropCount((count) =>
+                Math.min(count + IMAGE_REVEAL_BATCH_SIZE, backdrops.length))}
+            >
+              Show 10 more
+            </Button>
+          </div>
+        ) : null}
       </div> : null}
     </div>
   );
@@ -126,7 +136,7 @@ function ImageOption({ image, index, inputType, inputName, label, selected, onCh
   const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
   const provider = image.attribution ?? image.providerKey.toUpperCase();
   const language = image.language ? image.language.toUpperCase() : 'NA';
-  const ariaLabel = `${label}: ${imageKind} option ${optionNumber}`;
+  const ariaLabel = `${label}: ${imageKind} option ${optionNumber}, ${imageIdentity(image)}`;
 
   return (
     <label className="movie-import-modal__image-option" style={touchTargetStyle}>
@@ -182,87 +192,122 @@ function NoHeroImageOption({ selected, onChange }: NoHeroImageOptionProps) {
   );
 }
 
-type BackdropDestinationOptionProps = {
+type SharedBackdropOptionProps = {
   image: NormalizedImageCandidate;
   index: number;
-  destination: 'hero' | 'other';
-  selected: boolean;
-  secondaryStatus: string | null;
-  onChange: () => void;
+  allowHeroImage: boolean;
+  allowOtherImages: boolean;
+  heroSelected: boolean;
+  otherSelected: boolean;
+  onSelectHero: () => void;
+  onToggleOther: () => void;
 };
 
-function BackdropDestinationOption({ image, index, destination, selected, secondaryStatus, onChange }: BackdropDestinationOptionProps) {
+function SharedBackdropOption({
+  image,
+  index,
+  allowHeroImage,
+  allowOtherImages,
+  heroSelected,
+  otherSelected,
+  onSelectHero,
+  onToggleOther,
+}: SharedBackdropOptionProps) {
+  const optionNumber = index + 1;
+  const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
+  const provider = image.attribution ?? image.providerKey.toUpperCase();
+  const languageDescription = image.language ? image.language.toUpperCase() : 'No language metadata';
+  const identity = imageIdentity(image);
+  const heroAriaLabel = `Use as Hero Image: backdrop option ${optionNumber}, ${identity}, ${provider}, ${dimensions}, ${languageDescription}. Current status: ${heroSelected ? 'selected' : 'not selected'} for Hero Image.`;
+  const otherAriaLabel = `Add to Other Images: backdrop option ${optionNumber}, ${identity}, ${provider}, ${dimensions}, ${languageDescription}. Current status: ${otherSelected ? 'selected' : 'not selected'} for Other Images.`;
+
+  return (
+    <article className="movie-import-modal__image-option" style={touchTargetStyle}>
+      <ImagePreview image={image} index={index} />
+      <div className="movie-import-modal__image-footer movie-import-modal__image-footer--destinations">
+        {allowHeroImage ? (
+          <label className="movie-import-modal__image-destination">
+            <input
+              aria-label={heroAriaLabel}
+              type="radio"
+              name="hero-image-selection"
+              checked={heroSelected}
+              onChange={onSelectHero}
+            />
+            <span>Hero Image</span>
+          </label>
+        ) : null}
+        {allowOtherImages ? (
+          <label className="movie-import-modal__image-destination">
+            <input
+              aria-label={otherAriaLabel}
+              type="checkbox"
+              checked={otherSelected}
+              onChange={onToggleOther}
+            />
+            <span>Other Images</span>
+          </label>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function ImagePreview({ image, index }: { image: NormalizedImageCandidate; index: number }) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const optionNumber = index + 1;
   const dimensions = image.width && image.height ? `${image.width} × ${image.height}` : 'Dimensions unavailable';
   const provider = image.attribution ?? image.providerKey.toUpperCase();
   const languageDisplay = image.language ? image.language.toUpperCase() : 'NA';
-  const languageDescription = image.language ? image.language.toUpperCase() : 'No language metadata';
-  const isHeroDestination = destination === 'hero';
-  const inputType = isHeroDestination ? 'radio' : 'checkbox';
-  const inputName = isHeroDestination ? 'hero-image-selection' : undefined;
-  const label = isHeroDestination ? 'Use as Hero Image' : 'Add to Other Images';
-  const selectedStatus = isHeroDestination ? 'Hero Image' : 'Other Images';
-  const statusParts = [
-    selected ? `selected for ${selectedStatus}` : `not selected for ${selectedStatus}`,
-    secondaryStatus ? accessibleSecondaryStatus(secondaryStatus) : null,
-  ].filter(Boolean);
-  const ariaLabel = `${label}: backdrop option ${optionNumber}, ${provider}, ${dimensions}, ${languageDescription}. Current status: ${statusParts.join('; ')}.`;
 
   return (
-    <label className="movie-import-modal__image-option" style={touchTargetStyle}>
-      <span className="movie-import-modal__image-status" aria-hidden="true">
-        {selected ? <span className="movie-import-modal__image-chip">{selectedStatus}</span> : null}
-        {secondaryStatus ? <span className="movie-import-modal__image-chip movie-import-modal__image-chip--muted">{secondaryStatus}</span> : null}
-      </span>
-      <span className="movie-import-modal__image-preview">
-        <span className="movie-import-modal__image-canvas">
-          {!previewFailed ? (
-            <img
-              className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop"
-              src={image.previewUrl ?? image.originalUrl}
-              alt={`Backdrop option ${optionNumber}`}
-              loading="lazy"
-              width={120}
-              height={68}
-              onError={() => setPreviewFailed(true)}
-            />
-          ) : (
-            <span className="movie-import-modal__image-fallback" role="img" aria-label="backdrop preview unavailable">
-              Preview unavailable
-            </span>
-          )}
-        </span>
-        <span className="movie-import-modal__image-meta">{provider} · {dimensions} · {languageDisplay}</span>
-      </span>
-      <span className="movie-import-modal__image-footer">
-        <input aria-label={ariaLabel} type={inputType} name={inputName} checked={selected} onChange={onChange} />
-        <span className="movie-import-modal__image-label">{label}</span>
-      </span>
-    </label>
+    <div className="movie-import-modal__image-preview">
+      <div className="movie-import-modal__image-canvas">
+        {!previewFailed ? (
+          <img
+            className="movie-import-modal__image-thumb movie-import-modal__image-thumb--backdrop"
+            src={image.previewUrl ?? image.originalUrl}
+            alt={`Backdrop option ${optionNumber}`}
+            loading="lazy"
+            width={120}
+            height={68}
+            onError={() => setPreviewFailed(true)}
+          />
+        ) : (
+          <span className="movie-import-modal__image-fallback" role="img" aria-label="backdrop preview unavailable">
+            Preview unavailable
+          </span>
+        )}
+      </div>
+      <span className="movie-import-modal__image-meta">{provider} · {dimensions} · {languageDisplay}</span>
+    </div>
   );
 }
 
+function visibleWithSelections(
+  candidates: NormalizedImageCandidate[],
+  count: number,
+  selected: Array<NormalizedImageCandidate | null>,
+) {
+  const selectedKeys = new Set(
+    selected
+      .filter((candidate): candidate is NormalizedImageCandidate =>
+        candidate !== null)
+      .map(imageIdentity),
+  );
+
+  return candidates.filter(
+    (candidate, index) =>
+      index < count || selectedKeys.has(imageIdentity(candidate)),
+  );
+}
+
+function imageIdentity(image: NormalizedImageCandidate) {
+  return `${image.providerKey}:${image.providerImageId}`;
+}
+
 function sameImage(left: NormalizedImageCandidate, right: NormalizedImageCandidate) {
-  return left.providerKey === right.providerKey && left.providerImageId === right.providerImageId;
-}
-
-function accessibleSecondaryStatus(status: string) {
-  if (status === 'Also in Other Images') return 'also selected for Other Images';
-  if (status === 'Also Hero Image') return 'also selected as Hero Image';
-  return status;
-}
-
-function backdropHelperCopy(allowHeroImage: boolean, allowOtherImages: boolean) {
-  if (allowHeroImage && allowOtherImages) {
-    return 'Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.';
-  }
-
-  if (allowHeroImage) {
-    return 'Choose one backdrop to upload to the Hero Image field, or skip this destination.';
-  }
-
-  return 'Select any backdrops to upload to the Other Images gallery field.';
+  return imageIdentity(left) === imageIdentity(right);
 }
 
 function capitalize(value: string) {

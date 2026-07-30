@@ -634,7 +634,7 @@ describe('ImportModal', () => {
     expect(screen.getByText('Poster')).toBeInTheDocument();
     expect(screen.getByText('Backdrop images')).toBeInTheDocument();
     expect(screen.getByText('1 poster selected for import.')).toBeInTheDocument();
-    expect(screen.getByText('Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.')).toBeInTheDocument();
+    expect(screen.getByText('Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.')).toBeInTheDocument();
     expect(screen.getByText('Directors')).toBeInTheDocument();
     expect(screen.getByText('Actors')).toBeInTheDocument();
     expect(screen.getByText('2 draft Person records will be prepared after confirmation.')).toBeInTheDocument();
@@ -649,15 +649,15 @@ async function reachReview() {
 }
 
 describe('ImportModal data flow', () => {
-  it('uses an explicit hero selector and keeps other image choices separate', async () => {
+  it('keeps shared backdrop destinations exclusive through the import plan', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
     expect(screen.getByText('Choose exactly which TMDB artwork destinations to import.')).toBeInTheDocument();
-    expect(screen.getByText('Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.')).toBeInTheDocument();
+    expect(screen.getByText('Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.')).toBeInTheDocument();
     expect(screen.getByText('1 poster, 1 Hero Image, and 1 Other Image selected for import.')).toBeInTheDocument();
-    expect(screen.getAllByRole('img', { name: /Backdrop option/i })).toHaveLength(4);
+    expect(screen.getAllByRole('img', { name: /Backdrop option/i })).toHaveLength(2);
     const candidateImages = screen.getAllByRole('img', { name: /option \d+/i });
     expect(candidateImages.length).toBeGreaterThan(0);
     candidateImages.forEach((image) => {
@@ -670,20 +670,36 @@ describe('ImportModal data flow', () => {
     expect(heroOptions[1]).not.toBeChecked();
     expect(otherImageOptions[0]).not.toBeChecked();
     expect(otherImageOptions[1]).toBeChecked();
-    expect(heroOptions[0]).not.toHaveAccessibleName(/also selected for Other Images/i);
-    expect(otherImageOptions[0]).toHaveAccessibleName(/not selected for Other Images; also selected as Hero Image/i);
     expect(screen.getAllByText('Other Images').length).toBeGreaterThan(0);
+
+    await userEvent.click(otherImageOptions[0]);
+    expect(otherImageOptions[0]).toBeChecked();
+    expect(heroOptions[0]).not.toBeChecked();
 
     await userEvent.click(heroOptions[1]);
     expect(heroOptions[1]).toBeChecked();
+    expect(otherImageOptions[1]).not.toBeChecked();
 
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
     expect(execute.mock.calls[0][0].heroImageToUpload.providerImageId).toBe('/backdrop-2.jpg');
-    expect(execute.mock.calls[0][0].otherImagesToUpload).toEqual([]);
-    expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg']);
+    expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-1.jpg']);
+    expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg', '/backdrop-1.jpg']);
+  });
+
+  it('excludes the default Hero Image from Other Images in the import plan', async () => {
+    const execute = vi.fn();
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
+
+    await reachReview();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
+
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    expect(execute.mock.calls[0][0].heroImageToUpload.providerImageId).toBe('/backdrop-1.jpg');
+    expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg']);
   });
 
   it('shows only the first 10 poster candidates and first 10 backdrop candidates', async () => {
@@ -709,10 +725,10 @@ describe('ImportModal data flow', () => {
 
     await reachReview();
 
-    expect(screen.getAllByText('TMDB · 1920 × 1080 · NA')).toHaveLength(2);
+    expect(screen.getByText('TMDB · 1920 × 1080 · NA')).toBeInTheDocument();
     expect(screen.queryByText(/No language metadata/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Use as Hero Image: backdrop option 1, TMDB, 1920 × 1080, No language metadata/i })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: /Add to Other Images: backdrop option 1, TMDB, 1920 × 1080, No language metadata/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Use as Hero Image: backdrop option 1, tmdb:\/backdrop-1\.jpg, TMDB, 1920 × 1080, No language metadata/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Add to Other Images: backdrop option 1, tmdb:\/backdrop-1\.jpg, TMDB, 1920 × 1080, No language metadata/i })).toBeInTheDocument();
   });
 
   it('allows editors to skip importing a hero image while keeping other image choices', async () => {
@@ -731,20 +747,22 @@ describe('ImportModal data flow', () => {
     expect(execute.mock.calls[0][0].otherImagesToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg']);
   });
 
-  it('describes the backdrop picker as hero-only when only the hero image field is mapped', async () => {
+  it('shows only Hero Image controls when only the hero image field is mapped', async () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: null }} mappedFields={['title', 'heroImage']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
-    expect(screen.getByText('Choose one backdrop to upload to the Hero Image field, or skip this destination.')).toBeInTheDocument();
-    expect(screen.queryByText('Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.')).not.toBeInTheDocument();
+    expect(screen.getByText('Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.')).toBeInTheDocument();
+    expect(screen.getAllByRole('radio', { name: /Use as Hero Image/i })).toHaveLength(2);
+    expect(screen.queryByRole('checkbox', { name: /Add to Other Images/i })).not.toBeInTheDocument();
   });
 
-  it('describes the backdrop picker as other-images-only when only the other images field is mapped', async () => {
+  it('shows only Other Images controls when only the other images field is mapped', async () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', backdrops: [] }} mappedFields={['title', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
-    expect(screen.getByText('Select any backdrops to upload to the Other Images gallery field.')).toBeInTheDocument();
-    expect(screen.queryByText('Choose a single Hero Image and any backdrops to add to Other Images. The same backdrop can be used in both places.')).not.toBeInTheDocument();
+    expect(screen.getByText('Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.')).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Use as Hero Image/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('checkbox', { name: /Add to Other Images/i })).toHaveLength(2);
   });
 
   it('keeps an existing hero image untouched when only other images are selected', async () => {
@@ -1147,9 +1165,9 @@ describe('ImportModal data flow', () => {
 
       expect(await screen.findByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
       expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', movieWithBackdrops.images[0]!.originalUrl);
-      expect(screen.getAllByRole('img', { name: 'Backdrop option 1' })).toHaveLength(2);
+      expect(screen.getAllByRole('img', { name: 'Backdrop option 1' })).toHaveLength(1);
       expect(screen.getAllByRole('img', { name: 'Backdrop option 1' })[0]).toHaveAttribute('src', movieWithBackdrops.images[1]!.originalUrl);
-      expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })).toHaveLength(2);
+      expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })).toHaveLength(1);
       expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })[0]).toHaveAttribute('src', movieWithBackdrops.images[2]!.originalUrl);
       await waitFor(() => expect(consoleError).toHaveBeenCalledWith(
         'MCS Movie Importer artwork preparation failed',
