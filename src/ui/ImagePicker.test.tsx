@@ -145,6 +145,33 @@ describe('ImagePicker', () => {
     expect(backdropPreviews.at(-1)).toHaveAttribute('src', backdrops[22].previewUrl);
   });
 
+  it('hides reveal controls when retained selections make every candidate visible', () => {
+    const limitedPosters = posters.slice(0, 11);
+    const limitedBackdrops = backdrops.slice(0, 11);
+
+    render(
+      <ImagePicker
+        images={[...limitedPosters, ...limitedBackdrops]}
+        selection={{
+          poster: limitedPosters[10]!,
+          heroImage: limitedBackdrops[10]!,
+          backdrops: [],
+        }}
+        allowPoster
+        allowHeroImage
+        allowOtherImages
+        onTogglePoster={vi.fn()}
+        onSelectHeroImage={vi.fn()}
+        onToggleBackdrop={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole('img', { name: /Poster option/i })).toHaveLength(11);
+    expect(screen.getAllByRole('img', { name: /Backdrop option/i })).toHaveLength(11);
+    expect(screen.queryByRole('button', { name: 'Show 10 more posters' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show 10 more backdrops' })).not.toBeInTheDocument();
+  });
+
   it('renders each visible backdrop once with separate destination labels and no status chips', () => {
     renderPicker();
 

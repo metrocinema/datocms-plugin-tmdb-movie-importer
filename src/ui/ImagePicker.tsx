@@ -71,7 +71,7 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
           <p>Use one vertical poster for listing and detail-page artwork. Selected posters upload after confirmation.</p>
         </div>
         {posters.length > 0 ? <div className="movie-import-modal__image-grid">{posterOptions}</div> : <p className="movie-import-modal__empty">TMDB did not return any English-language poster candidates.</p>}
-        {posters.length > visiblePosterCount ? (
+        {visiblePosters.length < posters.length ? (
           <div className="movie-import-modal__image-reveal">
             <Button
               buttonType="muted"
@@ -100,7 +100,7 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
             {backdropOptions}
           </div>
         ) : <p className="movie-import-modal__empty">TMDB did not return any backdrop candidates.</p>}
-        {backdrops.length > visibleBackdropCount ? (
+        {visibleBackdrops.length < backdrops.length ? (
           <div className="movie-import-modal__image-reveal">
             <Button
               buttonType="muted"
