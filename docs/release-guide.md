@@ -21,11 +21,17 @@ Keep the private installation in place until the Marketplace installation has be
 
 ## Private deployment
 
-1. Build the approved commit and deploy it manually to the `tmdb-movie-importer` Cloudflare Pages project.
-2. Record the generated `pages.dev` URL, commit SHA, build time, and deployment identifier.
-3. Point only the intended private DatoCMS plugin installation at that URL.
-4. Complete the README sandbox acceptance checklist using an editor role and a restricted role.
-5. Preserve the prior deployment URL and commit until support confirms the new private installation is stable.
+The normal private release path is the manually triggered GitHub Actions workflow named **Deploy private plugin to Cloudflare Pages**.
+
+1. Confirm the approved commit is present on `main`, the validation workflow passed, and the working release version is recorded.
+2. Open the workflow in GitHub Actions, choose **Run workflow**, and select `main`. Triggering this workflow is the production deployment approval.
+3. Confirm `npm run verify:release` passes before the Cloudflare deployment step begins.
+4. Record the GitHub Actions run URL, commit SHA, Cloudflare deployment URL, and completion time.
+5. Verify `https://tmdb-movie-importer.pages.dev/` and its JavaScript and CSS assets return HTTP 200.
+6. Point only the intended DatoCMS sandbox private plugin at the stable Pages URL, then complete the README acceptance checklist with editor and restricted roles.
+7. Preserve the previous successful Cloudflare deployment until support confirms the new private installation is stable.
+
+The workflow does not update DatoCMS configuration. If GitHub Actions is unavailable, an authorized operator may run the full release gate locally and use Wrangler Direct Upload as a documented recovery action. Record the same commit and deployment evidence, and do not copy the local user API token into GitHub.
 
 ## Canary publication
 

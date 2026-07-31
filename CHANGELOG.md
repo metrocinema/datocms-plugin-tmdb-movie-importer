@@ -6,6 +6,7 @@ All notable changes to TMDB Movie Importer are documented here.
 
 ### Added
 
+- A manually triggered, verified GitHub Actions deployment path for the private Cloudflare Pages installation.
 - Release-ready Marketplace package metadata and portable build settings.
 - Public installation and release-operation documentation.
 - Required TMDB attribution and an approved TMDB logo in the configuration credits area.
