@@ -1,0 +1,59 @@
+name: Deploy private plugin to Cloudflare Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: tmdb-movie-importer-production
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Validate deployment ref
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::Production deployments must be dispatched from main."
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy verified build
+    needs: guard
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://tmdb-movie-importer.pages.dev/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 25
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify release
+        run: npm run verify:release
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.117.0'
+          command: >-
+            pages deploy dist
+            --project-name=tmdb-movie-importer
+            --branch=main
+            --commit-hash=${{ github.sha }}
+            --commit-message="GitHub Actions deployment"
+            --commit-dirty=false
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
