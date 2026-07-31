@@ -147,11 +147,18 @@ describe('ImportModal.css accessibility tokens', () => {
 
   it('aligns each reveal action below its own grid without changing card width', () => {
     const revealRule = ruleFor('.movie-import-modal__image-reveal');
+    const wideRevealRule = ruleInMedia('(min-width: 720px)', '.movie-import-modal__image-reveal');
     const gridRule = ruleFor('.movie-import-modal__image-grid');
+    const revealButtonRule = ruleFor('.movie-import-modal__image-reveal button');
 
-    expect(revealRule).toContain('display: flex');
-    expect(revealRule).toContain('justify-content: flex-start');
+    expect(revealRule).toContain('display: grid');
+    expect(revealRule).toContain('gap: var(--spacing-l)');
+    expect(revealRule).toContain('grid-template-columns: repeat(auto-fill, minmax(190px, 200px))');
+    expect(revealRule).toContain('justify-content: start');
     expect(revealRule).toContain('margin-top: var(--spacing-m)');
+    expect(revealRule).toContain('min-width: 0');
+    expect(wideRevealRule).toContain('grid-column: 2');
+    expect(revealButtonRule).toContain('width: 100%');
     expect(gridRule).toContain('grid-template-columns: repeat(auto-fill, minmax(190px, 200px))');
   });
 
@@ -181,11 +188,13 @@ describe('ImportModal.css accessibility tokens', () => {
   it('keeps a contained fixed preview canvas at narrow widths', () => {
     const condition = '(max-width: 540px)';
     const gridRule = ruleInMedia(condition, '.movie-import-modal__image-grid');
+    const revealRule = ruleInMedia(condition, '.movie-import-modal__image-reveal');
     const previewRule = ruleInMedia(condition, '.movie-import-modal__image-preview');
     const canvasRule = ruleInMedia(condition, '.movie-import-modal__image-canvas');
 
     expect(gridRule).toContain('grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))');
     expect(gridRule).toContain('min-width: 0');
+    expect(revealRule).toContain('grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))');
     expect(previewRule).toContain('padding: var(--spacing-m)');
     expect(canvasRule).toContain('height: 144px');
     expect(css).not.toContain('.movie-import-modal__destination-lane');
