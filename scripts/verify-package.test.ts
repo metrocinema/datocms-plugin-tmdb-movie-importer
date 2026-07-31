@@ -9,6 +9,7 @@ const requiredPackedFiles = [
   'README.md',
   'LICENSE',
   'CHANGELOG.md',
+  'docs/release-guide.md',
   'dist/index.html',
   'dist/assets/index.js',
   'dist/assets/index.css',
@@ -17,6 +18,11 @@ const requiredPackedFiles = [
 ].map((path) => ({ path }));
 
 describe('package verifier', () => {
+  it('rejects a package that omits the release operations guide linked from the README', () => {
+    expect(() => verifyPackedFiles(requiredPackedFiles.filter(({ path }) => path !== 'docs/release-guide.md')))
+      .toThrow('package is missing required file: docs/release-guide.md');
+  });
+
   it('rejects a source file in the package manifest', () => {
     expect(() => verifyPackedFiles([...requiredPackedFiles, { path: 'src/main.tsx' }]))
       .toThrow('package contains forbidden file: src/main.tsx');

@@ -73,6 +73,7 @@ describe('release package manifest', () => {
       'README.md',
       'LICENSE',
       'CHANGELOG.md',
+      'docs/release-guide.md',
       'docs/marketplace/cover.webp',
       'docs/marketplace/preview.webp',
     ]);

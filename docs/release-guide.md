@@ -6,7 +6,7 @@ This guide prepares a release. It does not authorize any deployment, publication
 
 The same package supports two delivery paths:
 
-- Private installation: a manually deployed Cloudflare Pages build, installed by URL in the Metro Cinema DatoCMS project.
+- Private installation: a manually deployed Cloudflare Pages build, installed by URL in the intended DatoCMS project.
 - Marketplace installation: an npm package published for DatoCMS Marketplace discovery and installation.
 
 Keep the private installation in place until the Marketplace installation has been tested in the DatoCMS sandbox. The two installation records are separate. Reinstalling from Marketplace does not replace the private plugin automatically; it requires a planned migration and a recheck of settings and field add-ons.

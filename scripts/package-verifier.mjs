@@ -6,6 +6,7 @@ const requiredFiles = [
   'README.md',
   'LICENSE',
   'CHANGELOG.md',
+  'docs/release-guide.md',
   'dist/index.html',
   'docs/marketplace/cover.webp',
   'docs/marketplace/preview.webp',
