@@ -85,7 +85,7 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
       </div>
       <div className="movie-import-modal__scroll-body">
         <header className="movie-import-modal__header">
-          <p className="movie-import-modal__eyebrow">TMDB movie importer</p>
+          <p className="movie-import-modal__eyebrow">TMDB Movie Importer</p>
           <h2 className="movie-import-modal__title">Review changes</h2>
           <p className="movie-import-modal__intro">Choose which TMDB values to prepare. Nothing is saved or published until you save the DatoCMS movie.</p>
         </header>

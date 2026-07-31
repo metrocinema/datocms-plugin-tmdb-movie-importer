@@ -5,6 +5,7 @@ import {
   validatePluginParameters,
   type PluginParameters,
 } from '../plugin/parameters';
+import tmdbLogo from '../assets/tmdb-logo.svg';
 
 type ConfigScreenProps = {
   parameters: PluginParameters;
@@ -120,6 +121,14 @@ export function ConfigScreen({ parameters, onSave }: ConfigScreenProps) {
             textInputProps={{ type: 'number', min: 1 }}
           />
         </FieldGroup>
+      </Section>
+      <Section title="TMDB attribution">
+        <p>
+          <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer">
+            <img src={tmdbLogo} alt="TMDB logo" width={46} height={34} />
+          </a>
+        </p>
+        <p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
       </Section>
       {issues.length > 0 ? (
         <FieldError>

@@ -10,16 +10,25 @@ describe('ConfigScreen', () => {
     expect(screen.getByText(/Editors who can use the plugin may inspect it in browser tools/i)).toBeInTheDocument();
   });
 
+  it('shows the approved TMDB attribution in the configuration credits area', () => {
+    render(<ConfigScreen parameters={parsePluginParameters({})} onSave={vi.fn()} />);
+
+    expect(screen.getByRole('heading', { name: 'TMDB attribution' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'TMDB logo' })).toBeInTheDocument();
+    expect(screen.getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.')).toBeInTheDocument();
+  });
+
   it('uses Dato form sections for plugin settings groups', () => {
     const { container } = render(<ConfigScreen parameters={parsePluginParameters({})} onSave={vi.fn()} />);
     const sections = Array.from(container.querySelectorAll('[data-dato-component="Section"]'));
 
     expect(container.querySelector('form')).toHaveAttribute('data-dato-component', 'Form');
-    expect(sections).toHaveLength(4);
+    expect(sections).toHaveLength(5);
     expect(screen.getByRole('heading', { name: 'TMDB access' }).closest('[data-dato-component="Section"]')).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Movie model and fields' }).closest('[data-dato-component="Section"]')).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Person matching' }).closest('[data-dato-component="Section"]')).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Import behavior' }).closest('[data-dato-component="Section"]')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'TMDB attribution' }).closest('[data-dato-component="Section"]')).not.toBeNull();
   });
 
   it('shows validation errors for missing required values', () => {

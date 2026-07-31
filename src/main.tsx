@@ -35,7 +35,7 @@ class PluginErrorBoundary extends React.Component<{ children: React.ReactNode },
     if (this.state.error) {
       return (
         <div role="alert" style={{ color: 'var(--color--danger-soft--ink, var(--color--ink))', fontFamily: 'sans-serif', padding: 16 }}>
-          <h2>MCS Movie Importer failed to render</h2>
+          <h2>TMDB Movie Importer failed to render</h2>
           <p>{this.state.error.message}</p>
           <p>Open the browser console for the full stack trace.</p>
         </div>

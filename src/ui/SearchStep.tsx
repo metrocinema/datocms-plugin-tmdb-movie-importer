@@ -39,7 +39,7 @@ export function SearchStep({ title, year, results, hasSearched, onTitleChange, o
 
       <div className="movie-import-modal__scroll-body">
         <header className="movie-import-modal__header">
-          <p className="movie-import-modal__eyebrow">TMDB movie importer</p>
+          <p className="movie-import-modal__eyebrow">TMDB Movie Importer</p>
           <h2 className="movie-import-modal__title">Find movie</h2>
           <p className="movie-import-modal__intro">Search TMDB and choose the record that matches this DatoCMS movie.</p>
         </header>

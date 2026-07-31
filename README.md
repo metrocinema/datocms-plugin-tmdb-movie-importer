@@ -1,63 +1,57 @@
-# MCS DatoCMS Plugin
+# TMDB Movie Importer
 
-TMDB movie import plugin for DatoCMS.
+TMDB Movie Importer is a Metro Cinema plugin for DatoCMS. It lets editors find a movie, review selected TMDB metadata, people, and images, then apply the approved values to the current unsaved movie form.
+
+## Installation
+
+### Private installation
+
+Use the private Cloudflare Pages deployment only after it has been manually deployed and tested in a DatoCMS sandbox. Add the approved Pages URL as a private plugin in the intended DatoCMS project, configure its settings, and attach the field add-on to the movie model's TMDB ID field.
+
+### Marketplace installation
+
+When the package is published, install `datocms-plugin-tmdb-movie-importer` from DatoCMS Marketplace or Developer Zone. Use the released package version approved for the project.
+
+Private and Marketplace installations are distinct. Do not remove or assume the private installation is replaced when you install from Marketplace. Treat the migration as a separate, tested reinstall: record settings, install the Marketplace package in a sandbox, re-enter configuration, reattach the field add-on if required, verify imports, then schedule removal of the private installation.
+
+## Permissions and schema setup
+
+The plugin declares the DatoCMS `currentUserAccessToken` permission and uses the current editor's DatoCMS access. It does not store or request a separate DatoCMS CMA token. Editors need the project permissions required to read the configured schema, create draft Person records, upload selected images, and update the current movie form.
+
+Configure these stable DatoCMS API names in the plugin settings:
+
+1. A movie model and the desired movie fields. Version one supports title, release year, MPAA rating, runtime, TMDB ID, tagline, description, poster, Hero image, Other images, directors, and actors.
+2. A shared Person model and its name field. A Person TMDB ID field is optional but gives safer matching when available.
+3. An actor limit, which defaults to 10.
+4. The TMDB ID field add-on on the movie model. It supports string, integer, and float fields so existing schemas need not change solely for the plugin.
+
+Required mappings are validated before an import begins. Unmapped optional fields stay out of the review and import flow.
+
+## TMDB token visibility
+
+This is a frontend-only plugin. Its TMDB read token is stored in the plugin settings and can be inspected through browser tools by editors who can use the plugin. Use a token with the narrowest appropriate TMDB access, rotate it if an editor should no longer have access, and do not treat it as a server-side secret.
+
+## Editor flow and unsaved-form contract
+
+1. Open the TMDB ID field add-on and choose **Find movie** or **Refresh from TMDB**.
+2. Search by title and optional year, or load a known TMDB ID.
+3. Review each proposed value and choose the fields, people, poster, Hero image, and Other images to prepare.
+4. Confirm the import. The plugin may create selected Person records as drafts and upload selected images, then applies approved values to the current DatoCMS movie form.
+5. Save or publish the movie yourself in DatoCMS.
+
+The plugin never saves or publishes the movie record. If a later import phase fails after people or images were created, those drafts or uploads can remain in DatoCMS and need intentional review.
 
 ## Local development
 
-Install dependencies and start the Vite development server:
+Install dependencies with `npm install`, then start the Vite server with `npm run dev`. For standalone UI review outside the DatoCMS iframe, open `http://localhost:5174/?impeccable=modal`.
 
-    npm install
-    npm run dev
+The harness uses sanitized fixture data and resolves the import plan in the browser only. It does not write to DatoCMS or call TMDB. Add `&theme=dark` to inspect the dark token set.
 
-For standalone UI review outside the DatoCMS iframe, open the Impeccable harness:
+Run `npm test` for the automated suite and `npm run verify:release` for the full local release gate. Automated tests use mocked DatoCMS interactions and sanitized TMDB fixtures; they do not call live DatoCMS or TMDB.
 
-    http://localhost:5174/?impeccable=modal
+## Manual sandbox acceptance
 
-The harness uses fixture data and resolves the import plan in the browser only. It is for visual review and interaction testing; it does not write to DatoCMS or call TMDB. The harness uses Dato's React UI stylesheet and a mock `Canvas` context with representative host color and shadow tokens; add `&theme=dark` to review the dark-mode token set.
-
-Run the automated test suite and production checks:
-
-    npm test
-    npm run build
-
-`npm run build` includes TypeScript checking. `npm run lint` currently runs the same TypeScript no-emit check as `npm run typecheck`.
-
-## DatoCMS setup
-
-1. Install the plugin in the DatoCMS project.
-2. Configure the TMDB read token and the movie model API name.
-3. Map the movie fields you want to import. Version one supports title, release year, MPAA rating, runtime, TMDB ID, tagline, description, poster, hero image, other images, directors, and actors.
-4. Attach the field add-on to the mapped TMDB ID field on the movie model.
-5. Configure the shared person model and its name field. A person TMDB ID field is optional but provides safer matching when available.
-6. Configure the actor limit; it defaults to 10.
-
-The importer validates required mappings before it runs. Optional unmapped movie fields are excluded from review and import. DatoCMS model and field API names are stable schema identifiers, not secret tokens.
-
-## Security note
-
-This frontend-only version exposes the TMDB read token to authenticated editors who can inspect the browser application. It never stores or requests a DatoCMS CMA token; DatoCMS permissions come from the current editor context.
-
-## Editor flow
-
-1. Open the field add-on on the TMDB ID field and choose **Find movie** or **Refresh from TMDB**.
-2. Search by title and optional year, or retrieve a movie by TMDB ID.
-3. Review the proposed changes and choose the fields, people, poster, Hero image, and Other images to apply. Empty destination fields are selected by default; populated fields are not. Missing TMDB values cannot be selected and never clear existing content.
-4. Confirm the import. The plugin creates required people as drafts, uploads selected images, and applies the approved values to the unsaved movie form.
-5. Manually save or publish the movie in DatoCMS. The plugin does not save or publish the movie record.
-
-## Verification
-
-Run the local release checks:
-
-    npm test
-    npm run typecheck
-    npm run lint
-    npm run build
-
-Normal automated tests use mocked DatoCMS interactions and sanitized TMDB fixtures; they do not call live DatoCMS or TMDB.
-`npm run lint` currently repeats the TypeScript no-emit check run by `npm run typecheck`.
-
-Before release, complete this manual acceptance checklist in a DatoCMS sandbox project. Use a movie model with the configured mappings, a shared person model with `name` and optional `tmdb_id`, an editor role that can create items and uploads, and a restricted role that lacks at least one required permission.
+Before any release, use a DatoCMS sandbox with configured mappings, a shared Person model with `name` and optional `tmdb_id`, an editor role that can create items and uploads, and a restricted role that lacks at least one required permission.
 
 - [ ] An authorized editor can configure mappings.
 - [ ] The field add-on opens from the TMDB ID field.
@@ -71,3 +65,15 @@ Before release, complete this manual acceptance checklist in a DatoCMS sandbox p
 - [ ] The explicit Hero image selection populates Hero image when that field is configured.
 - [ ] The movie form changes, but the record is not saved or published.
 - [ ] A restricted role receives a permission error before movie form updates.
+
+## Release operations
+
+Read [the release guide](docs/release-guide.md) before a private deployment, Marketplace canary, promotion, rollback, or support handoff. Those activities require separate release authority.
+
+## TMDB attribution and license
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+TMDB attribution and an approved logo appear in the plugin configuration credits area. The logo is used only to identify TMDB as the API and content source; it does not imply TMDB endorsement, certification, or approval.
+
+MIT covers this plugin's code. It does not cover TMDB data, images, trademarks, or logo assets. Those materials remain subject to [TMDB's API Terms of Use](https://www.themoviedb.org/api-terms-of-use) and the rights of their respective owners.
