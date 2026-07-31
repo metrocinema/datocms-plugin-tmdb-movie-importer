@@ -451,8 +451,8 @@ describe('ImportModal', () => {
     expect(screen.getByText('Director Name and Actor Name')).toBeInTheDocument();
     expect(screen.getByText('0 existing Person records to link')).toBeInTheDocument();
     expect(screen.getByText('No existing Person records')).toBeInTheDocument();
-    expect(screen.getByText('1 unique image to upload')).toBeInTheDocument();
-    expect(screen.getByText('1 poster')).toBeInTheDocument();
+    expect(screen.getByText('0 unique images to upload')).toBeInTheDocument();
+    expect(screen.getByText('No images selected')).toBeInTheDocument();
     expect(screen.getByText('What happens after you start')).toBeInTheDocument();
     expect(screen.getByText('Create selected draft Person records in DatoCMS.')).toBeInTheDocument();
     expect(screen.getByText('Upload selected poster and backdrop images.')).toBeInTheDocument();
@@ -461,7 +461,7 @@ describe('ImportModal', () => {
     expect(screen.getByText('If something fails after people or images are created, those drafts or uploads may remain in DatoCMS.')).toBeInTheDocument();
     const confirmActions = document.querySelector('.movie-import-modal__actions--confirm')!;
     expect(within(confirmActions as HTMLElement).getByText('3 fields selected')).toBeInTheDocument();
-    expect(within(confirmActions as HTMLElement).getByText('1 image selected')).toBeInTheDocument();
+    expect(within(confirmActions as HTMLElement).getByText('0 images selected')).toBeInTheDocument();
     expect(within(confirmActions as HTMLElement).getByText('2 new people')).toBeInTheDocument();
     expect(within(confirmActions as HTMLElement).getByText('0 reused people')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start import' })).toBeInTheDocument();
@@ -619,7 +619,7 @@ describe('ImportModal', () => {
     expect(screen.getByRole('heading', { name: 'Images' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
     expect(screen.getByText('1 field selected')).toBeInTheDocument();
-    expect(screen.getByText('1 image selected')).toBeInTheDocument();
+    expect(screen.getByText('0 images selected')).toBeInTheDocument();
     expect(screen.getByText('2 new people')).toBeInTheDocument();
     expect(screen.getByText('0 reused people')).toBeInTheDocument();
     expect(screen.getByText('1 field available · 1 selected')).toBeInTheDocument();
@@ -633,7 +633,11 @@ describe('ImportModal', () => {
     expect(screen.getAllByText('Title').length).toBeGreaterThan(0);
     expect(screen.getByText('Poster')).toBeInTheDocument();
     expect(screen.getByText('Backdrop images')).toBeInTheDocument();
-    expect(screen.getByText('1 poster selected for import.')).toBeInTheDocument();
+    const imageStatus = screen.getByRole('status', { name: 'Image import impact' });
+    expect(imageStatus).toHaveTextContent('No image destinations selected.');
+    expect(imageStatus).toHaveAttribute('aria-live', 'polite');
+    expect(imageStatus).toHaveAttribute('aria-atomic', 'true');
+    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).not.toBeChecked();
     expect(screen.getByText('Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.')).toBeInTheDocument();
     expect(screen.getByText('Directors')).toBeInTheDocument();
     expect(screen.getByText('Actors')).toBeInTheDocument();
@@ -656,21 +660,27 @@ describe('ImportModal data flow', () => {
     await reachReview();
     expect(screen.getByText('Choose exactly which TMDB artwork destinations to import.')).toBeInTheDocument();
     expect(screen.getByText('Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.')).toBeInTheDocument();
-    expect(screen.getByText('1 poster, 1 Hero Image, and 1 Other Image selected for import.')).toBeInTheDocument();
+    expect(screen.getByText('No image destinations selected.')).toBeInTheDocument();
     expect(screen.getAllByRole('img', { name: /Backdrop option/i })).toHaveLength(2);
     const candidateImages = screen.getAllByRole('img', { name: /option \d+/i });
     expect(candidateImages.length).toBeGreaterThan(0);
     candidateImages.forEach((image) => {
       expect(image.parentElement).toHaveClass('movie-import-modal__image-canvas');
     });
-    expect(screen.getByRole('radio', { name: 'Do not import a Hero Image' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Do not import a Hero Image' })).toBeChecked();
     const heroOptions = screen.getAllByRole('radio', { name: /Use as Hero Image/i });
     const otherImageOptions = screen.getAllByRole('checkbox', { name: /Add to Other Images/i });
-    expect(heroOptions[0]).toBeChecked();
+    expect(heroOptions[0]).not.toBeChecked();
     expect(heroOptions[1]).not.toBeChecked();
     expect(otherImageOptions[0]).not.toBeChecked();
-    expect(otherImageOptions[1]).toBeChecked();
+    expect(otherImageOptions[1]).not.toBeChecked();
     expect(screen.getAllByText('Other Images').length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
+    await userEvent.click(heroOptions[0]);
+    await userEvent.click(otherImageOptions[1]);
+    expect(screen.getByText('1 poster, 1 Hero Image, and 1 Other Image selected for upload after confirmation.')).toBeInTheDocument();
 
     await userEvent.click(otherImageOptions[0]);
     expect(otherImageOptions[0]).toBeChecked();
@@ -689,11 +699,13 @@ describe('ImportModal data flow', () => {
     expect(execute.mock.calls[0][0].assetsToUpload.filter((image: NormalizedMovie['images'][number]) => image.type === 'backdrop').map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/backdrop-2.jpg', '/backdrop-1.jpg']);
   });
 
-  it('excludes the default Hero Image from Other Images in the import plan', async () => {
+  it('keeps an explicitly selected Hero Image out of Other Images in the import plan', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
+    await userEvent.click(screen.getAllByRole('radio', { name: /Use as Hero Image/i })[0]);
+    await userEvent.click(screen.getAllByRole('checkbox', { name: /Add to Other Images/i })[1]);
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
@@ -736,8 +748,10 @@ describe('ImportModal data flow', () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
+    await userEvent.click(screen.getAllByRole('checkbox', { name: /Add to Other Images/i })[1]);
     await userEvent.click(screen.getByRole('radio', { name: 'Do not import a Hero Image' }));
-    expect(screen.getByText('1 poster and 1 Other Image selected for import.')).toBeInTheDocument();
+    expect(screen.getByText('1 poster and 1 Other Image selected for upload after confirmation.')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
@@ -770,7 +784,10 @@ describe('ImportModal data flow', () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', heroImage: { upload_id: 'existing-hero' }, backdrops: [] }} mappedFields={['title', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
-    expect(screen.getByText('2 Other Images selected for import.')).toBeInTheDocument();
+    const otherImageOptions = screen.getAllByRole('checkbox', { name: /Add to Other Images/i });
+    await userEvent.click(otherImageOptions[0]);
+    await userEvent.click(otherImageOptions[1]);
+    expect(screen.getByText('2 Other Images selected for upload after confirmation.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
@@ -809,7 +826,7 @@ describe('ImportModal data flow', () => {
         { candidateTmdbId: 10, candidateRole: 'director', name: 'Director Name', source: 'auto' },
         { candidateTmdbId: 20, candidateRole: 'actor', name: 'Actor Name', source: 'auto' },
       ],
-      assetsToUpload: movie.images,
+      assetsToUpload: [],
     });
   });
 
@@ -1071,10 +1088,12 @@ describe('ImportModal data flow', () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
-    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).not.toBeChecked();
     expect(screen.getByRole('img', { name: 'Poster option 1' })).toHaveAttribute('loading', 'lazy');
     expect(screen.getByRole('img', { name: 'Poster option 1' })).toHaveAttribute('width', '120');
     expect(screen.getByRole('img', { name: 'Poster option 1' })).toHaveAttribute('height', '180');
+    await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
+    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
     await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
@@ -1083,14 +1102,14 @@ describe('ImportModal data flow', () => {
     expect(execute.mock.calls[0][0].assetsToUpload).toEqual([]);
   });
 
-  it('only displays and preselects English-language posters', async () => {
+  it('only displays English-language posters without preselecting one', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithNonEnglishPosters} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
 
     expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
-    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).not.toBeChecked();
     expect(screen.getByRole('img', { name: 'Poster option 1' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
     expect(screen.queryByText('textless-poster.jpg')).not.toBeInTheDocument();
 
@@ -1098,7 +1117,7 @@ describe('ImportModal data flow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
     await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
-    expect(execute.mock.calls[0][0].assetsToUpload.map((image: NormalizedMovie['images'][number]) => image.providerImageId)).toEqual(['/english-poster.jpg']);
+    expect(execute.mock.calls[0][0].assetsToUpload).toEqual([]);
   });
 
   it('loads the existing TMDB ID directly for refresh mode', async () => {

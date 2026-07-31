@@ -36,7 +36,7 @@ function harnessImage(index: number): NormalizedImageCandidate {
 }
 
 describe('devHarness', () => {
-  it('uses an import fixture with five unique default-selected assets', async () => {
+  it('starts the import fixture without selected assets', async () => {
     const screen = screenForHarnessMode('modal', 'default', 'import');
     expect(screen.type).toBe('modal');
     if (screen.type !== 'modal') return;
@@ -46,10 +46,11 @@ describe('devHarness', () => {
       heroImage: true,
       backdrops: true,
     });
-    const selectedAssets = [selection.poster, selection.heroImage, ...selection.backdrops]
-      .filter((image): image is NormalizedImageCandidate => image !== null);
-
-    expect(new Set(selectedAssets.map((image) => `${image.providerKey}:${image.providerImageId}`)).size).toBe(5);
+    expect(selection).toEqual({
+      poster: null,
+      heroImage: null,
+      backdrops: [],
+    });
   });
 
   it('derives pending import progress totals from the plan', async () => {
@@ -176,23 +177,21 @@ describe('devHarness', () => {
     expect(previewUrls.every((url) => url?.startsWith('data:image/svg+xml,'))).toBe(true);
   });
 
-  it('uses actual default harness values to retain selected examples inside and outside the first batch', async () => {
+  it('keeps actual default harness images unselected', async () => {
     const screen = screenForHarnessMode('modal');
     expect(screen.type).toBe('modal');
     if (screen.type !== 'modal') return;
 
     const movie = await screen.loadMovie(843);
-    const posters = movie.images.filter((image) => image.type === 'poster');
-    const backdrops = movie.images.filter((image) => image.type === 'backdrop');
     const selection = defaultImageSelection(
       screen.currentValues,
       movie.images,
       { poster: true, heroImage: true, backdrops: true },
     );
 
-    expect(posters.slice(0, 10)).not.toContain(selection.poster);
-    expect(backdrops.slice(0, 10)).toContain(selection.backdrops[0]);
-    expect(backdrops.slice(0, 10)).not.toContain(selection.heroImage);
+    expect(selection.poster).toBeNull();
+    expect(selection.heroImage).toBeNull();
+    expect(selection.backdrops).toEqual([]);
   });
 
   it('keeps provider image identities isolated between movie scenarios', async () => {

@@ -125,6 +125,8 @@ describe('ImportModal.css accessibility tokens', () => {
 
     expect(rule).toContain('background: var(--color--surface');
     expect(rule).toContain('box-shadow: 0 0 0 1px var(--color--border)');
+    expect(rule).toContain('content-visibility: auto');
+    expect(rule).toContain('contain-intrinsic-size: auto 290px');
     expect(rule).not.toContain('--color--field-group-media--surface');
     expect(rule).not.toContain('--color--success');
   });

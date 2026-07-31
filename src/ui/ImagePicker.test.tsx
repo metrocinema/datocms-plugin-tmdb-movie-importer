@@ -108,6 +108,16 @@ describe('ImagePicker', () => {
     expect(backdropReveal.querySelector('.movie-import-modal__visually-hidden')).toHaveTextContent('backdrops');
   });
 
+  it('defers candidate image fetching and decoding to protect modal scrolling', () => {
+    renderPicker();
+
+    for (const preview of screen.getAllByRole('img', { name: /(?:Poster|Backdrop) option/i })) {
+      expect(preview).toHaveAttribute('loading', 'lazy');
+      expect(preview).toHaveAttribute('decoding', 'async');
+      expect(preview).toHaveAttribute('fetchpriority', 'low');
+    }
+  });
+
   it('reveals ten more posters without revealing more backdrops', async () => {
     renderPicker();
 
@@ -213,6 +223,24 @@ describe('ImagePicker', () => {
     expect(screen.queryByRole('radio', { name: /Use as Hero Image/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: 'Do not import a Hero Image' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('checkbox', { name: /Add to Other Images/i })).toHaveLength(10);
+  });
+
+  it('keeps the selected Hero opt-out visible when TMDB returns no backdrops', () => {
+    render(
+      <ImagePicker
+        images={[]}
+        selection={{ poster: null, heroImage: null, backdrops: [] }}
+        allowPoster={false}
+        allowHeroImage
+        allowOtherImages={false}
+        onTogglePoster={vi.fn()}
+        onSelectHeroImage={vi.fn()}
+        onToggleBackdrop={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('radio', { name: 'Do not import a Hero Image' })).toBeChecked();
+    expect(screen.getByText('TMDB did not return any backdrop candidates.')).toBeInTheDocument();
   });
 
   it('uses destination-specific accessible names with stable provider identity', () => {

@@ -3,7 +3,7 @@ import type { TmdbImage, TmdbMoviePackage, TmdbReleaseDatesResponse } from './tm
 
 const TMDB_IMAGE_ORIGINAL_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_POSTER_PREVIEW_BASE = 'https://image.tmdb.org/t/p/w342';
-const TMDB_BACKDROP_PREVIEW_BASE = 'https://image.tmdb.org/t/p/w780';
+const TMDB_BACKDROP_PREVIEW_BASE = 'https://image.tmdb.org/t/p/w300';
 const THEATRICAL_RELEASE_TYPES = new Set([2, 3]);
 
 export function selectUsCertification(releaseDates: TmdbReleaseDatesResponse): string | null {

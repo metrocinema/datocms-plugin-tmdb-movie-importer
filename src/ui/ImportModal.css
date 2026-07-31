@@ -726,6 +726,8 @@
   border: 0;
   border-radius: 4px;
   box-shadow: 0 0 0 1px var(--color--border);
+  contain-intrinsic-size: auto 290px;
+  content-visibility: auto;
   cursor: pointer;
   display: flex;
   flex-direction: column;
