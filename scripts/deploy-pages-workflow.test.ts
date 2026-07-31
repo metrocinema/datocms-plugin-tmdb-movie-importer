@@ -60,9 +60,20 @@ describe('manual Cloudflare Pages deployment workflow', () => {
       'cancel-in-progress': false,
     });
     expect(deploy?.needs).toBe('guard');
+    expect(deploy?.['runs-on']).toBe('ubuntu-latest');
     expect(deploy?.environment).toEqual({
       name: 'production',
       url: 'https://tmdb-movie-importer.pages.dev/',
+    });
+    expect(steps.Checkout).toMatchObject({
+      uses: 'actions/checkout@v6',
+    });
+    expect(steps['Set up Node']).toMatchObject({
+      uses: 'actions/setup-node@v6',
+      with: {
+        'node-version': 25,
+        cache: 'npm',
+      },
     });
     expect(steps['Install dependencies']?.run).toBe('npm ci');
     expect(steps['Verify release']?.run).toBe('npm run verify:release');

@@ -31,7 +31,42 @@ The normal private release path is the manually triggered GitHub Actions workflo
 6. Point only the intended DatoCMS sandbox private plugin at the stable Pages URL, then complete the README acceptance checklist with editor and restricted roles.
 7. Preserve the previous successful Cloudflare deployment until support confirms the new private installation is stable.
 
-The workflow does not update DatoCMS configuration. If GitHub Actions is unavailable, an authorized operator may run the full release gate locally and use Wrangler Direct Upload as a documented recovery action. Record the same commit and deployment evidence, and do not copy the local user API token into GitHub.
+The workflow does not update DatoCMS configuration.
+
+## Local Wrangler recovery
+
+Use this fallback only when GitHub Actions is unavailable and an authorized operator has approved a recovery deployment. It is not the normal private-release path and does not update DatoCMS configuration.
+
+1. Check out the approved commit on `main`, confirm it is clean, and install the locked dependencies:
+
+```bash
+git switch main
+git pull --ff-only origin main
+test -z "$(git status --porcelain)"
+npm ci
+npm run verify:release
+```
+
+2. Put the purpose-specific, least-privileged Pages token in `TMDB_CLOUDFLARE_PAGES_TOKEN` and the account ID in `CLOUDFLARE_ACCOUNT_ID` in the current shell. Do not print either value, store either value in the repository, or copy the token into GitHub. Confirm only that both variables are present:
+
+```bash
+: "${TMDB_CLOUDFLARE_PAGES_TOKEN:?Set the authorized recovery token in the environment.}"
+: "${CLOUDFLARE_ACCOUNT_ID:?Set the Cloudflare account ID in the environment.}"
+```
+
+3. Deploy the verified `dist` directory to the existing Direct Upload project. This command publishes the current clean commit to the production `main` branch and records its metadata:
+
+```bash
+CLOUDFLARE_API_TOKEN="$TMDB_CLOUDFLARE_PAGES_TOKEN" \
+  npm exec --yes --package=wrangler@4.117.0 -- wrangler pages deploy dist \
+  --project-name=tmdb-movie-importer \
+  --branch=main \
+  --commit-hash="$(git rev-parse HEAD)" \
+  --commit-message="$(git log -1 --format=%s)" \
+  --commit-dirty=false
+```
+
+4. Record the approved commit SHA, Cloudflare deployment URL, operator, and completion time. Perform the same HTTP checks as the normal path: confirm the stable Pages HTML and its JavaScript and CSS assets return HTTP 200, then point only the intended DatoCMS sandbox private plugin at `https://tmdb-movie-importer.pages.dev/` and complete the README acceptance checklist. Preserve the previous successful deployment until support confirms stability.
 
 ## Canary publication
 
