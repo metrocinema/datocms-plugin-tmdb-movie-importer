@@ -1,5 +1,4 @@
 import type { NormalizedImageCandidate } from '../domain/movie';
-import type { ImageFingerprintLoader } from './imageFingerprint';
 import { prepareSelectableImages } from './imagePreparation';
 
 function candidate(
@@ -25,94 +24,44 @@ function candidate(
 }
 
 describe('prepareSelectableImages', () => {
-  it('filters non-English posters before loading, deduplicates each image type, and returns posters first', async () => {
+  it('filters non-English posters and keeps TMDB-ranked artwork first', async () => {
     const images = [
-      candidate('/poster-small.jpg', 'poster', 10, 'en', 100, 150),
-      candidate('/poster-large.jpg', 'poster', 40, 'en', 200, 300),
-      candidate('/poster-distinct.jpg', 'poster', 20, 'en'),
-      candidate('/poster-french.jpg', 'poster', 1, 'fr', 300, 450),
-      candidate('/backdrop-small.jpg', 'backdrop', 1, null, 1000, 600),
-      candidate('/backdrop-large.jpg', 'backdrop', 3, null, 2000, 1200),
-      candidate('/backdrop-distinct.jpg', 'backdrop', 2, null, 1000, 600),
+      candidate('/poster-top-ranked.jpg', 'poster', 1, 'en', 100, 150),
+      candidate('/poster-largest.jpg', 'poster', 40, 'en', 200, 300),
+      candidate('/poster-medium.jpg', 'poster', 20, 'en', 150, 225),
+      candidate('/poster-french-largest.jpg', 'poster', 1, 'fr', 300, 450),
+      candidate('/backdrop-top-ranked.jpg', 'backdrop', 1, null, 1000, 600),
+      candidate('/backdrop-largest.jpg', 'backdrop', 30, null, 2000, 1200),
+      candidate('/backdrop-medium.jpg', 'backdrop', 2, null, 1500, 900),
     ];
-    const loaded: string[] = [];
-    const fingerprints: Record<string, bigint> = {
-      '/poster-small.jpg': 1n,
-      '/poster-large.jpg': 1n,
-      '/poster-distinct.jpg': 15n,
-      '/backdrop-small.jpg': 2n,
-      '/backdrop-large.jpg': 2n,
-      '/backdrop-distinct.jpg': 15n,
-    };
-    const loadFingerprint: ImageFingerprintLoader = async (image) => {
-      loaded.push(image.providerImageId);
-      return {
-        hash: fingerprints[image.providerImageId],
-        aspectRatio: image.type === 'poster' ? 2 / 3 : 5 / 3,
-      };
-    };
+    const result = await prepareSelectableImages(images);
 
-    const result = await prepareSelectableImages(images, loadFingerprint);
-
-    expect(loaded.sort()).toEqual([
-      '/backdrop-distinct.jpg',
-      '/backdrop-large.jpg',
-      '/backdrop-small.jpg',
-      '/poster-distinct.jpg',
-      '/poster-large.jpg',
-      '/poster-small.jpg',
-    ]);
     expect(result.map((image) => image.providerImageId)).toEqual([
-      '/poster-large.jpg',
-      '/poster-distinct.jpg',
-      '/backdrop-large.jpg',
-      '/backdrop-distinct.jpg',
+      '/poster-top-ranked.jpg',
+      '/poster-medium.jpg',
+      '/poster-largest.jpg',
+      '/backdrop-top-ranked.jpg',
+      '/backdrop-medium.jpg',
+      '/backdrop-largest.jpg',
     ]);
   });
 
-  it('starts poster and backdrop preparation concurrently while capping fingerprint loading at four', async () => {
+  it('uses higher resolution and stable identity as tie-breakers when TMDB rank matches', async () => {
     const images = [
-      ...Array.from({ length: 5 }, (_, index) =>
-        candidate(`/poster-${index}.jpg`, 'poster', index, 'en'),
-      ),
-      ...Array.from({ length: 5 }, (_, index) =>
-        candidate(`/backdrop-${index}.jpg`, 'backdrop', index, null),
-      ),
+      candidate('/poster-small.jpg', 'poster', 1, 'en', 100, 150),
+      candidate('/poster-large.jpg', 'poster', 1, 'en', 200, 300),
+      candidate('/backdrop-z.jpg', 'backdrop', 4, null, 1920, 1080),
+      candidate('/backdrop-y.jpg', 'backdrop', 4, null, 1920, 1080),
+      candidate('/backdrop-large.jpg', 'backdrop', 4, null, 3840, 2160),
     ];
-    let active = 0;
-    let maximumActive = 0;
-    let releaseAll = false;
-    const releaseBlockedLoads: (() => void)[] = [];
-    const startedTypes: NormalizedImageCandidate['type'][] = [];
-    const loadFingerprint: ImageFingerprintLoader = async (image) => {
-      active += 1;
-      maximumActive = Math.max(maximumActive, active);
-      startedTypes.push(image.type);
-      if (!releaseAll) {
-        await new Promise<void>((resolve) => {
-          releaseBlockedLoads.push(resolve);
-        });
-      }
-      active -= 1;
-      return { hash: 1n, aspectRatio: 1 };
-    };
-    const prepared = prepareSelectableImages(images, loadFingerprint);
+    const result = await prepareSelectableImages(images);
 
-    try {
-      await vi.waitFor(() => {
-        expect(releaseBlockedLoads).toHaveLength(4);
-      });
-      expect(maximumActive).toBe(4);
-      releaseBlockedLoads.shift()?.();
-      await vi.waitFor(() => {
-        expect(startedTypes).toContain('poster');
-        expect(startedTypes).toContain('backdrop');
-      });
-      expect(maximumActive).toBe(4);
-    } finally {
-      releaseAll = true;
-      releaseBlockedLoads.splice(0).forEach((release) => release());
-      await prepared;
-    }
+    expect(result.map((image) => image.providerImageId)).toEqual([
+      '/poster-large.jpg',
+      '/poster-small.jpg',
+      '/backdrop-large.jpg',
+      '/backdrop-y.jpg',
+      '/backdrop-z.jpg',
+    ]);
   });
 });

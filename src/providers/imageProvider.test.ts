@@ -84,6 +84,29 @@ describe('defaultImageSelection', () => {
     ]);
   });
 
+  it('uses higher resolution and stable identity as default-selection tie-breakers when rank matches', () => {
+    const equalRankImages: NormalizedImageCandidate[] = [
+      { providerKey: 'tmdb', providerImageId: '/poster-small.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/poster-small.jpg', width: 100, height: 150, language: 'en', rank: 1, attribution: 'TMDB' },
+      { providerKey: 'tmdb', providerImageId: '/poster-large.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/poster-large.jpg', width: 200, height: 300, language: 'en', rank: 1, attribution: 'TMDB' },
+      { providerKey: 'tmdb', providerImageId: '/backdrop-z.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop-z.jpg', width: 1920, height: 1080, language: null, rank: 1, attribution: 'TMDB' },
+      { providerKey: 'tmdb', providerImageId: '/backdrop-y.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop-y.jpg', width: 1920, height: 1080, language: null, rank: 1, attribution: 'TMDB' },
+      { providerKey: 'tmdb', providerImageId: '/backdrop-large.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 1 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop-large.jpg', width: 3840, height: 2160, language: null, rank: 1, attribution: 'TMDB' },
+    ];
+
+    const selection = defaultImageSelection(
+      { poster: null, heroImage: null, backdrops: [] },
+      equalRankImages,
+      allDestinationsAvailable,
+    );
+
+    expect(selection.poster?.providerImageId).toBe('/poster-large.jpg');
+    expect(selection.heroImage?.providerImageId).toBe('/backdrop-large.jpg');
+    expect(selection.backdrops.map((image) => image.providerImageId)).toEqual([
+      '/backdrop-y.jpg',
+      '/backdrop-z.jpg',
+    ]);
+  });
+
   it('only defaults destinations that are available and unmapped', () => {
     const selection = defaultImageSelection(
       { poster: null, heroImage: null, backdrops: [] },

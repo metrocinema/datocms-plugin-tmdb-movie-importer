@@ -1,5 +1,6 @@
 import type { CurrentMovieValues } from '../domain/fieldComparison';
 import type { NormalizedImageCandidate } from '../domain/movie';
+import { compareRankResolutionThenIdentity } from './imageOrdering';
 
 export type ImageSelection = {
   poster: NormalizedImageCandidate | null;
@@ -23,7 +24,9 @@ export function isEnglishPoster(image: NormalizedImageCandidate): boolean {
 }
 
 function ranked(images: NormalizedImageCandidate[], type: 'poster' | 'backdrop'): NormalizedImageCandidate[] {
-  return images.filter((image) => image.type === type).sort((a, b) => a.rank - b.rank);
+  return images
+    .filter((image) => image.type === type)
+    .sort(compareRankResolutionThenIdentity);
 }
 
 export function sameImage(
