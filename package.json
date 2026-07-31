@@ -1,7 +1,41 @@
 {
-  "name": "mcs-datocms-plugin",
-  "version": "0.1.0",
-  "private": true,
+  "name": "datocms-plugin-tmdb-movie-importer",
+  "version": "0.1.0-next.0",
+  "description": "Import movie metadata, cast, crew, and images from TMDB into DatoCMS.",
+  "homepage": "https://github.com/metrocinema/mcs-datocms-plugin",
+  "keywords": [
+    "datocms-plugin",
+    "datocms",
+    "tmdb",
+    "movie-importer"
+  ],
+  "author": "Metro Cinema",
+  "publisher": "Metro Cinema",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/metrocinema/mcs-datocms-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/metrocinema/mcs-datocms-plugin/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "docs/marketplace/cover.webp",
+    "docs/marketplace/preview.webp"
+  ],
+  "datoCmsPlugin": {
+    "title": "TMDB Movie Importer",
+    "entryPoint": "dist/index.html",
+    "permissions": [
+      "currentUserAccessToken"
+    ],
+    "coverImage": "docs/marketplace/cover.webp",
+    "previewImage": "docs/marketplace/preview.webp"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5174 --strictPort",
@@ -9,24 +43,26 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false && tsc -p tsconfig.node.json --noEmit --pretty false",
-    "lint": "tsc -p tsconfig.json --noEmit --pretty false && tsc -p tsconfig.node.json --noEmit --pretty false"
+    "lint": "tsc -p tsconfig.json --noEmit --pretty false && tsc -p tsconfig.node.json --noEmit --pretty false",
+    "verify:release": "npm run lint && npm test && npm run build",
+    "prepack": "npm run verify:release"
   },
   "dependencies": {
     "@datocms/cma-client": "5.5.5",
-    "@vitejs/plugin-react": "latest",
     "datocms-plugin-sdk": "2.2.6",
     "datocms-react-ui": "2.2.6",
-    "react": "latest",
-    "react-dom": "latest"
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "latest",
-    "@testing-library/react": "latest",
-    "@testing-library/user-event": "latest",
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "jsdom": "latest",
+    "@testing-library/jest-dom": "7.0.0",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "jsdom": "29.1.1",
     "typescript": "7.0.2",
     "vite": "8.1.5",
     "vitest": "4.1.10"
