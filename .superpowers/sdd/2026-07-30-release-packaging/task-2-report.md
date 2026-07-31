@@ -64,3 +64,35 @@ The focused tests were deliberately run red first: before the UI implementation,
 
 - This task does not prove a live DatoCMS sandbox, Cloudflare Pages deployment, npm canary, Marketplace listing, or private-to-Marketplace migration. Those require separate authority and are documented as future release operations.
 - Task 3 Marketplace media and Task 4 package/CI verification remain separate release-packaging tasks.
+
+## Fix round: package legal carve-out and final identity string
+
+### What changed
+
+- `LICENSE` keeps the complete standard MIT grant intact, then adds a separate `Third-party TMDB assets and content` notice. It limits the MIT grant to original TMDB Movie Importer plugin code and documentation created by Metro Cinema, and expressly excludes the bundled TMDB logo, TMDB trademarks, TMDB data, TMDB images, and other TMDB content. Those materials remain governed by their owners and the TMDB API Terms of Use.
+- `src/releaseManifest.test.ts` adds a regression test that requires both the standard MIT grant and the explicit TMDB carve-out in the root license file. Because `LICENSE` is a declared npm package file, this covers the package legal surface rather than explanatory documentation alone.
+- `src/main.tsx` now logs `TMDB Movie Importer render failed` rather than `MCS Movie Importer render failed`.
+
+### Red-green evidence
+
+The new legal-surface test was run before the license edit and failed because the initial MIT-only file did not contain the required original-code limitation or TMDB exclusion.
+
+### Covering checks
+
+1. `npm test -- src/releaseManifest.test.ts`
+   - Passed after the fix: 1 test file, 4 tests.
+2. `rg -n "TMDB Movie Importer render failed|MCS Movie Importer render failed" src/main.tsx`
+   - Passed: only `TMDB Movie Importer render failed` remains.
+3. `npm pack --dry-run --json`
+   - Passed. Its prepack hook ran `npm run verify:release`: lint/typecheck passed, 31 test files and 325 tests passed, and the production build passed. The package manifest lists `LICENSE` in the resulting tarball.
+
+### Files changed in this fix round
+
+- `LICENSE`
+- `src/releaseManifest.test.ts`
+- `src/main.tsx`
+- `.superpowers/sdd/2026-07-30-release-packaging/task-2-report.md`
+
+### Remaining concerns
+
+The dry-run validates package contents locally, but it is not npm publication, a DatoCMS Marketplace acceptance test, a Cloudflare deployment, or a live DatoCMS sandbox test.

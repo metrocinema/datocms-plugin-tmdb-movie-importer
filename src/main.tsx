@@ -28,7 +28,7 @@ class PluginErrorBoundary extends React.Component<{ children: React.ReactNode },
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('MCS Movie Importer render failed', error, info);
+    console.error('TMDB Movie Importer render failed', error, info);
   }
 
   render() {

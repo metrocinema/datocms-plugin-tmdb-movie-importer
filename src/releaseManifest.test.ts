@@ -34,6 +34,10 @@ async function readManifest() {
   return JSON.parse(content) as PackageManifest;
 }
 
+async function readLicense() {
+  return readFile(resolve(process.cwd(), 'LICENSE'), 'utf8');
+}
+
 describe('release package manifest', () => {
   it('declares the Marketplace package contract and excludes source files', async () => {
     const manifest = await readManifest();
@@ -109,5 +113,14 @@ describe('release package manifest', () => {
 
     expect(config.base).toBe('./');
     expect(config.build.sourcemap).toBe(false);
+  });
+
+  it('keeps the MIT grant for plugin code while excluding bundled TMDB assets and content', async () => {
+    const license = await readLicense();
+
+    expect(license).toContain('Permission is hereby granted, free of charge');
+    expect(license).toContain('The MIT license above applies only to original TMDB Movie Importer plugin code and documentation created by Metro Cinema.');
+    expect(license).toContain('The bundled TMDB logo, TMDB trademarks, TMDB data, TMDB images, and other TMDB content are excluded from this MIT license.');
+    expect(license).toContain('They remain governed by their respective owners and the TMDB API Terms of Use.');
   });
 });
