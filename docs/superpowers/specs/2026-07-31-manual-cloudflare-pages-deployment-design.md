@@ -10,7 +10,7 @@ The workflow deploys the already-created Cloudflare Pages Direct Upload project 
 
 ### Recommended: manually triggered GitHub Actions deployment
 
-Use `workflow_dispatch` to build, verify, and deploy the selected `main` commit through Wrangler. Associate the job with a protected GitHub `production` environment and expose the stable Pages URL in the deployment record.
+Use `workflow_dispatch` to build, verify, and deploy the selected `main` commit through Wrangler. Associate the job with a GitHub `production` environment restricted to `main`, and expose the stable Pages URL in the deployment record.
 
 This keeps deployment explicit while moving build provenance, logs, and Cloudflare credentials into CI.
 
@@ -46,7 +46,9 @@ The workflow reads two secrets from the `production` GitHub environment:
 - `CLOUDFLARE_API_TOKEN`: a least-privileged token with Cloudflare Pages Edit access for the Tinch.Co account.
 - `CLOUDFLARE_ACCOUNT_ID`: the Tinch.Co account identifier.
 
-Credentials never enter source, build artifacts, workflow logs, or documentation. Environment protection and required reviewers are configured in GitHub, not encoded in the workflow.
+Credentials never enter source, build artifacts, workflow logs, or documentation. The environment uses a custom deployment branch policy that allows only `main` to access those credentials.
+
+This repository is private on GitHub Team. GitHub does not offer required environment reviewers for private repositories on that plan, so the person explicitly triggering `workflow_dispatch` is the release approver. A second GitHub approval gate would require making the repository public or upgrading to GitHub Enterprise; neither is part of this design.
 
 The existing local user token must not be copied automatically into GitHub. A purpose-specific CI token should be created and stored separately.
 
@@ -76,7 +78,7 @@ Before merge:
 After merge and credential setup:
 
 1. Trigger the workflow from `main`.
-2. Confirm the GitHub environment gate appears before deployment.
+2. Confirm a non-`main` dispatch fails and cannot access the production deployment job.
 3. Confirm the workflow records commit SHA, deployment URL, and successful GitHub Deployment status.
 4. Verify the stable Pages HTML, JavaScript, and CSS return HTTP 200.
 5. Test the stable URL in the DatoCMS sandbox before changing any non-sandbox installation.
