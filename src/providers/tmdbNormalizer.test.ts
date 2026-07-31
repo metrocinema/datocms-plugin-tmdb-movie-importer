@@ -44,7 +44,7 @@ describe('normalizeTmdbMovie', () => {
       providerKey: 'tmdb',
       providerImageId: completeMovie.images.backdrops[0].file_path,
       originalUrl: `https://image.tmdb.org/t/p/original${completeMovie.images.backdrops[0].file_path}`,
-      previewUrl: `https://image.tmdb.org/t/p/w780${completeMovie.images.backdrops[0].file_path}`,
+      previewUrl: `https://image.tmdb.org/t/p/w300${completeMovie.images.backdrops[0].file_path}`,
       language: null,
       attribution: 'TMDB',
     });

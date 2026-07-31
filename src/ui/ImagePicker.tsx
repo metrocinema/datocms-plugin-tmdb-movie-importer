@@ -146,6 +146,8 @@ function ImageOption({ image, index, inputType, inputName, label, selected, onCh
               src={image.previewUrl ?? image.originalUrl}
               alt={`${capitalize(imageKind)} option ${optionNumber}`}
               loading="lazy"
+              decoding="async"
+              fetchPriority="low"
               width={120}
               height={image.type === 'poster' ? 180 : 68}
               onError={() => setPreviewFailed(true)}
@@ -267,6 +269,8 @@ function ImagePreview({ image, index }: { image: NormalizedImageCandidate; index
             src={image.previewUrl ?? image.originalUrl}
             alt={`Backdrop option ${optionNumber}`}
             loading="lazy"
+            decoding="async"
+            fetchPriority="low"
             width={120}
             height={68}
             onError={() => setPreviewFailed(true)}

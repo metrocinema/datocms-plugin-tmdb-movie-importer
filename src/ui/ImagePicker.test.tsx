@@ -108,6 +108,16 @@ describe('ImagePicker', () => {
     expect(backdropReveal.querySelector('.movie-import-modal__visually-hidden')).toHaveTextContent('backdrops');
   });
 
+  it('defers candidate image fetching and decoding to protect modal scrolling', () => {
+    renderPicker();
+
+    for (const preview of screen.getAllByRole('img', { name: /(?:Poster|Backdrop) option/i })) {
+      expect(preview).toHaveAttribute('loading', 'lazy');
+      expect(preview).toHaveAttribute('decoding', 'async');
+      expect(preview).toHaveAttribute('fetchpriority', 'low');
+    }
+  });
+
   it('reveals ten more posters without revealing more backdrops', async () => {
     renderPicker();
 
