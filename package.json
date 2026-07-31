@@ -44,7 +44,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false && tsc -p tsconfig.node.json --noEmit --pretty false",
     "lint": "tsc -p tsconfig.json --noEmit --pretty false && tsc -p tsconfig.node.json --noEmit --pretty false",
-    "verify:release": "npm run lint && npm test && npm run build",
+    "verify:package": "node scripts/verify-package.mjs",
+    "verify:release": "npm run lint && npm test && npm run build && npm run verify:package",
     "prepack": "npm run verify:release"
   },
   "dependencies": {

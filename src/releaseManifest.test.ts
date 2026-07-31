@@ -77,7 +77,8 @@ describe('release package manifest', () => {
       'docs/marketplace/preview.webp',
     ]);
     expect(manifest.scripts).toMatchObject({
-      'verify:release': 'npm run lint && npm test && npm run build',
+      'verify:package': 'node scripts/verify-package.mjs',
+      'verify:release': 'npm run lint && npm test && npm run build && npm run verify:package',
       prepack: 'npm run verify:release',
     });
   });
