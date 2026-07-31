@@ -308,7 +308,7 @@ describe('ImportModal', () => {
 
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(consoleError).not.toHaveBeenCalledWith(
-        'MCS Movie Importer person matching failed',
+        'TMDB Movie Importer person matching failed',
         expect.anything(),
       );
       expect(unhandledRejection).not.toHaveBeenCalled();
@@ -1170,7 +1170,7 @@ describe('ImportModal data flow', () => {
       expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })).toHaveLength(1);
       expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })[0]).toHaveAttribute('src', movieWithBackdrops.images[2]!.originalUrl);
       await waitFor(() => expect(consoleError).toHaveBeenCalledWith(
-        'MCS Movie Importer artwork preparation failed',
+        'TMDB Movie Importer artwork preparation failed',
         { message: '[object Object]' },
       ));
       expect(JSON.stringify(consoleError.mock.calls)).not.toContain('secret-image.jpg');
@@ -1201,7 +1201,7 @@ describe('ImportModal data flow', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
 
       await waitFor(() => expect(consoleError).toHaveBeenCalledWith(
-        'MCS Movie Importer person matching failed',
+        'TMDB Movie Importer person matching failed',
         { message: '[object Object]' },
       ));
       expect(JSON.stringify(consoleError.mock.calls)).not.toContain('secret-current-user-token');

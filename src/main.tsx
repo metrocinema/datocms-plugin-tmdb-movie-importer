@@ -143,12 +143,12 @@ connect({
               environment: ctx.environment,
             },
             preparationLocale,
-            (timing) => console.info('MCS Movie Importer upload performance', timing),
+            (timing) => console.info('TMDB Movie Importer upload performance', timing),
           ),
           {
             personModelId: latestSchema?.models[latestParams.personModelApiKey]?.id,
             onProgress,
-            onPhaseTiming: (timing) => console.info('MCS Movie Importer performance', timing),
+            onPhaseTiming: (timing) => console.info('TMDB Movie Importer performance', timing),
           },
         );
       },
