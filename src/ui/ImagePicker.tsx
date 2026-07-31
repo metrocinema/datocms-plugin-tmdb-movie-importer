@@ -89,7 +89,7 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
           <h4>Backdrop images</h4>
           <p>Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.</p>
         </div>
-        {backdrops.length > 0 ? (
+        {backdrops.length > 0 || allowHeroImage ? (
           <div className="movie-import-modal__image-grid">
             {allowHeroImage ? (
               <NoHeroImageOption
@@ -99,7 +99,8 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
             ) : null}
             {backdropOptions}
           </div>
-        ) : <p className="movie-import-modal__empty">TMDB did not return any backdrop candidates.</p>}
+        ) : null}
+        {backdrops.length === 0 ? <p className="movie-import-modal__empty">TMDB did not return any backdrop candidates.</p> : null}
         {visibleBackdrops.length < backdrops.length ? (
           <div className="movie-import-modal__image-reveal">
             <Button

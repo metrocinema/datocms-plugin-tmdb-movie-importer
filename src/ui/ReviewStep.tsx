@@ -121,7 +121,15 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
             <div id="images">
               <Section title="Images">
                 <p className="movie-import-modal__section-help">Choose exactly which TMDB artwork destinations to import.</p>
-                <p className="movie-import-modal__section-impact">{formatImageImpact(imageDestinationCounts)}</p>
+                <p
+                  aria-atomic="true"
+                  aria-label="Image import impact"
+                  aria-live="polite"
+                  className="movie-import-modal__section-impact"
+                  role="status"
+                >
+                  {formatImageImpact(imageDestinationCounts)}
+                </p>
                 <ImagePicker images={images} selection={imageSelection} allowPoster={hasPosterDestination} allowHeroImage={hasHeroDestination} allowOtherImages={hasOtherImagesDestination} onTogglePoster={onTogglePoster} onSelectHeroImage={onSelectHeroImage} onToggleBackdrop={onToggleBackdrop} />
               </Section>
             </div>
@@ -186,7 +194,7 @@ function formatImageImpact(counts: ReturnType<typeof countSelectedImageDestinati
     counts.otherImages > 0 ? `${counts.otherImages} Other ${pluralize(counts.otherImages, 'Image')}` : null,
   ].filter(Boolean);
 
-  return `${formatList(parts)} selected for import.`;
+  return `${formatList(parts)} selected for upload after confirmation.`;
 }
 
 function formatPeopleImpact(createCount: number, reuseCount: number) {

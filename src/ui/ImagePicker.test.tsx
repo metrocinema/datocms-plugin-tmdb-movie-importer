@@ -225,6 +225,24 @@ describe('ImagePicker', () => {
     expect(screen.getAllByRole('checkbox', { name: /Add to Other Images/i })).toHaveLength(10);
   });
 
+  it('keeps the selected Hero opt-out visible when TMDB returns no backdrops', () => {
+    render(
+      <ImagePicker
+        images={[]}
+        selection={{ poster: null, heroImage: null, backdrops: [] }}
+        allowPoster={false}
+        allowHeroImage
+        allowOtherImages={false}
+        onTogglePoster={vi.fn()}
+        onSelectHeroImage={vi.fn()}
+        onToggleBackdrop={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('radio', { name: 'Do not import a Hero Image' })).toBeChecked();
+    expect(screen.getByText('TMDB did not return any backdrop candidates.')).toBeInTheDocument();
+  });
+
   it('uses destination-specific accessible names with stable provider identity', () => {
     renderPicker();
 

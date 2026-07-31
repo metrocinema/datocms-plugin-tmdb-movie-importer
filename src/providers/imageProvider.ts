@@ -1,6 +1,5 @@
 import type { CurrentMovieValues } from '../domain/fieldComparison';
 import type { NormalizedImageCandidate } from '../domain/movie';
-import { compareRankResolutionThenIdentity } from './imageOrdering';
 
 export type ImageSelection = {
   poster: NormalizedImageCandidate | null;
@@ -23,12 +22,6 @@ export function isEnglishPoster(image: NormalizedImageCandidate): boolean {
   return image.type === 'poster' && image.language === 'en';
 }
 
-function ranked(images: NormalizedImageCandidate[], type: 'poster' | 'backdrop'): NormalizedImageCandidate[] {
-  return images
-    .filter((image) => image.type === type)
-    .sort(compareRankResolutionThenIdentity);
-}
-
 export function sameImage(
   first: NormalizedImageCandidate,
   second: NormalizedImageCandidate,
@@ -38,27 +31,14 @@ export function sameImage(
 }
 
 export function defaultImageSelection(
-  current: CurrentMovieValues,
-  images: NormalizedImageCandidate[],
-  availability: ImageDestinationAvailability,
+  _current: CurrentMovieValues,
+  _images: NormalizedImageCandidate[],
+  _availability: ImageDestinationAvailability,
 ): ImageSelection {
-  const posterEmpty = current.poster === null || current.poster === undefined || current.poster === '';
-  const heroImageEmpty = current.heroImage === null || current.heroImage === undefined || current.heroImage === '';
-  const backdropsEmpty = !Array.isArray(current.backdrops) || current.backdrops.length === 0;
-  const rankedBackdrops = ranked(images, 'backdrop');
-  const heroImage = availability.heroImage && heroImageEmpty
-    ? rankedBackdrops[0] ?? null
-    : null;
-  const otherCandidates = heroImage
-    ? rankedBackdrops.filter((candidate) => !sameImage(candidate, heroImage))
-    : rankedBackdrops;
-
   return {
-    poster: availability.poster && posterEmpty
-      ? ranked(images, 'poster').find(isEnglishPoster) ?? null
-      : null,
-    heroImage,
-    backdrops: availability.backdrops && backdropsEmpty ? otherCandidates.slice(0, 5) : [],
+    poster: null,
+    heroImage: null,
+    backdrops: [],
   };
 }
 
