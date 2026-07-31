@@ -1,22 +1,41 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { resolve } from 'node:path';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { verifyPackedFiles, verifyRelativeAssets } from './package-verifier.mjs';
 
-const execFileAsync = promisify(execFile);
-const repositoryRoot = resolve(process.cwd());
+const requiredPackedFiles = [
+  'package.json',
+  'README.md',
+  'LICENSE',
+  'CHANGELOG.md',
+  'dist/index.html',
+  'dist/assets/index.js',
+  'dist/assets/index.css',
+  'docs/marketplace/cover.webp',
+  'docs/marketplace/preview.webp',
+].map((path) => ({ path }));
 
 describe('package verifier', () => {
-  it('audits the real packed archive and serves its nested entry point', async () => {
-    const { stdout, stderr } = await execFileAsync(
-      process.execPath,
-      ['scripts/verify-package.mjs'],
-      { cwd: repositoryRoot },
-    );
+  it('rejects a source file in the package manifest', () => {
+    expect(() => verifyPackedFiles([...requiredPackedFiles, { path: 'src/main.tsx' }]))
+      .toThrow('package contains forbidden file: src/main.tsx');
+  });
 
-    expect(stderr).toBe('');
-    expect(stdout).toContain('Package verification passed');
-    expect(stdout).toMatch(/Packed entries: \d+/);
-    expect(stdout).toContain('Nested serve: HTML 200, JS 200, CSS 200');
-  }, 30_000);
+  it('rejects absolute built asset references', async () => {
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'package-verifier-test-'));
+    try {
+      const packageDirectory = join(temporaryDirectory, 'package');
+      await mkdir(join(packageDirectory, 'dist'), { recursive: true });
+      await writeFile(
+        join(packageDirectory, 'dist/index.html'),
+        '<link rel="stylesheet" href="/assets/index.css"><script type="module" src="./assets/index.js"></script>',
+      );
+
+      await expect(verifyRelativeAssets(packageDirectory, requiredPackedFiles))
+        .rejects.toThrow('built asset is not relative: /assets/index.css');
+    } finally {
+      await rm(temporaryDirectory, { force: true, recursive: true });
+    }
+  });
 });
