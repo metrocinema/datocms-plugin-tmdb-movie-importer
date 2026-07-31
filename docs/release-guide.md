@@ -21,7 +21,7 @@ Keep the private installation in place until the Marketplace installation has be
 
 ## Private deployment
 
-The normal private release path is the manually triggered GitHub Actions workflow named **Deploy private plugin to Cloudflare Pages**.
+The normal private release path is the manually triggered GitHub Actions workflow named **Deploy private plugin to Cloudflare Pages**, which runs in GitHub's `production` environment.
 
 1. Confirm the approved commit is present on `main`, the validation workflow passed, and the working release version is recorded.
 2. Open the workflow in GitHub Actions, choose **Run workflow**, and select `main`. Triggering this workflow is the production deployment approval.
