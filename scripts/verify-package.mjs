@@ -4,7 +4,13 @@ import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
-import { verifyManifest, verifyMarketplaceMetadata, verifyPackedFiles, verifyRelativeAssets } from './package-verifier.mjs';
+import {
+  verifyManifest,
+  verifyMarketplaceMetadata,
+  verifyMatchingPackedFiles,
+  verifyPackedFiles,
+  verifyRelativeAssets,
+} from './package-verifier.mjs';
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = process.cwd();
@@ -100,6 +106,8 @@ async function main() {
 
     const { manifest: tarballManifest, tarballPath } = await createTarball(temporaryDirectory);
     verifyManifest(tarballManifest);
+    verifyPackedFiles(tarballManifest.files);
+    verifyMatchingPackedFiles(dryRunManifest.files, tarballManifest.files);
     const extractDirectory = join(temporaryDirectory, 'extracted');
     await mkdir(extractDirectory);
     await execFileAsync('tar', ['-xzf', tarballPath, '-C', extractDirectory]);

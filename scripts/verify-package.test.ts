@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { verifyPackedFiles, verifyRelativeAssets } from './package-verifier.mjs';
+import { verifyMatchingPackedFiles, verifyPackedFiles, verifyRelativeAssets } from './package-verifier.mjs';
 
 const requiredPackedFiles = [
   'package.json',
@@ -20,6 +20,13 @@ describe('package verifier', () => {
   it('rejects a source file in the package manifest', () => {
     expect(() => verifyPackedFiles([...requiredPackedFiles, { path: 'src/main.tsx' }]))
       .toThrow('package contains forbidden file: src/main.tsx');
+  });
+
+  it('rejects a tarball file list that differs from its dry-run manifest', () => {
+    expect(() => verifyMatchingPackedFiles(
+      requiredPackedFiles,
+      [...requiredPackedFiles, { path: 'src/main.tsx' }],
+    )).toThrow('npm pack dry-run and tarball file lists differ: added src/main.tsx');
   });
 
   it('rejects absolute built asset references', async () => {

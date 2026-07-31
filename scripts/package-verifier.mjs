@@ -50,6 +50,26 @@ export function verifyPackedFiles(files) {
   invariant(!forbiddenPath, `package contains forbidden file: ${forbiddenPath}`);
 }
 
+export function verifyMatchingPackedFiles(dryRunFiles, tarballFiles) {
+  const dryRunPaths = new Set(dryRunFiles.map((file) => file.path));
+  const tarballPaths = new Set(tarballFiles.map((file) => file.path));
+  const differences = [
+    ...[...tarballPaths]
+      .filter((path) => !dryRunPaths.has(path))
+      .sort()
+      .map((path) => `added ${path}`),
+    ...[...dryRunPaths]
+      .filter((path) => !tarballPaths.has(path))
+      .sort()
+      .map((path) => `removed ${path}`),
+  ];
+
+  invariant(
+    differences.length === 0,
+    `npm pack dry-run and tarball file lists differ: ${differences.join(', ')}`,
+  );
+}
+
 export function verifyMarketplaceMetadata(manifest) {
   invariant(
     manifest.description === 'Import movie metadata, cast, crew, and images from TMDB into DatoCMS.',
