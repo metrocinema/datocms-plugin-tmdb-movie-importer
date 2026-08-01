@@ -2,7 +2,7 @@
 
 **Status:** Historical implementation plan; completed with later revisions
 
-The shared grid and progressive reveal shipped. Browser fingerprinting and automatic artwork preselection were later removed. Current behavior keeps ranked candidates, starts every artwork destination unselected, and selects only the Hero **Do not import** option by default. See the [current README](../../../README.md) and the companion design's current-implementation note.
+The shared grid and progressive reveal shipped. Browser fingerprinting and automatic artwork preselection were later removed. Current behavior keeps English posters in TMDB rank order, prioritizes exact 3840x2160 backdrops before TMDB rank, starts every artwork destination unselected, and selects the Poster and Hero **Do not import** options by default when those destinations are configured. See the [current README](../../../README.md) and the companion design's current-implementation note.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

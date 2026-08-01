@@ -7,10 +7,11 @@
 
 The shared backdrop grid, mutually exclusive Hero image and Other images assignments, English-poster filtering, and independent ten-at-a-time reveal controls are implemented.
 
-Two approved ideas below were intentionally superseded:
+Three approved ideas below were intentionally superseded:
 
-- Artwork is now fully opt-in. No poster or backdrop candidate starts selected; the explicit Hero **Do not import** card starts selected when Hero image is configured.
-- The Review changes flow no longer downloads and fingerprints artwork for visual duplicate suppression. It preserves normalized TMDB candidates and ordering, with resolution and stable identity used only as equal-rank tie-breakers. The existing `checking_artwork` activity now covers lightweight sorting and filtering only; it does not represent fingerprint downloads.
+- Artwork is now fully opt-in. No poster or backdrop candidate starts selected; the explicit Poster and Hero **Do not import** cards start selected when those destinations are configured.
+- The Review changes flow no longer downloads and fingerprints artwork for visual duplicate suppression. It preserves normalized TMDB candidates and avoids browser-side deduplication. The existing `checking_artwork` activity now covers lightweight sorting and filtering only; it does not represent fingerprint downloads.
+- Image ordering now keeps English posters in TMDB rank order, while backdrops prioritize exact 3840x2160 candidates before applying TMDB rank, resolution, and stable-identity tie-breakers.
 
 The grid uses smaller, lazily decoded preview images and offscreen rendering containment, while selected assets still upload from their original-resolution URLs. The remaining sections preserve the original approved design and should not override the root README or current source.
 
