@@ -55,6 +55,14 @@ const movieWithNonEnglishPosters: NormalizedMovie = {
   ],
 };
 
+const movieWithoutEnglishPosters: NormalizedMovie = {
+  ...movie,
+  images: [
+    { providerKey: 'tmdb', providerImageId: '/textless-poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/textless-poster.jpg', width: 100, height: 150, language: null, rank: 1, attribution: 'TMDB' },
+    { providerKey: 'tmdb', providerImageId: '/spanish-poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/spanish-poster.jpg', width: 100, height: 150, language: 'es', rank: 2, attribution: 'TMDB' },
+  ],
+};
+
 const movieWithSamePersonInTwoRoles: NormalizedMovie = {
   ...movie,
   directors: [{ tmdbId: 99, name: 'Multi-Hyphenate Person', order: 0, role: 'director' }],
@@ -637,7 +645,8 @@ describe('ImportModal', () => {
     expect(imageStatus).toHaveTextContent('No image destinations selected.');
     expect(imageStatus).toHaveAttribute('aria-live', 'polite');
     expect(imageStatus).toHaveAttribute('aria-atomic', 'true');
-    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Do not import a Poster' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Use as Poster/i })).not.toBeChecked();
     expect(screen.getByText('Assign each backdrop to Hero Image, Other Images, or neither. One image cannot be used for both destinations.')).toBeInTheDocument();
     expect(screen.getByText('Directors')).toBeInTheDocument();
     expect(screen.getByText('Actors')).toBeInTheDocument();
@@ -667,7 +676,8 @@ describe('ImportModal data flow', () => {
     candidateImages.forEach((image) => {
       expect(image.parentElement).toHaveClass('movie-import-modal__image-canvas');
     });
-    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Do not import a Poster' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Use as Poster/i })).not.toBeChecked();
     expect(screen.getByRole('radio', { name: 'Do not import a Hero Image' })).toBeChecked();
     const heroOptions = screen.getAllByRole('radio', { name: /Use as Hero Image/i });
     const otherImageOptions = screen.getAllByRole('checkbox', { name: /Add to Other Images/i });
@@ -677,7 +687,7 @@ describe('ImportModal data flow', () => {
     expect(otherImageOptions[1]).not.toBeChecked();
     expect(screen.getAllByText('Other Images').length).toBeGreaterThan(0);
 
-    await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
+    await userEvent.click(screen.getByRole('radio', { name: /Use as Poster/i }));
     await userEvent.click(heroOptions[0]);
     await userEvent.click(otherImageOptions[1]);
     expect(screen.getByText('1 poster, 1 Hero Image, and 1 Other Image selected for upload after confirmation.')).toBeInTheDocument();
@@ -748,7 +758,7 @@ describe('ImportModal data flow', () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null, backdrops: [] }} mappedFields={['title', 'poster', 'heroImage', 'backdrops']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithBackdrops} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
-    await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
+    await userEvent.click(screen.getByRole('radio', { name: /Use as Poster/i }));
     await userEvent.click(screen.getAllByRole('checkbox', { name: /Add to Other Images/i })[1]);
     await userEvent.click(screen.getByRole('radio', { name: 'Do not import a Hero Image' }));
     expect(screen.getByText('1 poster and 1 Other Image selected for upload after confirmation.')).toBeInTheDocument();
@@ -1088,13 +1098,15 @@ describe('ImportModal data flow', () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
 
     await reachReview();
-    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Do not import a Poster' })).toBeChecked();
+    const posterOption = screen.getByRole('radio', { name: /Use as Poster/i });
+    expect(posterOption).not.toBeChecked();
     expect(screen.getByRole('img', { name: 'Poster option 1' })).toHaveAttribute('loading', 'lazy');
     expect(screen.getByRole('img', { name: 'Poster option 1' })).toHaveAttribute('width', '120');
     expect(screen.getByRole('img', { name: 'Poster option 1' })).toHaveAttribute('height', '180');
-    await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
-    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).toBeChecked();
-    await userEvent.click(screen.getByRole('checkbox', { name: /Use as poster/i }));
+    await userEvent.click(posterOption);
+    expect(posterOption).toBeChecked();
+    await userEvent.click(screen.getByRole('radio', { name: 'Do not import a Poster' }));
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
 
@@ -1109,7 +1121,8 @@ describe('ImportModal data flow', () => {
     await reachReview();
 
     expect(screen.getByRole('img', { name: 'Example Movie poster' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
-    expect(screen.getByRole('checkbox', { name: /Use as poster/i })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Do not import a Poster' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Use as Poster/i })).not.toBeChecked();
     expect(screen.getByRole('img', { name: 'Poster option 1' })).toHaveAttribute('src', 'https://image.tmdb.org/t/p/original/english-poster.jpg');
     expect(screen.queryByText('textless-poster.jpg')).not.toBeInTheDocument();
 
@@ -1292,7 +1305,7 @@ describe('ImportModal data flow', () => {
     await reachReview();
 
     const fieldToggle = screen.getByRole('checkbox', { name: 'Use proposed Title' });
-    const imageToggle = screen.getByRole('checkbox', { name: /Use as poster/i });
+    const imageToggle = screen.getByRole('radio', { name: /Use as Poster/i });
     expect(fieldToggle.closest('.movie-import-modal__field-table-choice')).toHaveStyle({ minHeight: '44px' });
     expect(imageToggle.closest('.movie-import-modal__image-option')).toHaveStyle({ minHeight: '44px' });
   });
@@ -1341,5 +1354,16 @@ describe('ImportModal data flow', () => {
 
     expect(screen.getByText('Matched by exact name.')).toBeInTheDocument();
     expect(screen.queryByText('Matched by exact normalized name because no TMDB person ID match was available.')).not.toBeInTheDocument();
+  });
+
+  it('keeps the selected Poster opt-out visible when no English posters are available', async () => {
+    const execute = vi.fn();
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithoutEnglishPosters} resolvePeople={async () => []} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);
+
+    await reachReview();
+
+    expect(screen.getByRole('radio', { name: 'Do not import a Poster' })).toBeChecked();
+    expect(screen.getByText('TMDB did not return any English-language poster candidates.')).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Use as Poster/i })).not.toBeInTheDocument();
   });
 });

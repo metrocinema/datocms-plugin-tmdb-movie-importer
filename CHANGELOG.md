@@ -6,7 +6,7 @@ All notable changes to TMDB Movie Importer are documented here.
 
 ### Changed
 
-- Made artwork imports fully opt-in. Poster, Hero image, and Other images now start unselected; the explicit Hero **Do not import** option starts selected when that destination is configured.
+- Made artwork imports fully opt-in. Poster, Hero image, and Other images now start unselected; explicit Poster and Hero **Do not import** options start selected when those destinations are configured.
 - Consolidated Hero image and Other images into one mutually exclusive backdrop grid while keeping Poster separate.
 - Replaced first-ten truncation with independent ten-at-a-time reveal controls for posters and backdrops.
 - Reduced Review changes image cost with smaller preview URLs, lazy asynchronous decoding, and offscreen card containment while retaining original-resolution uploads.
@@ -14,7 +14,7 @@ All notable changes to TMDB Movie Importer are documented here.
 
 ### Fixed
 
-- Kept the Hero **Do not import** option visible when TMDB returns no backdrop candidates.
+- Kept the Poster and Hero **Do not import** options visible when TMDB returns no candidates for those destinations.
 - Hardened private release operations with a documented, least-privileged local Wrangler recovery path.
 
 ### Maintenance

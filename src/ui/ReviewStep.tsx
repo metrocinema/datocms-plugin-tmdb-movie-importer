@@ -25,7 +25,7 @@ type ReviewStepProps = {
   onResolvePerson: (candidate: PersonCandidate, value: 'create' | `reuse:${string}`) => void;
   images: NormalizedImageCandidate[];
   imageSelection: ImageSelection;
-  onTogglePoster: (image: NormalizedImageCandidate) => void;
+  onTogglePoster: (image: NormalizedImageCandidate | null) => void;
   onSelectHeroImage: (image: NormalizedImageCandidate | null) => void;
   onToggleBackdrop: (image: NormalizedImageCandidate) => void;
 };

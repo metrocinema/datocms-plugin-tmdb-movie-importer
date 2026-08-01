@@ -13,7 +13,7 @@ type ImagePickerProps = {
   allowPoster: boolean;
   allowHeroImage: boolean;
   allowOtherImages: boolean;
-  onTogglePoster: (image: NormalizedImageCandidate) => void;
+  onTogglePoster: (image: NormalizedImageCandidate | null) => void;
   onSelectHeroImage: (image: NormalizedImageCandidate | null) => void;
   onToggleBackdrop: (image: NormalizedImageCandidate) => void;
 };
@@ -39,8 +39,9 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
       key={`${image.providerKey}:${image.providerImageId}`}
       image={image}
       index={index}
-      inputType="checkbox"
-      label="Use as poster"
+      inputType="radio"
+      inputName="poster-selection"
+      label="Use as Poster"
       selected={Boolean(selection.poster && sameImage(selection.poster, image))}
       onChange={() => onTogglePoster(image)}
     />
@@ -70,7 +71,14 @@ export function ImagePicker({ images, selection, allowPoster, allowHeroImage, al
           <h4>Poster</h4>
           <p>Use one vertical poster for listing and detail-page artwork. Selected posters upload after confirmation.</p>
         </div>
-        {posters.length > 0 ? <div className="movie-import-modal__image-grid">{posterOptions}</div> : <p className="movie-import-modal__empty">TMDB did not return any English-language poster candidates.</p>}
+        <div className="movie-import-modal__image-grid">
+          <NoPosterImageOption
+            selected={selection.poster === null}
+            onChange={() => onTogglePoster(null)}
+          />
+          {posterOptions}
+        </div>
+        {posters.length === 0 ? <p className="movie-import-modal__empty">TMDB did not return any English-language poster candidates.</p> : null}
         {visiblePosters.length < posters.length ? (
           <div className="movie-import-modal__image-reveal">
             <Button
@@ -173,6 +181,25 @@ type NoHeroImageOptionProps = {
   selected: boolean;
   onChange: () => void;
 };
+
+function NoPosterImageOption({ selected, onChange }: NoHeroImageOptionProps) {
+  return (
+    <label className="movie-import-modal__image-option movie-import-modal__image-option--none" style={touchTargetStyle}>
+      <span className="movie-import-modal__image-preview">
+        <span className="movie-import-modal__image-canvas">
+          <span className="movie-import-modal__image-fallback movie-import-modal__image-fallback--none" aria-hidden="true">
+            No image
+          </span>
+        </span>
+        <span className="movie-import-modal__image-meta">Leave Poster unchanged</span>
+      </span>
+      <span className="movie-import-modal__image-footer">
+        <input aria-label="Do not import a Poster" type="radio" name="poster-selection" checked={selected} onChange={onChange} />
+        <span className="movie-import-modal__image-label">Do not import</span>
+      </span>
+    </label>
+  );
+}
 
 function NoHeroImageOption({ selected, onChange }: NoHeroImageOptionProps) {
   return (

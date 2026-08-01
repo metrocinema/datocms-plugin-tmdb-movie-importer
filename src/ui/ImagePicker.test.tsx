@@ -92,6 +92,30 @@ function StatefulPicker() {
   );
 }
 
+function StatefulPosterPicker() {
+  const [selection, setSelection] = useState<ImageSelection>({
+    poster: null,
+    heroImage: null,
+    backdrops: [],
+  });
+
+  return (
+    <ImagePicker
+      images={images}
+      selection={selection}
+      allowPoster
+      allowHeroImage={false}
+      allowOtherImages={false}
+      onTogglePoster={(poster) => setSelection((current) => ({
+        ...current,
+        poster,
+      }))}
+      onSelectHeroImage={vi.fn()}
+      onToggleBackdrop={vi.fn()}
+    />
+  );
+}
+
 describe('ImagePicker', () => {
   it('renders ten candidates in each section before either section is revealed', () => {
     renderPicker();
@@ -225,6 +249,44 @@ describe('ImagePicker', () => {
     expect(screen.getAllByRole('checkbox', { name: /Add to Other Images/i })).toHaveLength(10);
   });
 
+  it('keeps an explicit Poster opt-out selected until a poster is chosen', async () => {
+    render(<StatefulPosterPicker />);
+
+    const noPoster = screen.getByRole('radio', { name: 'Do not import a Poster' });
+    const firstPoster = screen.getByRole('radio', {
+      name: /Use as Poster.*tmdb:\/poster-1\.jpg/i,
+    });
+
+    expect(noPoster).toBeChecked();
+    expect(firstPoster).not.toBeChecked();
+
+    await userEvent.click(firstPoster);
+    expect(firstPoster).toBeChecked();
+    expect(noPoster).not.toBeChecked();
+
+    await userEvent.click(noPoster);
+    expect(noPoster).toBeChecked();
+    expect(firstPoster).not.toBeChecked();
+  });
+
+  it('keeps the selected Poster opt-out visible when TMDB returns no poster candidates', () => {
+    render(
+      <ImagePicker
+        images={backdrops}
+        selection={{ poster: null, heroImage: null, backdrops: [] }}
+        allowPoster
+        allowHeroImage={false}
+        allowOtherImages={false}
+        onTogglePoster={vi.fn()}
+        onSelectHeroImage={vi.fn()}
+        onToggleBackdrop={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('radio', { name: 'Do not import a Poster' })).toBeChecked();
+    expect(screen.getByText('TMDB did not return any English-language poster candidates.')).toBeInTheDocument();
+  });
+
   it('keeps the selected Hero opt-out visible when TMDB returns no backdrops', () => {
     render(
       <ImagePicker
@@ -252,8 +314,8 @@ describe('ImagePicker', () => {
     expect(screen.getByRole('checkbox', {
       name: /Add to Other Images.*tmdb:\/backdrop-1\.jpg/i,
     })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', {
-      name: /Use as poster.*tmdb:\/poster-1\.jpg/i,
+    expect(screen.getByRole('radio', {
+      name: /Use as Poster.*tmdb:\/poster-1\.jpg/i,
     })).toBeInTheDocument();
   });
 

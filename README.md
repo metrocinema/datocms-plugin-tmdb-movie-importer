@@ -6,7 +6,7 @@ TMDB Movie Importer is a Metro Cinema plugin for DatoCMS. It lets editors find a
 
 The package is currently version `0.1.0-next.0`. The plugin provides configuration, a TMDB ID field add-on, a guided Find movie → Review changes → Confirm import modal, phase-specific preparation progress, draft Person creation or reuse, selected image uploads, and unsaved movie-form updates.
 
-Artwork selection is opt-in. No poster or backdrop candidate starts selected. When Hero image is configured, the explicit **Do not import** card starts selected. Poster candidates are limited to English-language artwork, and poster and backdrop results are revealed ten at a time in TMDB rank order. A backdrop can be assigned to Hero image or Other images, but never both.
+Artwork selection is opt-in. No poster or backdrop candidate starts selected. When Poster or Hero image is configured, the explicit **Do not import** card starts selected. Poster candidates are limited to English-language artwork, and poster and backdrop results are revealed ten at a time in TMDB rank order. A backdrop can be assigned to Hero image or Other images, but never both.
 
 The repository contains a manually triggered Cloudflare Pages deployment workflow, but source, build, push, deployment, DatoCMS installation, and sandbox acceptance are separate states. A checkout or passing test suite does not prove that a Pages deployment or DatoCMS installation is current.
 
@@ -75,7 +75,7 @@ Before any release, use a DatoCMS sandbox with configured mappings, a shared Per
 - [ ] Missing TMDB values cannot clear existing content.
 - [ ] Ambiguous people require an editor choice.
 - [ ] Missing people are created as drafts.
-- [ ] No poster or backdrop starts selected, and **Do not import** starts selected for Hero image.
+- [ ] No poster or backdrop starts selected, and **Do not import** starts selected for Poster and Hero image.
 - [ ] Poster and backdrop results initially show ten candidates and reveal additional candidates ten at a time.
 - [ ] A backdrop cannot be selected for both Hero image and Other images.
 - [ ] The selected poster, Hero image, and Other images upload to DatoCMS Media.

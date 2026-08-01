@@ -234,7 +234,7 @@ export function ImportModal(props: ImportModalProps) {
           if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, source: 'manual', warning: 'You chose to create a new draft Person after confirmation.' } };
           return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), source: 'manual', warning: 'You chose to reuse an existing Person record.' } };
         }))} images={movie?.images ?? []} imageSelection={imageSelection} onTogglePoster={(image) => setImageSelection((selection) => {
-          return { ...selection, poster: selection.poster && sameImage(selection.poster, image) ? null : image };
+          return { ...selection, poster: image };
         })} onSelectHeroImage={(image) => setImageSelection((selection) => {
           return selectHeroImage(selection, image);
         })} onToggleBackdrop={(image) => setImageSelection((selection) => {
