@@ -10,6 +10,7 @@ All notable changes to TMDB Movie Importer are documented here.
 - Consolidated Hero image and Other images into one mutually exclusive backdrop grid while keeping Poster separate.
 - Replaced first-ten truncation with independent ten-at-a-time reveal controls for posters and backdrops.
 - Reduced Review changes image cost with smaller preview URLs, lazy asynchronous decoding, and offscreen card containment while retaining original-resolution uploads.
+- Prioritized 3840x2160 backdrops before other backdrop candidates while preserving TMDB rank order inside each group.
 - Simplified image preparation to preserve TMDB-ranked candidates without browser-side visual fingerprinting.
 
 ### Fixed

@@ -6,7 +6,7 @@ TMDB Movie Importer is a Metro Cinema plugin for DatoCMS. It lets editors find a
 
 The package is currently version `0.1.0-next.0`. The plugin provides configuration, a TMDB ID field add-on, a guided Find movie → Review changes → Confirm import modal, phase-specific preparation progress, draft Person creation or reuse, selected image uploads, and unsaved movie-form updates.
 
-Artwork selection is opt-in. No poster or backdrop candidate starts selected. When Poster or Hero image is configured, the explicit **Do not import** card starts selected. Poster candidates are limited to English-language artwork, and poster and backdrop results are revealed ten at a time in TMDB rank order. A backdrop can be assigned to Hero image or Other images, but never both.
+Artwork selection is opt-in. No poster or backdrop candidate starts selected. When Poster or Hero image is configured, the explicit **Do not import** card starts selected. Poster candidates are limited to English-language artwork. Posters are revealed ten at a time in TMDB rank order, while backdrops prioritize 3840x2160 candidates before falling back to TMDB rank order. A backdrop can be assigned to Hero image or Other images, but never both.
 
 The repository contains a manually triggered Cloudflare Pages deployment workflow, but source, build, push, deployment, DatoCMS installation, and sandbox acceptance are separate states. A checkout or passing test suite does not prove that a Pages deployment or DatoCMS installation is current.
 
@@ -42,7 +42,7 @@ This is a frontend-only plugin. Its TMDB read token is stored in the plugin sett
 ## Current limits
 
 - The plugin does not provide a native DatoCMS Media Area asset source. That feature remains planned but is not part of the current package.
-- The review grid does not download or fingerprint artwork to detect visually identical files. TMDB can therefore return visually similar candidates. The plugin preserves TMDB ordering and uses resolution and stable identity only as tie-breakers when ranks match.
+- The review grid does not download or fingerprint artwork to detect visually identical files. TMDB can therefore return visually similar candidates. The plugin preserves TMDB ordering for posters and non-preferred backdrops, prioritizes 3840x2160 backdrops, and uses resolution and stable identity as tie-breakers when ranks match.
 - The plugin uploads original-resolution images only after an editor selects them. Smaller preview URLs and lazy loading keep the Review changes grid responsive without reducing upload quality.
 
 ## Editor flow and unsaved-form contract

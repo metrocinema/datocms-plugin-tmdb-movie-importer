@@ -9,6 +9,18 @@ export function compareRankResolutionThenIdentity(
     imageIdentity(left).localeCompare(imageIdentity(right));
 }
 
+export function comparePreferredBackdropThenRank(
+  left: NormalizedImageCandidate,
+  right: NormalizedImageCandidate,
+) {
+  return preferredBackdropScore(right) - preferredBackdropScore(left) ||
+    compareRankResolutionThenIdentity(left, right);
+}
+
+function preferredBackdropScore(candidate: NormalizedImageCandidate): number {
+  return candidate.width === 3840 && candidate.height === 2160 ? 1 : 0;
+}
+
 function pixelArea(candidate: NormalizedImageCandidate): number {
   if (
     candidate.width === null ||

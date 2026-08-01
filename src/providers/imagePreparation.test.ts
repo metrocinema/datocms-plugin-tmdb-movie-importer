@@ -24,7 +24,7 @@ function candidate(
 }
 
 describe('prepareSelectableImages', () => {
-  it('filters non-English posters and keeps TMDB-ranked artwork first', async () => {
+  it('filters non-English posters and keeps posters TMDB-ranked first', async () => {
     const images = [
       candidate('/poster-top-ranked.jpg', 'poster', 1, 'en', 100, 150),
       candidate('/poster-largest.jpg', 'poster', 40, 'en', 200, 300),
@@ -43,6 +43,25 @@ describe('prepareSelectableImages', () => {
       '/backdrop-top-ranked.jpg',
       '/backdrop-medium.jpg',
       '/backdrop-largest.jpg',
+    ]);
+  });
+
+  it('prioritizes 3840x2160 backdrops before TMDB rank', async () => {
+    const images = [
+      candidate('/poster-top-ranked.jpg', 'poster', 1, 'en', 100, 150),
+      candidate('/backdrop-ranked-first.jpg', 'backdrop', 1, null, 1920, 1080),
+      candidate('/backdrop-4k-later-rank.jpg', 'backdrop', 30, null, 3840, 2160),
+      candidate('/backdrop-4k-better-rank.jpg', 'backdrop', 2, null, 3840, 2160),
+      candidate('/backdrop-non-4k-next-rank.jpg', 'backdrop', 3, null, 2000, 1200),
+    ];
+    const result = await prepareSelectableImages(images);
+
+    expect(result.map((image) => image.providerImageId)).toEqual([
+      '/poster-top-ranked.jpg',
+      '/backdrop-4k-better-rank.jpg',
+      '/backdrop-4k-later-rank.jpg',
+      '/backdrop-ranked-first.jpg',
+      '/backdrop-non-4k-next-rank.jpg',
     ]);
   });
 
