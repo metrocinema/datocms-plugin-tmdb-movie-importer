@@ -1,5 +1,9 @@
 # TMDB Asset Source Implementation Plan
 
+**Status:** Planned; not implemented
+
+The current plugin supports TMDB artwork only inside the guided movie-import review flow. No `assetSources` or `renderAssetSource` hook is registered. This plan requires fresh approval before implementation, especially if the DatoCMS CORS check requires adding a server-side proxy or base64 adapter.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a proper DatoCMS asset source that lets editors create Media Area uploads from TMDB movie artwork through DatoCMS' native asset-source flow.
