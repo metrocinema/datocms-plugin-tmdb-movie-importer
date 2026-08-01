@@ -1,7 +1,18 @@
 # Shared TMDB Image Selection and Duplicate Suppression
 
 **Date:** 2026-07-30
-**Status:** Approved
+**Status:** Implemented with later revisions; retained as design history
+
+## Current implementation revisions
+
+The shared backdrop grid, mutually exclusive Hero image and Other images assignments, English-poster filtering, and independent ten-at-a-time reveal controls are implemented.
+
+Two approved ideas below were intentionally superseded:
+
+- Artwork is now fully opt-in. No poster or backdrop candidate starts selected; the explicit Hero **Do not import** card starts selected when Hero image is configured.
+- The Review changes flow no longer downloads and fingerprints artwork for visual duplicate suppression. It preserves normalized TMDB candidates and ordering, with resolution and stable identity used only as equal-rank tie-breakers. The existing `checking_artwork` activity now covers lightweight sorting and filtering only; it does not represent fingerprint downloads.
+
+The grid uses smaller, lazily decoded preview images and offscreen rendering containment, while selected assets still upload from their original-resolution URLs. The remaining sections preserve the original approved design and should not override the root README or current source.
 
 ## Purpose
 

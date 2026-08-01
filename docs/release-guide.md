@@ -2,6 +2,10 @@
 
 This guide prepares a release. It does not authorize any deployment, publication, GitHub visibility change, or DatoCMS installation change.
 
+## Evidence boundary
+
+The repository proves that the manual deployment workflow and release checks exist. A push to `main` does not deploy this plugin because the Pages workflow requires an explicit GitHub Actions dispatch. GitHub production-environment restrictions, repository secrets, Cloudflare project state, deployment success, and DatoCMS sandbox acceptance live outside the repository and must be checked and recorded for each release.
+
 ## Release surfaces
 
 The same package supports two delivery paths:
@@ -24,12 +28,13 @@ Keep the private installation in place until the Marketplace installation has be
 The normal private release path is the manually triggered GitHub Actions workflow named **Deploy private plugin to Cloudflare Pages**, which runs in GitHub's `production` environment.
 
 1. Confirm the approved commit is present on `main`, the validation workflow passed, and the working release version is recorded.
-2. Open the workflow in GitHub Actions, choose **Run workflow**, and select `main`. Triggering this workflow is the production deployment approval.
-3. Confirm `npm run verify:release` passes before the Cloudflare deployment step begins.
-4. Record the GitHub Actions run URL, commit SHA, Cloudflare deployment URL, and completion time.
-5. Verify `https://tmdb-movie-importer.pages.dev/` and its JavaScript and CSS assets return HTTP 200.
-6. Point only the intended DatoCMS sandbox private plugin at the stable Pages URL, then complete the README acceptance checklist with editor and restricted roles.
-7. Preserve the previous successful Cloudflare deployment until support confirms the new private installation is stable.
+2. Confirm the GitHub `production` environment permits deployments only from `main` and that the required Cloudflare secrets are present. Do not print their values.
+3. Open the workflow in GitHub Actions, choose **Run workflow**, and select `main`. Triggering this workflow is the production deployment approval.
+4. Confirm `npm run verify:release` passes before the Cloudflare deployment step begins.
+5. Record the GitHub Actions run URL, commit SHA, Cloudflare deployment URL, and completion time.
+6. Verify `https://tmdb-movie-importer.pages.dev/` and its JavaScript and CSS assets return HTTP 200.
+7. Point only the intended DatoCMS sandbox private plugin at the stable Pages URL, then complete the README acceptance checklist with editor and restricted roles.
+8. Preserve the previous successful Cloudflare deployment until support confirms the new private installation is stable.
 
 The workflow does not update DatoCMS configuration.
 

@@ -1,8 +1,10 @@
 # Find Movie Modal UI Redesign
 
 **Date:** 2026-07-23
-**Status:** Approved design direction, awaiting implementation plan
+**Status:** Implemented; retained as design history
 **Scope:** UI polish for the TMDB movie importer modal screens
+
+The current implementation includes later refinements to progress feedback, the field-review table, shared backdrop selection, native-style media cards, sticky modal chrome, and responsive behavior. Use the root README and current source for present behavior.
 
 ## Purpose
 

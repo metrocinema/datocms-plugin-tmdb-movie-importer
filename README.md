@@ -2,6 +2,14 @@
 
 TMDB Movie Importer is a Metro Cinema plugin for DatoCMS. It lets editors find a movie, review selected TMDB metadata, people, and images, then apply the approved values to the current unsaved movie form.
 
+## Current implementation
+
+The package is currently version `0.1.0-next.0`. The plugin provides configuration, a TMDB ID field add-on, a guided Find movie → Review changes → Confirm import modal, phase-specific preparation progress, draft Person creation or reuse, selected image uploads, and unsaved movie-form updates.
+
+Artwork selection is opt-in. No poster or backdrop candidate starts selected. When Hero image is configured, the explicit **Do not import** card starts selected. Poster candidates are limited to English-language artwork, and poster and backdrop results are revealed ten at a time in TMDB rank order. A backdrop can be assigned to Hero image or Other images, but never both.
+
+The repository contains a manually triggered Cloudflare Pages deployment workflow, but source, build, push, deployment, DatoCMS installation, and sandbox acceptance are separate states. A checkout or passing test suite does not prove that a Pages deployment or DatoCMS installation is current.
+
 ## Installation
 
 ### Private installation
@@ -31,12 +39,18 @@ Required mappings are validated before an import begins. Unmapped optional field
 
 This is a frontend-only plugin. Its TMDB read token is stored in the plugin settings and can be inspected through browser tools by editors who can use the plugin. Use a token with the narrowest appropriate TMDB access, rotate it if an editor should no longer have access, and do not treat it as a server-side secret.
 
+## Current limits
+
+- The plugin does not provide a native DatoCMS Media Area asset source. That feature remains planned but is not part of the current package.
+- The review grid does not download or fingerprint artwork to detect visually identical files. TMDB can therefore return visually similar candidates. The plugin preserves TMDB ordering and uses resolution and stable identity only as tie-breakers when ranks match.
+- The plugin uploads original-resolution images only after an editor selects them. Smaller preview URLs and lazy loading keep the Review changes grid responsive without reducing upload quality.
+
 ## Editor flow and unsaved-form contract
 
 1. Open the TMDB ID field add-on and choose **Find movie** or **Refresh from TMDB**.
 2. Search by title and optional year, or load a known TMDB ID.
-3. Review each proposed value and choose the fields, people, poster, Hero image, and Other images to prepare.
-4. Confirm the import. The plugin may create selected Person records as drafts and upload selected images, then applies approved values to the current DatoCMS movie form.
+3. Review each proposed value and choose the fields, people, poster, Hero image, and Other images to prepare. No artwork is selected automatically.
+4. Confirm the import. The modal stays open while the plugin matches or creates selected people, uploads selected images, and prepares movie-field values. After successful preparation, it closes and applies the prepared values to the current DatoCMS movie form.
 5. Save or publish the movie yourself in DatoCMS.
 
 The plugin never saves or publishes the movie record. If a later import phase fails after people or images were created, those drafts or uploads can remain in DatoCMS and need intentional review.
@@ -45,7 +59,7 @@ The plugin never saves or publishes the movie record. If a later import phase fa
 
 Install dependencies with `npm install`, then start the Vite server with `npm run dev`. For standalone UI review outside the DatoCMS iframe, open `http://localhost:5174/?impeccable=modal`.
 
-The harness uses sanitized fixture data and resolves the import plan in the browser only. It does not write to DatoCMS or call TMDB. Add `&theme=dark` to inspect the dark token set.
+The harness uses sanitized fixture data and resolves the import plan in the browser only. It does not write to DatoCMS or call TMDB. Add `&theme=dato-dark` to inspect the captured DatoCMS dark token set.
 
 Run `npm test` for the automated suite and `npm run verify:release` for the full local release gate. Automated tests use mocked DatoCMS interactions and sanitized TMDB fixtures; they do not call live DatoCMS or TMDB.
 
@@ -57,10 +71,13 @@ Before any release, use a DatoCMS sandbox with configured mappings, a shared Per
 - [ ] The field add-on opens from the TMDB ID field.
 - [ ] Search by title and year works.
 - [ ] Direct TMDB ID refresh works.
-- [ ] Empty fields are selected by default and populated fields are unselected by default.
+- [ ] Empty metadata fields are selected by default and populated metadata fields are unselected by default.
 - [ ] Missing TMDB values cannot clear existing content.
 - [ ] Ambiguous people require an editor choice.
 - [ ] Missing people are created as drafts.
+- [ ] No poster or backdrop starts selected, and **Do not import** starts selected for Hero image.
+- [ ] Poster and backdrop results initially show ten candidates and reveal additional candidates ten at a time.
+- [ ] A backdrop cannot be selected for both Hero image and Other images.
 - [ ] The selected poster, Hero image, and Other images upload to DatoCMS Media.
 - [ ] The explicit Hero image selection populates Hero image when that field is configured.
 - [ ] The movie form changes, but the record is not saved or published.
