@@ -208,6 +208,18 @@ export function ImportModal(props: ImportModalProps) {
     mappedFields: props.mappedFields,
   }), [comparisons, imageSelection, movie, people, props.mappedFields]);
 
+  const toggleComparison = (key: FieldComparison['key']) => {
+    setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item));
+  };
+
+  const selectAllScalarComparisons = () => {
+    setComparisons((items) => items.map((item) => item.key === 'trailer' ? item : { ...item, selected: item.available && item.changed }));
+  };
+
+  const clearScalarComparisons = () => {
+    setComparisons((items) => items.map((item) => item.key === 'trailer' ? item : { ...item, selected: false }));
+  };
+
   if (step === 'search') {
     return (
       <div className="movie-import-modal">
@@ -229,7 +241,7 @@ export function ImportModal(props: ImportModalProps) {
   if (step === 'review') {
     return (
       <div className="movie-import-modal">
-        <ReviewStep movie={movie!} comparisons={comparisons} mappedFields={props.mappedFields} onToggle={(key) => setComparisons((items) => items.map((item) => item.key === key ? { ...item, selected: !item.selected } : item))} onSelectAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: item.available && item.changed })))} onClearAll={() => setComparisons((items) => items.map((item) => ({ ...item, selected: false })))} onBack={() => setStep('search')} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
+        <ReviewStep movie={movie!} comparisons={comparisons} mappedFields={props.mappedFields} onToggle={toggleComparison} onSelectAll={selectAllScalarComparisons} onClearAll={clearScalarComparisons} onBack={() => setStep('search')} people={people} onResolvePerson={(candidate, value) => setPeople((items) => items.map((item) => {
           if (!samePersonCandidate(item.candidate, candidate)) return item;
           if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, source: 'manual', warning: 'You chose to create a new draft Person after confirmation.' } };
           return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), source: 'manual', warning: 'You chose to reuse an existing Person record.' } };

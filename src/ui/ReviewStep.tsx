@@ -11,6 +11,7 @@ import { isEnglishPoster } from '../providers/imageProvider';
 import { formatRuntime, formatYear } from './modalPresentation';
 import { ModalStepIndicator } from './ModalStepIndicator';
 import { PersonResolutionList } from './PersonResolutionList';
+import { TrailerReview } from './TrailerReview';
 
 type ReviewStepProps = {
   movie: NormalizedMovie;
@@ -33,9 +34,12 @@ type ReviewStepProps = {
 export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelectAll, onClearAll, onContinue, onBack, people, onResolvePerson, images, imageSelection, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ReviewStepProps) {
   const [selectedMovieOpen, setSelectedMovieOpen] = useState(true);
   const mappedFieldSet = new Set(mappedFields);
+  const trailerComparison = comparisons.find((comparison) => comparison.key === 'trailer');
+  const scalarComparisons = comparisons.filter((comparison) => comparison.key !== 'trailer');
   const hasPosterDestination = mappedFieldSet.has('poster');
   const hasHeroDestination = mappedFieldSet.has('heroImage');
   const hasOtherImagesDestination = mappedFieldSet.has('backdrops');
+  const hasTrailerDestination = mappedFieldSet.has('trailer');
   const hasImageDestinations = hasPosterDestination || hasHeroDestination || hasOtherImagesDestination;
   const enabledPersonRoles = [
     mappedFieldSet.has('directors') ? 'director' : null,
@@ -45,20 +49,24 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
   const ambiguousPeopleCount = people.filter(({ decision }) => decision.type === 'ambiguous').length;
   const hasAmbiguousPeople = ambiguousPeopleCount > 0;
   const poster = movie.images.find(isEnglishPoster);
-  const selectedFieldCount = comparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed).length;
-  const overwriteCount = comparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed && !isEmptyValue(comparison.currentValue)).length;
-  const emptyFillCount = comparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed && isEmptyValue(comparison.currentValue)).length;
+  const selectedFieldCount = scalarComparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed).length;
+  const overwriteCount = scalarComparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed && !isEmptyValue(comparison.currentValue)).length;
+  const emptyFillCount = scalarComparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed && isEmptyValue(comparison.currentValue)).length;
   const selectedImageCount = countSelectedImages(imageSelection);
   const imageDestinationCounts = countSelectedImageDestinations(imageSelection);
   const peopleToCreateCount = people.filter(({ decision }) => decision.type === 'create').length;
   const peopleToReuseCount = people.filter(({ decision }) => decision.type === 'reuse').length;
   const selectedMovieSummary = `${movie.title}${movie.yearReleased ? ` (${formatYear(movie.yearReleased)})` : ''}`;
+  const trailerSummary = hasTrailerDestination
+    ? (trailerComparison?.selected && trailerComparison.available && trailerComparison.changed ? 'Trailer selected' : 'Trailer unchanged')
+    : null;
   const impactSummary = [
     `${selectedFieldCount} ${pluralize(selectedFieldCount, 'field')} selected`,
+    trailerSummary,
     `${selectedImageCount} ${pluralize(selectedImageCount, 'image')} selected`,
     `${peopleToCreateCount} new ${pluralize(peopleToCreateCount, 'person', 'people')}`,
     `${peopleToReuseCount} reused ${pluralize(peopleToReuseCount, 'person', 'people')}`,
-  ];
+  ].filter((item): item is string => Boolean(item));
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -114,9 +122,17 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
           <div id="field-changes">
             <Section title="Field changes">
               <p className="movie-import-modal__section-help">Choose the proposed TMDB field values to apply to the movie form.</p>
-              <FieldDiffTable comparisons={comparisons} onToggle={onToggle} onSelectAll={onSelectAll} onClearAll={onClearAll} overwriteCount={overwriteCount} emptyFillCount={emptyFillCount} />
+              <FieldDiffTable comparisons={scalarComparisons} onToggle={onToggle} onSelectAll={onSelectAll} onClearAll={onClearAll} overwriteCount={overwriteCount} emptyFillCount={emptyFillCount} />
             </Section>
           </div>
+          {hasTrailerDestination && trailerComparison ? (
+            <div id="trailer">
+              <Section title="Trailer">
+                <p className="movie-import-modal__section-help">Choose whether to prepare the TMDB trailer as the DatoCMS External Video value.</p>
+                <TrailerReview trailer={movie.trailer} comparison={trailerComparison} onToggle={() => onToggle('trailer')} />
+              </Section>
+            </div>
+          ) : null}
           {hasImageDestinations ? (
             <div id="images">
               <Section title="Images">

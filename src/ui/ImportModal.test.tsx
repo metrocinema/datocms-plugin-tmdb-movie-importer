@@ -6,6 +6,7 @@ import type { ImportProgressEvent, PrepareImportResult } from '../dato/importExe
 import type { ImportPlan } from '../domain/importPlanning';
 import { TmdbError } from '../providers/tmdbClient';
 import { ImportConfigurationError } from '../plugin/runtimeValidation';
+import { datoExternalVideoValue } from '../domain/trailer';
 
 vi.mock('../providers/imagePreparation', () => ({
   prepareSelectableImages: async (images: NormalizedMovie['images']) => images,
@@ -45,6 +46,28 @@ const movieWithBackdrops: NormalizedMovie = {
     { providerKey: 'tmdb', providerImageId: '/backdrop-1.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop-1.jpg', width: 1920, height: 1080, language: 'en', rank: 2, attribution: 'TMDB' },
     { providerKey: 'tmdb', providerImageId: '/backdrop-2.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'backdrop', originalUrl: 'https://image.tmdb.org/t/p/original/backdrop-2.jpg', width: 1920, height: 1080, language: 'en', rank: 3, attribution: 'TMDB' },
   ],
+};
+
+const movieWithTrailer: NormalizedMovie = {
+  ...movie,
+  trailer: {
+    providerKey: 'tmdb',
+    providerVideoId: 'tmdb-video-1',
+    movieIdentity: { providerKey: 'tmdb', tmdbId: 123 },
+    externalProvider: 'youtube',
+    externalProviderId: 'youtube-video-1',
+    title: 'Official Trailer',
+    watchUrl: 'https://www.youtube.com/watch?v=youtube-video-1',
+    thumbnailUrl: 'https://img.youtube.com/vi/youtube-video-1/maxresdefault.jpg',
+    width: 1920,
+    height: 1080,
+    language: 'en',
+    country: 'US',
+    resolution: 1080,
+    publishedAt: '2024-01-01T00:00:00.000Z',
+    official: true,
+    attribution: 'TMDB',
+  },
 };
 
 const movieWithNonEnglishPosters: NormalizedMovie = {
@@ -937,6 +960,76 @@ describe('ImportModal data flow', () => {
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).not.toBeChecked();
     expect(screen.getByText('2 fields available · 0 selected')).toBeInTheDocument();
     expect(screen.getByText('No current values will be overwritten · no empty fields will be filled')).toBeInTheDocument();
+  });
+
+  it('renders Trailer between Field changes and Images when the trailer field is mapped', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: null, poster: null }} mappedFields={['title', 'trailer', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+
+    const fieldChangesSection = document.getElementById('field-changes');
+    const trailerSection = document.getElementById('trailer');
+    const imagesSection = document.getElementById('images');
+
+    expect(screen.getByRole('heading', { name: 'Trailer' })).toBeInTheDocument();
+    expect(fieldChangesSection).not.toBeNull();
+    expect(trailerSection).not.toBeNull();
+    expect(imagesSection).not.toBeNull();
+    expect(fieldChangesSection!.compareDocumentPosition(trailerSection!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(trailerSection!.compareDocumentPosition(imagesSection!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('keeps Trailer out of review when the trailer field is not mapped', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', poster: null }} mappedFields={['title', 'poster']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+
+    expect(screen.queryByRole('heading', { name: 'Trailer' })).not.toBeInTheDocument();
+    expect(document.getElementById('trailer')).toBeNull();
+  });
+
+  it('starts trailer selected for an empty current field and keeps scalar bulk actions independent', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: 'Existing title', runtime: null, trailer: null }} mappedFields={['title', 'runtime', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+
+    const trailerToggle = screen.getByRole('checkbox', { name: 'Import Official Trailer' });
+    expect(trailerToggle).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Use proposed Title' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).toBeChecked();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).not.toBeChecked();
+    expect(trailerToggle).toBeChecked();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(screen.getByRole('checkbox', { name: 'Use proposed Title' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).toBeChecked();
+    expect(trailerToggle).toBeChecked();
+  });
+
+  it('starts trailer unselected for a replacement current value', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: { provider: 'youtube', provider_uid: 'existing-youtube-id', title: 'Editorial trailer', width: 1280, height: 720, thumbnail_url: 'https://img.youtube.com/vi/existing/hqdefault.jpg', url: 'https://www.youtube.com/watch?v=existing-youtube-id' } }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+    expect(screen.getByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeChecked();
+  });
+
+  it('disables trailer review when the current provider and id already match', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: datoExternalVideoValue(movieWithTrailer.trailer!) }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+    expect(screen.getByText('Already current trailer')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Import Official Trailer' })).toBeDisabled();
+  });
+
+  it('shows the no-result trailer copy when TMDB has no candidate', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: { provider: 'youtube', provider_uid: 'existing-youtube-id', title: 'Editorial trailer', width: 1280, height: 720, thumbnail_url: 'https://img.youtube.com/vi/existing/hqdefault.jpg', url: 'https://www.youtube.com/watch?v=existing-youtube-id' } }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movie} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+
+    expect(screen.getByText('No official English YouTube trailer found.')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeInTheDocument();
   });
 
   it('renders a structured-text current description as readable text', async () => {

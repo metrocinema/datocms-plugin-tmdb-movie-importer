@@ -97,6 +97,24 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(inputRule).toContain('accent-color: var(--movie-import-selected-control-border)');
   });
 
+  it('styles the trailer review card with Dato tokens instead of light-only colors', () => {
+    const trailerRule = ruleFor('.movie-import-modal__trailer-card');
+    const previewRule = ruleFor('.movie-import-modal__trailer-preview');
+    const selectedRule = ruleFor('.movie-import-modal__trailer-card--selected');
+    const chipRule = ruleFor('.movie-import-modal__trailer-chip');
+    const thumbRule = ruleFor('.movie-import-modal__trailer-thumb');
+
+    expect(trailerRule).toContain('background: var(--color--surface-raised)');
+    expect(trailerRule).toContain('border: 1px solid var(--color--border)');
+    expect(previewRule).toContain('border: 1px solid var(--color--border)');
+    expect(selectedRule).toContain('background: var(--movie-import-selected-control-surface)');
+    expect(selectedRule).toContain('border-color: var(--movie-import-selected-control-border)');
+    expect(selectedRule).toContain('color: var(--movie-import-selected-control-ink)');
+    expect(chipRule).toContain('color: var(--color--ink-subtle)');
+    expect(thumbRule).toContain('object-fit: contain');
+    expect(`${trailerRule}${previewRule}${selectedRule}${chipRule}`).not.toMatch(/#|rgb\(|hsl\(|white|black/i);
+  });
+
   it('aligns current field text with proposed field controls', () => {
     const currentRule = ruleFor('.movie-import-modal__field-table td.movie-import-modal__field-table-value');
     const proposedRule = ruleFor('.movie-import-modal__field-table td.movie-import-modal__field-table-proposed');
@@ -200,6 +218,12 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(previewRule).toContain('padding: var(--spacing-m)');
     expect(canvasRule).toContain('height: 144px');
     expect(css).not.toContain('.movie-import-modal__destination-lane');
+  });
+
+  it('stacks the trailer card into one column at the existing narrow breakpoint', () => {
+    const trailerRule = ruleInMedia('(max-width: 540px)', '.movie-import-modal__trailer-card');
+
+    expect(trailerRule).toContain('grid-template-columns: 1fr');
   });
 
   it('allows modal steps to shrink without clipping before the compact layout takes over', () => {
