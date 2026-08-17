@@ -124,12 +124,17 @@ describe('normalizeTmdbMovie', () => {
     expect(movie.trailer).toBeNull();
   });
 
+  it('treats a missing videos property as no trailer', () => {
+    const { videos: _videos, ...movieWithoutVideos } = completeMovie as TmdbMoviePackage;
+
+    expect(normalizeTmdbMovie(movieWithoutVideos, 10).trailer).toBeNull();
+  });
+
   it.each([
-    {},
     { videos: undefined },
     { videos: {} },
     { videos: { results: 'invalid' } },
-  ])('treats a missing or malformed videos response as no trailer', (override) => {
+  ])('treats a malformed videos response as no trailer', (override) => {
     expect(normalizeTmdbMovie({ ...completeMovie, ...override } as TmdbMoviePackage, 10).trailer).toBeNull();
   });
 });
