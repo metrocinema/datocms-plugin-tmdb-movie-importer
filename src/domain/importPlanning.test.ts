@@ -1,5 +1,6 @@
 import { buildImportPlan } from './importPlanning';
 import type { FieldComparison } from './fieldComparison';
+import type { MovieFieldKey } from './movie';
 
 const fields: FieldComparison[] = [
   { key: 'title', currentValue: '', proposedValue: 'Example Movie', selected: true, available: true, changed: true },
@@ -51,7 +52,11 @@ describe('buildImportPlan', () => {
     expect(plan.fieldChanges).toEqual([{ key: 'trailer', value: trailerValue }]);
   });
 
-  it.each([
+  it.each<{
+    name: string;
+    comparison: FieldComparison;
+    mappedFields: MovieFieldKey[];
+  }>([
     {
       name: 'it is not selected',
       comparison: { key: 'trailer', currentValue: null, proposedValue: trailerValue, selected: false, available: true, changed: true } satisfies FieldComparison,

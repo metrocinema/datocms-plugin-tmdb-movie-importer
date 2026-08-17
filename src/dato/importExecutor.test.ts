@@ -4,6 +4,7 @@ import {
   prepareImport,
   type ImportPhaseTiming,
   type ImportProgressEvent,
+  type PreparedImport,
 } from './importExecutor';
 import { DuplicatePersonNameError, FormValuesApplyError } from './datoGateway';
 import type { ImportPlan } from '../domain/importPlanning';
