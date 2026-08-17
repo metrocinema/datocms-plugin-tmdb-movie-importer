@@ -430,6 +430,8 @@ const knownMovieFieldKeys: MovieFieldKey[] = [
 
 Include `trailer` in the comparison key set, return `datoExternalVideoValue(movie.trailer)` when a candidate exists, and use `sameExternalVideo` in `valuesMatch`. Keep the generic empty-value rule for `null` and `undefined`; do not treat arbitrary objects as empty.
 
+Also extend `isPreparedFieldValue` in `src/plugin/modalRuntime.ts` in this task so a selected trailer can cross the modal boundary. Accept only the exact seven-key native Dato External Video object, require `provider: 'youtube'`, non-empty strings, and positive safe-integer dimensions, and reject extra keys. Cover valid, malformed, and widened payloads in `src/plugin/modalRuntime.test.ts`.
+
 - [ ] **Step 6: Run focused configuration and comparison tests**
 
 Run: `npm test -- src/plugin/datoFieldMapping.test.ts src/ui/ConfigScreen.test.tsx src/plugin/modalRuntime.test.ts src/plugin/parameters.test.ts src/domain/fieldComparison.test.ts`
@@ -489,13 +491,13 @@ expect(buildImportPlan({
 }).fieldChanges).toEqual([{ key: 'trailer', value: trailerValue }]);
 ```
 
-Add modal-runtime coverage that accepts this exact object in `fieldChanges`, rejects an unknown field key, and still validates the Trailer mapping fingerprint.
+Confirm the strict modal-runtime coverage added in Task 2 accepts this exact object in `fieldChanges` and rejects malformed or widened video objects. Add only the remaining regression that an unknown field key is rejected and the Trailer destination remains part of the mapping fingerprint.
 
 - [ ] **Step 2: Run the plan/runtime tests and inspect whether production code already passes**
 
 Run: `npm test -- src/domain/importPlanning.test.ts src/plugin/modalRuntime.test.ts`
 
-Expected: the plan may already PASS through the generic field-change path; the runtime test should fail until Task 2's known-key update is present. Do not add trailer-specific plan fields if the generic path passes.
+Expected: the plan and strict runtime-value cases should already PASS through the generic field-change path established by Tasks 1 and 2. The new mapping-fingerprint regression may fail until the trailer destination is included at that boundary. Do not add trailer-specific plan fields if the generic path passes.
 
 - [ ] **Step 3: Add failing executor tests for the exact Dato payload**
 
