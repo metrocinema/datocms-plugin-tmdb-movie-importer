@@ -19,6 +19,7 @@ export function TrailerReview({ trailer, comparison, onToggle }: TrailerReviewPr
   const canSelect = comparison.available && comparison.changed && trailer !== null;
   const isAlreadyCurrent = comparison.available && !comparison.changed && trailer !== null;
   const currentVideo = summarizeCurrentVideo(comparison.currentValue);
+  const publishedAtLabel = trailer ? formatPublishedAt(trailer.publishedAt) : null;
   const cardClassName = comparison.selected && canSelect
     ? 'movie-import-modal__trailer-card movie-import-modal__trailer-card--selected'
     : 'movie-import-modal__trailer-card';
@@ -80,6 +81,9 @@ export function TrailerReview({ trailer, comparison, onToggle }: TrailerReviewPr
           {isAlreadyCurrent ? (
             <p className="movie-import-modal__trailer-status">Already current trailer</p>
           ) : null}
+          {publishedAtLabel ? (
+            <p className="movie-import-modal__trailer-current">Published {publishedAtLabel}</p>
+          ) : null}
           {currentVideo ? (
             <p className="movie-import-modal__trailer-current">
               Current: {formatCurrentVideoSummary(currentVideo)}
@@ -125,4 +129,23 @@ function providerLabel(provider: string) {
   }
 
   return provider;
+}
+
+function formatPublishedAt(publishedAt: string | null) {
+  if (!publishedAt) {
+    return null;
+  }
+
+  const value = new Date(publishedAt);
+
+  if (Number.isNaN(value.getTime())) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(value);
 }

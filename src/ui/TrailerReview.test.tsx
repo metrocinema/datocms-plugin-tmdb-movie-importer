@@ -51,6 +51,7 @@ describe('TrailerReview', () => {
     expect(screen.getByText('Official')).toBeInTheDocument();
     expect(screen.getByText('English')).toBeInTheDocument();
     expect(screen.getByText('1080p')).toBeInTheDocument();
+    expect(screen.getByText('Published Jan 1, 2024')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute('href', trailer.watchUrl);
     expect(screen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute('rel', expect.stringContaining('noopener'));
@@ -122,6 +123,28 @@ describe('TrailerReview', () => {
 
     expect(screen.getByText('No official English YouTube trailer found.')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeInTheDocument();
+  });
+
+  it('omits publication metadata when publishedAt is null or invalid', () => {
+    const { rerender } = render(
+      <TrailerReview
+        trailer={{ ...trailer, publishedAt: null }}
+        comparison={buildComparison({ selected: true })}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/Published /i)).not.toBeInTheDocument();
+
+    rerender(
+      <TrailerReview
+        trailer={{ ...trailer, publishedAt: 'not-a-date' }}
+        comparison={buildComparison({ selected: true })}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/Published /i)).not.toBeInTheDocument();
   });
 
   it('shows a preview fallback without removing the link or decision control', () => {

@@ -994,9 +994,20 @@ describe('ImportModal data flow', () => {
     await reachReview();
 
     const trailerToggle = screen.getByRole('checkbox', { name: 'Import Official Trailer' });
+    const reviewActions = document.querySelector('.movie-import-modal__actions--sticky');
+
     expect(trailerToggle).toBeChecked();
+    expect(screen.getByText('Published Jan 1, 2024')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Use proposed Title' })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).toBeChecked();
+    expect(within(reviewActions as HTMLElement).getByText('1 field selected')).toBeInTheDocument();
+    expect(within(reviewActions as HTMLElement).getByText('0 images selected')).toBeInTheDocument();
+    expect(within(reviewActions as HTMLElement).getByText('0 new people')).toBeInTheDocument();
+    expect(within(reviewActions as HTMLElement).getByText('0 reused people')).toBeInTheDocument();
+    expect(reviewActions).toHaveTextContent('1 field selected');
+    expect(reviewActions).not.toHaveTextContent('Trailer selected');
+    expect(reviewActions).not.toHaveTextContent('Trailer unchanged');
+    expect(screen.getByLabelText('1 field selected, 0 images selected, 0 new people, 0 reused people')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).not.toBeChecked();

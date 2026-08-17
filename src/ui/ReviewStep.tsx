@@ -57,16 +57,12 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
   const peopleToCreateCount = people.filter(({ decision }) => decision.type === 'create').length;
   const peopleToReuseCount = people.filter(({ decision }) => decision.type === 'reuse').length;
   const selectedMovieSummary = `${movie.title}${movie.yearReleased ? ` (${formatYear(movie.yearReleased)})` : ''}`;
-  const trailerSummary = hasTrailerDestination
-    ? (trailerComparison?.selected && trailerComparison.available && trailerComparison.changed ? 'Trailer selected' : 'Trailer unchanged')
-    : null;
   const impactSummary = [
     `${selectedFieldCount} ${pluralize(selectedFieldCount, 'field')} selected`,
-    trailerSummary,
     `${selectedImageCount} ${pluralize(selectedImageCount, 'image')} selected`,
     `${peopleToCreateCount} new ${pluralize(peopleToCreateCount, 'person', 'people')}`,
     `${peopleToReuseCount} reused ${pluralize(peopleToReuseCount, 'person', 'people')}`,
-  ].filter((item): item is string => Boolean(item));
+  ];
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
