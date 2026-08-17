@@ -189,6 +189,41 @@ describe('modalRuntime', () => {
       fieldChanges: [fieldChange],
     })).toBe(false);
   });
+
+  it('accepts a trailer field change with the native Dato external video shape', () => {
+    expect(isPreparedImport({
+      ...validPreparedImport(),
+      fieldChanges: [{
+        key: 'trailer',
+        value: validTrailerValue(),
+      }],
+    })).toBe(true);
+  });
+
+  it.each([
+    {
+      name: 'malformed trailer values',
+      value: {
+        ...validTrailerValue(),
+        width: 0,
+      },
+    },
+    {
+      name: 'trailer values with unexpected keys',
+      value: {
+        ...validTrailerValue(),
+        provider_video_id: 'tmdb-video-123',
+      },
+    },
+  ])('rejects $name', ({ value }) => {
+    expect(isPreparedImport({
+      ...validPreparedImport(),
+      fieldChanges: [{
+        key: 'trailer',
+        value,
+      }],
+    })).toBe(false);
+  });
 });
 
 function validPreparedImport(): PreparedImport {
@@ -248,5 +283,17 @@ function validPreparedImport(): PreparedImport {
     }],
     createdPeople: ['person-1', 'person-2'],
     uploadedAssets: ['upload-1', 'upload-2', 'upload-3'],
+  };
+}
+
+function validTrailerValue() {
+  return {
+    provider: 'youtube' as const,
+    provider_uid: 'youtube-video-123',
+    url: 'https://www.youtube.com/watch?v=youtube-video-123',
+    width: 1920,
+    height: 1080,
+    thumbnail_url: 'https://img.youtube.com/vi/youtube-video-123/maxresdefault.jpg',
+    title: 'Official Trailer',
   };
 }

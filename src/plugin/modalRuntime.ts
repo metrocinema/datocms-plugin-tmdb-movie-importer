@@ -131,9 +131,39 @@ function isPreparedFieldValue(key: string, value: unknown) {
     case 'runtime':
     case 'tmdbId':
       return Number.isSafeInteger(value) && (value as number) > 0;
+    case 'trailer':
+      return isPreparedExternalVideoValue(value);
     default:
       return false;
   }
+}
+
+function isPreparedExternalVideoValue(value: unknown) {
+  return (
+    isRecord(value) &&
+    hasExactOwnKeys(value, [
+      'provider',
+      'provider_uid',
+      'url',
+      'width',
+      'height',
+      'thumbnail_url',
+      'title',
+    ]) &&
+    value.provider === 'youtube' &&
+    typeof value.provider_uid === 'string' &&
+    value.provider_uid.trim().length > 0 &&
+    typeof value.url === 'string' &&
+    value.url.trim().length > 0 &&
+    Number.isSafeInteger(value.width) &&
+    (value.width as number) > 0 &&
+    Number.isSafeInteger(value.height) &&
+    (value.height as number) > 0 &&
+    typeof value.thumbnail_url === 'string' &&
+    value.thumbnail_url.trim().length > 0 &&
+    typeof value.title === 'string' &&
+    value.title.trim().length > 0
+  );
 }
 
 function isPreparedPersonCandidate(
