@@ -8,6 +8,7 @@ export type MovieFieldKey =
   | 'tmdbId'
   | 'tagline'
   | 'description'
+  | 'trailer'
   | 'poster'
   | 'heroImage'
   | 'backdrops'

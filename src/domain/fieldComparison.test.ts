@@ -1,5 +1,6 @@
 import { compareMovieFields } from './fieldComparison';
 import type { NormalizedMovie } from './movie';
+import { datoExternalVideoValue } from './trailer';
 
 const movie: NormalizedMovie = {
   tmdbId: 123,
@@ -14,6 +15,38 @@ const movie: NormalizedMovie = {
   actors: [],
   images: [],
   trailer: null,
+};
+
+const movieWithTrailer: NormalizedMovie = {
+  ...movie,
+  trailer: {
+    providerKey: 'tmdb',
+    providerVideoId: 'tmdb-video-123',
+    movieIdentity: { providerKey: 'tmdb', tmdbId: 123 },
+    externalProvider: 'youtube',
+    externalProviderId: 'youtube-video-123',
+    title: 'Official Trailer',
+    watchUrl: 'https://www.youtube.com/watch?v=youtube-video-123',
+    thumbnailUrl: 'https://img.youtube.com/vi/youtube-video-123/maxresdefault.jpg',
+    width: 1920,
+    height: 1080,
+    language: 'en',
+    country: 'US',
+    resolution: 1080,
+    publishedAt: '2024-02-01T00:00:00.000Z',
+    official: true,
+    attribution: 'TMDB',
+  },
+};
+
+const existingDifferentVideo = {
+  provider: 'youtube',
+  provider_uid: 'different-video-456',
+  url: 'https://www.youtube.com/watch?v=different-video-456',
+  width: 1280,
+  height: 720,
+  thumbnail_url: 'https://img.youtube.com/vi/different-video-456/hqdefault.jpg',
+  title: 'Editorial Trailer',
 };
 
 const emptyStructuredDescription = {
@@ -76,5 +109,32 @@ describe('compareMovieFields', () => {
 
     expect(description.changed).toBe(false);
     expect(description.selected).toBe(false);
+  });
+
+  it('preselects a trailer only when the current video field is empty', () => {
+    const [trailer] = compareMovieFields({ trailer: null }, movieWithTrailer, ['trailer']);
+
+    expect(trailer).toMatchObject({ available: true, changed: true, selected: true });
+    expect(trailer.proposedValue).toEqual(datoExternalVideoValue(movieWithTrailer.trailer!));
+  });
+
+  it('leaves a replacement trailer unselected', () => {
+    const [trailer] = compareMovieFields({ trailer: existingDifferentVideo }, movieWithTrailer, ['trailer']);
+
+    expect(trailer).toMatchObject({ available: true, changed: true, selected: false });
+  });
+
+  it('matches videos by provider and provider ID only', () => {
+    const [trailer] = compareMovieFields({
+      trailer: { ...datoExternalVideoValue(movieWithTrailer.trailer!), title: 'Editorial title', width: 1, height: 1 },
+    }, movieWithTrailer, ['trailer']);
+
+    expect(trailer).toMatchObject({ changed: false, selected: false });
+  });
+
+  it('never proposes clearing an existing trailer when TMDB has no candidate', () => {
+    const [trailer] = compareMovieFields({ trailer: existingDifferentVideo }, { ...movie, trailer: null }, ['trailer']);
+
+    expect(trailer).toMatchObject({ available: false, selected: false });
   });
 });

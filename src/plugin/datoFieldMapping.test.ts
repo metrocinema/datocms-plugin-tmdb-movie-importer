@@ -54,6 +54,62 @@ describe('validateFieldMappings', () => {
     expect(validateFieldMappings({ ...baseParams, movieFields: { description: 'description' } }, schema)).toEqual([]);
   });
 
+  it('accepts trailer as a Dato video field', () => {
+    const schemaWithTrailer: DatoSchemaSnapshot = {
+      ...schema,
+      models: {
+        ...schema.models,
+        movie: {
+          ...schema.models.movie,
+          fields: {
+            ...schema.models.movie.fields,
+            trailer: { apiKey: 'trailer', fieldType: 'video', localized: false, validators: {} },
+          },
+        },
+      },
+    };
+    const parametersWithTrailer = {
+      ...baseParams,
+      movieFields: { ...baseParams.movieFields, trailer: 'trailer' },
+    };
+
+    expect(validateFieldMappings(parametersWithTrailer, schemaWithTrailer)).toEqual([]);
+  });
+
+  it('rejects trailer when it is not a Dato video field', () => {
+    const schemaWithTrailer: DatoSchemaSnapshot = {
+      ...schema,
+      models: {
+        ...schema.models,
+        movie: {
+          ...schema.models.movie,
+          fields: {
+            ...schema.models.movie.fields,
+            trailer: { apiKey: 'trailer', fieldType: 'video', localized: false, validators: {} },
+          },
+        },
+      },
+    };
+    const parametersWithTrailer = {
+      ...baseParams,
+      movieFields: { ...baseParams.movieFields, trailer: 'trailer' },
+    };
+
+    expect(validateFieldMappings(parametersWithTrailer, {
+      ...schemaWithTrailer,
+      models: {
+        ...schemaWithTrailer.models,
+        movie: {
+          ...schemaWithTrailer.models.movie,
+          fields: {
+            ...schemaWithTrailer.models.movie.fields,
+            trailer: { apiKey: 'trailer', fieldType: 'string', localized: false, validators: {} },
+          },
+        },
+      },
+    })).toContainEqual(expect.objectContaining({ code: 'trailer_wrong_type', severity: 'error' }));
+  });
+
   it('rejects hero image when it is not a single file field', () => {
     const badSchema: DatoSchemaSnapshot = {
       ...schema,

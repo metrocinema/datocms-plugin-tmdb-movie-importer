@@ -9,6 +9,10 @@ describe('modalRuntime', () => {
     expect(modalInitialTmdbId(undefined)).toBeNull();
   });
 
+  it('accepts trailer as a known mapped field', () => {
+    expect(modalMappedFields({ mappedFields: ['trailer'] })).toContain('trailer');
+  });
+
   it('accepts a complete sanitized prepared import', () => {
     expect(isPreparedImport(validPreparedImport())).toBe(true);
     expect(isPreparedImport({

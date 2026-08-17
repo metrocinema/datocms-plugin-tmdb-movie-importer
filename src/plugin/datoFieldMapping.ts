@@ -26,6 +26,7 @@ const FIELD_TYPES: Record<string, string[]> = {
   tmdbId: ['integer', 'float', 'string'],
   tagline: ['string', 'text'],
   description: ['text', 'string', 'structured_text'],
+  trailer: ['video'],
   poster: ['file'],
   heroImage: ['file'],
   backdrops: ['gallery'],

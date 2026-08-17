@@ -2,7 +2,7 @@ import type { PreparedImport } from '../dato/importExecutor';
 import type { CurrentMovieValues } from '../domain/fieldComparison';
 import type { MovieFieldKey } from '../domain/movie';
 
-const knownMovieFieldKeys: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'];
+const knownMovieFieldKeys: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'trailer', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'];
 
 export function modalMappedFields(parameters: unknown): MovieFieldKey[] {
   const value = readModalParameter(parameters, 'mappedFields');

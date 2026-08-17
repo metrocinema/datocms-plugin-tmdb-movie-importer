@@ -29,6 +29,14 @@ describe('plugin parameters', () => {
     expect(params.targetLocale).toBe('en-US');
   });
 
+  it('preserves an optional trailer field mapping without making it required', () => {
+    const params = parsePluginParameters({ movieFields: { trailer: 'trailer' } });
+    const issues = validatePluginParameters(params);
+
+    expect(params.movieFields.trailer).toBe('trailer');
+    expect(issues.map((issue) => issue.code)).not.toContain('missing_trailer_field');
+  });
+
   it('uses the active Dato editor locale for live form updates', () => {
     const params = parsePluginParameters({});
 

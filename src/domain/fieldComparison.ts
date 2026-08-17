@@ -1,5 +1,6 @@
 import type { MovieFieldKey, NormalizedMovie } from './movie';
 import { isEmptyStructuredText, isStructuredTextValue, structuredTextPlainText } from './structuredText';
+import { datoExternalVideoValue, sameExternalVideo } from './trailer';
 
 export type CurrentMovieValues = Partial<Record<MovieFieldKey, unknown>>;
 
@@ -12,11 +13,15 @@ export type FieldComparison = {
   changed: boolean;
 };
 
-const SCALAR_KEYS: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description'];
+const SCALAR_KEYS: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'trailer'];
 
 function proposedValue(movie: NormalizedMovie, key: MovieFieldKey): unknown {
   if (key === 'tmdbId') {
     return movie.tmdbId;
+  }
+
+  if (key === 'trailer') {
+    return movie.trailer ? datoExternalVideoValue(movie.trailer) : null;
   }
 
   return movie[key as keyof NormalizedMovie];
@@ -37,6 +42,10 @@ function valuesMatch(key: MovieFieldKey, currentValue: unknown, nextValue: unkno
 
   if (key === 'description' && isStructuredTextValue(currentValue)) {
     return (structuredTextPlainText(currentValue) ?? '') === String(nextValue ?? '');
+  }
+
+  if (key === 'trailer') {
+    return sameExternalVideo(currentValue, nextValue);
   }
 
   return JSON.stringify(currentValue ?? null) === JSON.stringify(nextValue ?? null);

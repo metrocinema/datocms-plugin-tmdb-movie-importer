@@ -10,6 +10,7 @@ export const movieFieldLabels: Record<MovieFieldKey, string> = {
   tmdbId: 'TMDB ID',
   tagline: 'Tagline',
   description: 'Description',
+  trailer: 'Trailer',
   poster: 'Poster',
   heroImage: 'Hero image',
   backdrops: 'Other images',

@@ -58,6 +58,7 @@ describe('ConfigScreen', () => {
       tmdbId: 'tmdb_id',
       tagline: 'tagline',
       description: 'description',
+      trailer: 'trailer',
       poster: 'poster',
       heroImage: 'hero_image',
       backdrops: 'other_images',
@@ -87,6 +88,12 @@ describe('ConfigScreen', () => {
       personTmdbIdFieldApiKey: 'person_tmdb_id',
       actorLimit: 7,
     })));
+  });
+
+  it('shows the trailer field mapping input', () => {
+    render(<ConfigScreen parameters={parsePluginParameters({})} onSave={vi.fn()} />);
+
+    expect(screen.getByLabelText('Trailer field API name')).toBeInTheDocument();
   });
 
   it('disables the save button while saving', async () => {
@@ -125,6 +132,7 @@ function movieFieldLabel(key: string): string {
     tmdbId: 'TMDB ID',
     tagline: 'Tagline',
     description: 'Description',
+    trailer: 'Trailer',
     poster: 'Poster',
     heroImage: 'Hero image',
     backdrops: 'Other images',
