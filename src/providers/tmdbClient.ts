@@ -48,7 +48,7 @@ export class TmdbClient {
   }
 
   async getMoviePackage(tmdbId: number): Promise<TmdbMoviePackage> {
-    return this.getJson<TmdbMoviePackage>(`/movie/${tmdbId}?language=en-US&append_to_response=credits,release_dates,images&include_image_language=en,null`);
+    return this.getJson<TmdbMoviePackage>(`/movie/${tmdbId}?language=en-US&append_to_response=credits,release_dates,images,videos&include_image_language=en,null`);
   }
 
   private async getJson<T>(path: string): Promise<T> {

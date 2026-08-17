@@ -40,6 +40,19 @@ export type TmdbImage = {
   vote_count?: number;
 };
 
+export type TmdbVideo = {
+  id?: unknown;
+  iso_639_1?: unknown;
+  iso_3166_1?: unknown;
+  key?: unknown;
+  name?: unknown;
+  official?: unknown;
+  published_at?: unknown;
+  site?: unknown;
+  size?: unknown;
+  type?: unknown;
+};
+
 export type TmdbMoviePackage = {
   id: number;
   title: string;
@@ -56,4 +69,5 @@ export type TmdbMoviePackage = {
     posters: TmdbImage[];
     backdrops: TmdbImage[];
   };
+  videos?: { results?: unknown };
 };

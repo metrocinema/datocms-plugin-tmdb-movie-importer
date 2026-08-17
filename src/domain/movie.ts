@@ -1,3 +1,5 @@
+import type { NormalizedTrailerCandidate } from './trailer';
+
 export type MovieFieldKey =
   | 'title'
   | 'yearReleased'
@@ -45,6 +47,7 @@ export type NormalizedMovie = {
   directors: PersonCandidate[];
   actors: PersonCandidate[];
   images: NormalizedImageCandidate[];
+  trailer: NormalizedTrailerCandidate | null;
 };
 
 export type ValidationIssue = {

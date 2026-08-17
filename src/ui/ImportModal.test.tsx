@@ -35,6 +35,7 @@ const movie: NormalizedMovie = {
   directors: [{ tmdbId: 10, name: 'Director Name', order: 0, role: 'director' }],
   actors: [{ tmdbId: 20, name: 'Actor Name', order: 0, role: 'actor' }],
   images: [{ providerKey: 'tmdb', providerImageId: '/poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg', width: 100, height: 150, language: 'en', rank: 1, attribution: 'TMDB' }],
+  trailer: null,
 };
 
 const movieWithBackdrops: NormalizedMovie = {

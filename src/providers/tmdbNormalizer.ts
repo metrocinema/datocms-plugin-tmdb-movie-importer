@@ -1,10 +1,23 @@
 import type { NormalizedImageCandidate, NormalizedMovie, PersonCandidate } from '../domain/movie';
-import type { TmdbImage, TmdbMoviePackage, TmdbReleaseDatesResponse } from './tmdbTypes';
+import type { NormalizedTrailerCandidate } from '../domain/trailer';
+import type { TmdbImage, TmdbMoviePackage, TmdbReleaseDatesResponse, TmdbVideo } from './tmdbTypes';
 
 const TMDB_IMAGE_ORIGINAL_BASE = 'https://image.tmdb.org/t/p/original';
 const TMDB_POSTER_PREVIEW_BASE = 'https://image.tmdb.org/t/p/w342';
 const TMDB_BACKDROP_PREVIEW_BASE = 'https://image.tmdb.org/t/p/w300';
 const THEATRICAL_RELEASE_TYPES = new Set([2, 3]);
+const YOUTUBE_KEY = /^[A-Za-z0-9_-]+$/;
+
+type EligibleTmdbTrailer = TmdbVideo & {
+  id: string;
+  iso_639_1: 'en';
+  key: string;
+  name: string;
+  official: true;
+  site: 'YouTube';
+  size: number;
+  type: 'Trailer';
+};
 
 export function selectUsCertification(releaseDates: TmdbReleaseDatesResponse): string | null {
   const us = releaseDates.results.find((entry) => entry.iso_3166_1 === 'US');
@@ -61,6 +74,91 @@ function normalizeImages(input: TmdbMoviePackage): NormalizedImageCandidate[] {
   return [...posters, ...backdrops].sort((a, b) => a.rank - b.rank);
 }
 
+function eligibleTrailer(value: unknown): value is EligibleTmdbTrailer {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const video = value as TmdbVideo;
+
+  return video.official === true
+    && video.iso_639_1 === 'en'
+    && video.site === 'YouTube'
+    && video.type === 'Trailer'
+    && typeof video.id === 'string' && video.id.trim().length > 0
+    && typeof video.key === 'string' && YOUTUBE_KEY.test(video.key)
+    && typeof video.name === 'string' && video.name.trim().length > 0
+    && typeof video.size === 'number' && Number.isInteger(video.size) && video.size > 0;
+}
+
+function trailerPublishedAt(video: TmdbVideo): string | null {
+  if (typeof video.published_at !== 'string' || Number.isNaN(Date.parse(video.published_at))) {
+    return null;
+  }
+
+  return video.published_at;
+}
+
+function trailerPublishedAtRank(video: TmdbVideo): number | null {
+  const publishedAt = trailerPublishedAt(video);
+
+  return publishedAt === null ? null : Date.parse(publishedAt);
+}
+
+function compareEligibleTrailers(left: EligibleTmdbTrailer, right: EligibleTmdbTrailer): number {
+  if (left.size !== right.size) {
+    return right.size - left.size;
+  }
+
+  const leftPublishedAt = trailerPublishedAtRank(left);
+  const rightPublishedAt = trailerPublishedAtRank(right);
+
+  if (leftPublishedAt === null && rightPublishedAt !== null) {
+    return 1;
+  }
+
+  if (leftPublishedAt !== null && rightPublishedAt === null) {
+    return -1;
+  }
+
+  if (leftPublishedAt !== null && rightPublishedAt !== null && leftPublishedAt !== rightPublishedAt) {
+    return rightPublishedAt - leftPublishedAt;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function normalizeTrailer(input: TmdbMoviePackage): NormalizedTrailerCandidate | null {
+  if (!Array.isArray(input.videos?.results)) {
+    return null;
+  }
+
+  const [winner] = input.videos.results.filter(eligibleTrailer).sort(compareEligibleTrailers);
+
+  if (!winner) {
+    return null;
+  }
+
+  return {
+    providerKey: 'tmdb',
+    providerVideoId: winner.id,
+    movieIdentity: { providerKey: 'tmdb', tmdbId: input.id },
+    externalProvider: 'youtube',
+    externalProviderId: winner.key,
+    title: winner.name,
+    watchUrl: `https://www.youtube.com/watch?v=${winner.key}`,
+    thumbnailUrl: `https://i.ytimg.com/vi/${winner.key}/hqdefault.jpg`,
+    width: Math.round(winner.size * 16 / 9),
+    height: winner.size,
+    language: 'en',
+    country: typeof winner.iso_3166_1 === 'string' && winner.iso_3166_1.trim().length > 0 ? winner.iso_3166_1 : null,
+    resolution: winner.size,
+    publishedAt: trailerPublishedAt(winner),
+    official: true,
+    attribution: 'TMDB',
+  };
+}
+
 export function normalizeTmdbMovie(input: TmdbMoviePackage, actorLimit: number): NormalizedMovie {
   const people = normalizePeople(input, actorLimit);
 
@@ -76,5 +174,6 @@ export function normalizeTmdbMovie(input: TmdbMoviePackage, actorLimit: number):
     directors: people.directors,
     actors: people.actors,
     images: normalizeImages(input),
+    trailer: normalizeTrailer(input),
   };
 }

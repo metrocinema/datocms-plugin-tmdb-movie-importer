@@ -327,6 +327,7 @@ const fixtureMovie: NormalizedMovie = {
     ...posterCandidatesFor(843),
     ...backdropCandidatesFor(843),
   ],
+  trailer: null,
 };
 
 const importProgressFixtureMovie: NormalizedMovie = {
@@ -356,6 +357,7 @@ const odysseyFixtureMovie: NormalizedMovie = {
     ...posterCandidatesFor(1368337),
     ...backdropCandidatesFor(1368337),
   ],
+  trailer: null,
 };
 
 function posterCandidatesFor(tmdbId: number) {

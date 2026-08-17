@@ -48,7 +48,7 @@ describe('TmdbClient', () => {
     await client.getMoviePackage(27205);
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'https://api.themoviedb.org/3/movie/27205?language=en-US&append_to_response=credits,release_dates,images&include_image_language=en,null',
+      'https://api.themoviedb.org/3/movie/27205?language=en-US&append_to_response=credits,release_dates,images,videos&include_image_language=en,null',
       { headers: { Authorization: 'Bearer test-read-token', Accept: 'application/json' } },
     );
   });

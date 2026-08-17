@@ -13,6 +13,7 @@ const movie: NormalizedMovie = {
   directors: [],
   actors: [],
   images: [],
+  trailer: null,
 };
 
 const emptyStructuredDescription = {
