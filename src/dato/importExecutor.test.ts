@@ -27,6 +27,33 @@ const params: PluginParameters = {
   actorLimit: 10,
 };
 
+const trailerValue = {
+  provider: 'youtube',
+  provider_uid: 'abc_123',
+  url: 'https://www.youtube.com/watch?v=abc_123',
+  width: 1920,
+  height: 1080,
+  thumbnail_url: 'https://i.ytimg.com/vi/abc_123/hqdefault.jpg',
+  title: 'Official Trailer',
+} as const;
+
+const trailerParams: PluginParameters = {
+  ...params,
+  movieFields: { ...params.movieFields, trailer: 'trailer' },
+};
+
+const preparedWithTrailer: PreparedImport = {
+  fieldChanges: [{ key: 'trailer', value: trailerValue }],
+  directors: [],
+  actors: [],
+  people: [],
+  images: [],
+  heroImage: null,
+  otherImages: [],
+  createdPeople: [],
+  uploadedAssets: [],
+};
+
 const plan: ImportPlan = {
   fieldChanges: [{ key: 'title', value: 'Example Movie' }],
   directors: [{ tmdbId: 10, name: 'Director Name', order: 0, role: 'director' }],
@@ -824,6 +851,50 @@ describe('executeImportPlan', () => {
     }, { localizedMovieFields: { title: true } });
 
     expect(appliedChanges).toEqual([{ fieldPath: 'title.en-US', value: 'Example Movie' }]);
+  });
+
+  it('applies a reviewed trailer as a native External Video value', async () => {
+    const gateway = {
+      async findPeople() {
+        return [];
+      },
+      async createPersonDraft() {
+        return { id: 'person-1' };
+      },
+      async uploadImage() {
+        return { id: 'upload-1' };
+      },
+      applyFormValues: vi.fn(async () => undefined),
+    };
+
+    await applyPreparedImport(preparedWithTrailer, trailerParams, gateway);
+
+    expect(gateway.applyFormValues).toHaveBeenCalledWith(
+      expect.arrayContaining([{ fieldPath: 'trailer', value: trailerValue }]),
+    );
+  });
+
+  it('applies a reviewed trailer to the active locale path', async () => {
+    const gateway = {
+      async findPeople() {
+        return [];
+      },
+      async createPersonDraft() {
+        return { id: 'person-1' };
+      },
+      async uploadImage() {
+        return { id: 'upload-1' };
+      },
+      applyFormValues: vi.fn(async () => undefined),
+    };
+
+    await applyPreparedImport(preparedWithTrailer, trailerParams, gateway, {
+      localizedMovieFields: { trailer: true },
+    });
+
+    expect(gateway.applyFormValues).toHaveBeenCalledWith(
+      expect.arrayContaining([{ fieldPath: 'trailer.en', value: trailerValue }]),
+    );
   });
 
   it('writes description in the editor Slate format when configured field type is structured_text', async () => {

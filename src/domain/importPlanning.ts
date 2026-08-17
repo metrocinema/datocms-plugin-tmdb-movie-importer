@@ -40,6 +40,7 @@ export function buildImportPlan(input: BuildImportPlanInput): ImportPlan {
     ? imageSelection.backdrops.filter((image) => !sameImage(image, heroImage))
     : imageSelection.backdrops;
   const fieldChanges = input.fieldComparisons
+    .filter((comparison) => mappedFields.has(comparison.key))
     .filter((comparison) => comparison.selected && comparison.available && comparison.changed)
     .map((comparison) => ({ key: comparison.key, value: comparison.proposedValue }));
 

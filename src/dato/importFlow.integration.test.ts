@@ -15,6 +15,16 @@ const params: PluginParameters = {
   actorLimit: 10,
 };
 
+const trailerValue = {
+  provider: 'youtube',
+  provider_uid: 'abc_123',
+  url: 'https://www.youtube.com/watch?v=abc_123',
+  width: 1920,
+  height: 1080,
+  thumbnail_url: 'https://i.ytimg.com/vi/abc_123/hqdefault.jpg',
+  title: 'Official Trailer',
+} as const;
+
 const movie: NormalizedMovie = {
   tmdbId: 123,
   title: 'Example Movie',
@@ -115,5 +125,49 @@ describe('import flow integration', () => {
 
     expect(result.status).toBe('dependency_failed');
     expect(applyFormValues).not.toHaveBeenCalled();
+  });
+
+  it('applies a reviewed trailer without creating dependencies or uploads', async () => {
+    const findPeople = vi.fn(async () => []);
+    const createPersonDraft = vi.fn(async () => ({ id: 'person-1' }));
+    const uploadImage = vi.fn(async () => ({ id: 'upload-1' }));
+    const applyFormValues = vi.fn(async () => undefined);
+    const plan = buildImportPlan({
+      fieldComparisons: [{
+        key: 'trailer',
+        currentValue: null,
+        proposedValue: trailerValue,
+        selected: true,
+        available: true,
+        changed: true,
+      }],
+      directors: [],
+      actors: [],
+      imageSelection: { poster: null, heroImage: null, backdrops: [] },
+      personResolutions: [],
+      mappedFields: ['trailer'],
+    });
+
+    const result = await executeImportPlan(
+      plan,
+      {
+        ...params,
+        movieFields: { ...params.movieFields, trailer: 'trailer' },
+      },
+      {
+        findPeople,
+        createPersonDraft,
+        uploadImage,
+        applyFormValues,
+      },
+    );
+
+    expect(result.status).toBe('success');
+    expect(findPeople).not.toHaveBeenCalled();
+    expect(createPersonDraft).not.toHaveBeenCalled();
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(applyFormValues).toHaveBeenCalledWith([
+      { fieldPath: 'trailer', value: trailerValue },
+    ]);
   });
 });

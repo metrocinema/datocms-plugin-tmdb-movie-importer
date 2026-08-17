@@ -142,7 +142,7 @@ describe('modalRuntime', () => {
   it.each([
     {
       name: 'field changes without a valid movie key',
-      change: { fieldChanges: [{ key: 'not-a-movie-field', value: 'Movie' }] },
+      change: { fieldChanges: [{ key: 'not-a-movie-field', value: validTrailerValue() }] },
     },
     {
       name: 'malformed directors',
@@ -289,11 +289,11 @@ function validPreparedImport(): PreparedImport {
 function validTrailerValue() {
   return {
     provider: 'youtube' as const,
-    provider_uid: 'youtube-video-123',
-    url: 'https://www.youtube.com/watch?v=youtube-video-123',
+    provider_uid: 'abc_123',
+    url: 'https://www.youtube.com/watch?v=abc_123',
     width: 1920,
     height: 1080,
-    thumbnail_url: 'https://img.youtube.com/vi/youtube-video-123/maxresdefault.jpg',
+    thumbnail_url: 'https://i.ytimg.com/vi/abc_123/hqdefault.jpg',
     title: 'Official Trailer',
   };
 }

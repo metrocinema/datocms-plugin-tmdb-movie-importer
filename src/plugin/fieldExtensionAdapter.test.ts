@@ -6,7 +6,7 @@ const configuredParameters = {
   tmdbReadToken: 'tmdb-token',
   movieModelApiKey: 'movie',
   targetLocale: 'en',
-  movieFields: { title: 'title' },
+  movieFields: { title: 'title', trailer: 'trailer' },
   personModelApiKey: 'person',
   personNameFieldApiKey: 'name',
   personTmdbIdFieldApiKey: 'tmdb_id',
@@ -54,6 +54,20 @@ function fieldContext(openModal: (options: Modal) => Promise<unknown>) {
           api_key: 'alternate_title',
           localized: true,
           field_type: 'string',
+        },
+      },
+      trailer: {
+        attributes: {
+          api_key: 'trailer',
+          localized: false,
+          field_type: 'video',
+        },
+      },
+      alternateTrailer: {
+        attributes: {
+          api_key: 'alternate_trailer',
+          localized: false,
+          field_type: 'video',
         },
       },
     },
@@ -153,6 +167,24 @@ describe('field extension adapter', () => {
     );
   });
 
+  it('does not apply if the trailer destination changes while the modal is open', async () => {
+    const ctx = fieldContext(async () => {
+      ctx.plugin.attributes.parameters.movieFields.trailer = 'alternate_trailer';
+      return preparedImport;
+    });
+    const applyPrepared = vi.fn();
+
+    await runFieldExtensionImport('find', vi.fn(), ctx, {
+      createGateway: vi.fn(),
+      applyPrepared,
+    });
+
+    expect(applyPrepared).not.toHaveBeenCalled();
+    expect(ctx.alert).toHaveBeenCalledWith(
+      'Import did not run because the field mapping or target locale changed while the modal was open. Review the movie again.',
+    );
+  });
+
   it.each([
     {
       name: 'localization',
@@ -235,8 +267,8 @@ describe('field extension adapter', () => {
       expect.objectContaining({ targetLocale: 'en' }),
       gateway,
       {
-        localizedMovieFields: { title: true },
-        movieFieldTypes: { title: 'string' },
+        localizedMovieFields: { title: true, trailer: false },
+        movieFieldTypes: { title: 'string', trailer: 'video' },
       },
     );
     expect(reportStatus).toHaveBeenCalledWith('applying');

@@ -7,6 +7,16 @@ const fields: FieldComparison[] = [
   { key: 'mpaaRating', currentValue: 'R', proposedValue: null, selected: false, available: false, changed: true },
 ];
 
+const trailerValue = {
+  provider: 'youtube',
+  provider_uid: 'abc_123',
+  url: 'https://www.youtube.com/watch?v=abc_123',
+  width: 1920,
+  height: 1080,
+  thumbnail_url: 'https://i.ytimg.com/vi/abc_123/hqdefault.jpg',
+  title: 'Official Trailer',
+} as const;
+
 describe('buildImportPlan', () => {
   it('includes only selected available field changes', () => {
     const plan = buildImportPlan({
@@ -19,6 +29,60 @@ describe('buildImportPlan', () => {
     });
 
     expect(plan.fieldChanges).toEqual([{ key: 'title', value: 'Example Movie' }]);
+  });
+
+  it('preserves a selected mapped trailer in generic field changes', () => {
+    const plan = buildImportPlan({
+      fieldComparisons: [{
+        key: 'trailer',
+        currentValue: null,
+        proposedValue: trailerValue,
+        selected: true,
+        available: true,
+        changed: true,
+      }],
+      directors: [],
+      actors: [],
+      imageSelection: { poster: null, heroImage: null, backdrops: [] },
+      personResolutions: [],
+      mappedFields: ['trailer'],
+    });
+
+    expect(plan.fieldChanges).toEqual([{ key: 'trailer', value: trailerValue }]);
+  });
+
+  it.each([
+    {
+      name: 'it is not selected',
+      comparison: { key: 'trailer', currentValue: null, proposedValue: trailerValue, selected: false, available: true, changed: true } satisfies FieldComparison,
+      mappedFields: ['trailer'],
+    },
+    {
+      name: 'it is unavailable',
+      comparison: { key: 'trailer', currentValue: null, proposedValue: trailerValue, selected: true, available: false, changed: true } satisfies FieldComparison,
+      mappedFields: ['trailer'],
+    },
+    {
+      name: 'it is unchanged',
+      comparison: { key: 'trailer', currentValue: null, proposedValue: trailerValue, selected: true, available: true, changed: false } satisfies FieldComparison,
+      mappedFields: ['trailer'],
+    },
+    {
+      name: 'its destination is no longer mapped',
+      comparison: { key: 'trailer', currentValue: null, proposedValue: trailerValue, selected: true, available: true, changed: true } satisfies FieldComparison,
+      mappedFields: [],
+    },
+  ])('omits trailer field changes when $name', ({ comparison, mappedFields }) => {
+    const plan = buildImportPlan({
+      fieldComparisons: [comparison],
+      directors: [],
+      actors: [],
+      imageSelection: { poster: null, heroImage: null, backdrops: [] },
+      personResolutions: [],
+      mappedFields,
+    });
+
+    expect(plan.fieldChanges).toEqual([]);
   });
 
   it('records person creates and asset uploads before final form values', () => {
