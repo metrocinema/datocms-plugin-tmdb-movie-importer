@@ -488,12 +488,12 @@ describe('ImportModal', () => {
     expect(screen.getByText('What happens after you start')).toBeInTheDocument();
     expect(screen.getByText('Create selected draft Person records in DatoCMS.')).toBeInTheDocument();
     expect(screen.getByText('Upload selected poster and backdrop images.')).toBeInTheDocument();
-    expect(screen.getByText('Apply selected TMDB values to the unsaved movie form.')).toBeInTheDocument();
+    expect(screen.getByText('Apply selected TMDB values and any selected trailer to the unsaved movie form.')).toBeInTheDocument();
     expect(screen.getByText('The movie record will remain unsaved until you save it in DatoCMS.')).toBeInTheDocument();
     expect(screen.getByText('If something fails after people or images are created, those drafts or uploads may remain in DatoCMS.')).toBeInTheDocument();
     const confirmActions = document.querySelector('.movie-import-modal__actions--confirm')!;
-    expect(within(confirmActions as HTMLElement).getByText('3 fields selected')).toBeInTheDocument();
-    expect(within(confirmActions as HTMLElement).getByText('0 images selected')).toBeInTheDocument();
+    expect(within(confirmActions as HTMLElement).getByText('3 fields')).toBeInTheDocument();
+    expect(within(confirmActions as HTMLElement).getByText('0 images')).toBeInTheDocument();
     expect(within(confirmActions as HTMLElement).getByText('2 new people')).toBeInTheDocument();
     expect(within(confirmActions as HTMLElement).getByText('0 reused people')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start import' })).toBeInTheDocument();
@@ -650,8 +650,8 @@ describe('ImportModal', () => {
     expect(screen.getByRole('heading', { name: 'Field changes' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Images' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
-    expect(screen.getByText('1 field selected')).toBeInTheDocument();
-    expect(screen.getByText('0 images selected')).toBeInTheDocument();
+    expect(screen.getByText('1 field')).toBeInTheDocument();
+    expect(screen.getByText('0 images')).toBeInTheDocument();
     expect(screen.getByText('2 new people')).toBeInTheDocument();
     expect(screen.getByText('0 reused people')).toBeInTheDocument();
     expect(screen.getByText('1 field available · 1 selected')).toBeInTheDocument();
@@ -1000,14 +1000,14 @@ describe('ImportModal data flow', () => {
     expect(screen.getByText('Published Jan 1, 2024')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Use proposed Title' })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).toBeChecked();
-    expect(within(reviewActions as HTMLElement).getByText('1 field selected')).toBeInTheDocument();
-    expect(within(reviewActions as HTMLElement).getByText('0 images selected')).toBeInTheDocument();
+    expect(within(reviewActions as HTMLElement).getByText('1 field')).toBeInTheDocument();
+    expect(within(reviewActions as HTMLElement).getByText('0 images')).toBeInTheDocument();
     expect(within(reviewActions as HTMLElement).getByText('0 new people')).toBeInTheDocument();
     expect(within(reviewActions as HTMLElement).getByText('0 reused people')).toBeInTheDocument();
-    expect(reviewActions).toHaveTextContent('1 field selected');
-    expect(reviewActions).not.toHaveTextContent('Trailer selected');
+    expect(reviewActions).toHaveTextContent('1 field');
+    expect(reviewActions).toHaveTextContent('1 trailer');
     expect(reviewActions).not.toHaveTextContent('Trailer unchanged');
-    expect(screen.getByLabelText('1 field selected, 0 images selected, 0 new people, 0 reused people')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 field, 1 trailer, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).not.toBeChecked();
@@ -1019,11 +1019,64 @@ describe('ImportModal data flow', () => {
     expect(trailerToggle).toBeChecked();
   });
 
+  it('shows trailer impact separately in review and confirm when a trailer is selected', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: 'Existing title', runtime: null, trailer: null }} mappedFields={['title', 'runtime', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+
+    const reviewActions = document.querySelector('.movie-import-modal__actions--sticky') as HTMLElement;
+    expect(within(reviewActions).getByText('1 field')).toBeInTheDocument();
+    expect(within(reviewActions).getByText('1 trailer')).toBeInTheDocument();
+    expect(within(reviewActions).getByText('0 images')).toBeInTheDocument();
+    expect(within(reviewActions).getByText('0 new people')).toBeInTheDocument();
+    expect(within(reviewActions).getByText('0 reused people')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 field, 1 trailer, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByText('1 field to update')).toBeInTheDocument();
+    expect(screen.getByText('Runtime')).toBeInTheDocument();
+    expect(screen.queryByText(/^Trailer$/)).not.toBeInTheDocument();
+    expect(screen.getByText('1 trailer to update')).toBeInTheDocument();
+    expect(screen.getByText('Official Trailer')).toBeInTheDocument();
+    expect(screen.getByText('Apply selected TMDB values and any selected trailer to the unsaved movie form.')).toBeInTheDocument();
+    expect(screen.queryByText('Apply selected TMDB values to the unsaved movie form.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/upload.*trailer/i)).not.toBeInTheDocument();
+
+    const confirmActions = document.querySelector('.movie-import-modal__actions--confirm') as HTMLElement;
+    expect(within(confirmActions).getByText('1 field')).toBeInTheDocument();
+    expect(within(confirmActions).getByText('1 trailer')).toBeInTheDocument();
+    expect(within(confirmActions).getByText('0 images')).toBeInTheDocument();
+    expect(within(confirmActions).getByText('0 new people')).toBeInTheDocument();
+    expect(within(confirmActions).getByText('0 reused people')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 field, 1 trailer, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
+  });
+
   it('starts trailer unselected for a replacement current value', async () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: { provider: 'youtube', provider_uid: 'existing-youtube-id', title: 'Editorial trailer', width: 1280, height: 720, thumbnail_url: 'https://img.youtube.com/vi/existing/hqdefault.jpg', url: 'https://www.youtube.com/watch?v=existing-youtube-id' } }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
     expect(screen.getByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeChecked();
+  });
+
+  it('omits trailer impact segments when no trailer is selected', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: { provider: 'youtube', provider_uid: 'existing-youtube-id', title: 'Editorial trailer', width: 1280, height: 720, thumbnail_url: 'https://img.youtube.com/vi/existing/hqdefault.jpg', url: 'https://www.youtube.com/watch?v=existing-youtube-id' } }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+
+    const reviewActions = document.querySelector('.movie-import-modal__actions--sticky') as HTMLElement;
+    expect(within(reviewActions).getByText('1 field')).toBeInTheDocument();
+    expect(reviewActions).not.toHaveTextContent('trailer selected');
+    expect(screen.getByLabelText('1 field, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.queryByText('0 trailers selected')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 trailers to update')).not.toBeInTheDocument();
+    const confirmActions = document.querySelector('.movie-import-modal__actions--confirm') as HTMLElement;
+    expect(within(confirmActions).getByText('1 field')).toBeInTheDocument();
+    expect(confirmActions).not.toHaveTextContent('trailer selected');
+    expect(screen.getByLabelText('1 field, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
   });
 
   it('disables trailer review when the current provider and id already match', async () => {

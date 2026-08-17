@@ -8,7 +8,7 @@ import type { ImageSelection } from '../providers/imageProvider';
 import { FieldDiffTable } from './FieldDiffTable';
 import { ImagePicker } from './ImagePicker';
 import { isEnglishPoster } from '../providers/imageProvider';
-import { formatRuntime, formatYear } from './modalPresentation';
+import { formatImpactSegments, formatRuntime, formatYear, pluralize } from './modalPresentation';
 import { ModalStepIndicator } from './ModalStepIndicator';
 import { PersonResolutionList } from './PersonResolutionList';
 import { TrailerReview } from './TrailerReview';
@@ -56,13 +56,15 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
   const imageDestinationCounts = countSelectedImageDestinations(imageSelection);
   const peopleToCreateCount = people.filter(({ decision }) => decision.type === 'create').length;
   const peopleToReuseCount = people.filter(({ decision }) => decision.type === 'reuse').length;
+  const selectedTrailerCount = trailerComparison?.selected && trailerComparison.available && trailerComparison.changed ? 1 : 0;
   const selectedMovieSummary = `${movie.title}${movie.yearReleased ? ` (${formatYear(movie.yearReleased)})` : ''}`;
-  const impactSummary = [
-    `${selectedFieldCount} ${pluralize(selectedFieldCount, 'field')} selected`,
-    `${selectedImageCount} ${pluralize(selectedImageCount, 'image')} selected`,
-    `${peopleToCreateCount} new ${pluralize(peopleToCreateCount, 'person', 'people')}`,
-    `${peopleToReuseCount} reused ${pluralize(peopleToReuseCount, 'person', 'people')}`,
-  ];
+  const impactSummary = formatImpactSegments({
+    fieldChanges: selectedFieldCount,
+    trailers: selectedTrailerCount,
+    imagesToUpload: selectedImageCount,
+    peopleToCreate: peopleToCreateCount,
+    peopleToReuse: peopleToReuseCount,
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -158,7 +160,7 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
         </div>
       </div>
       <div className="movie-import-modal__actions movie-import-modal__actions--sticky">
-        <p className="movie-import-modal__action-summary" aria-label={`${selectedFieldCount} ${pluralize(selectedFieldCount, 'field')} selected, ${selectedImageCount} ${pluralize(selectedImageCount, 'image')} selected, ${peopleToCreateCount} new ${pluralize(peopleToCreateCount, 'person', 'people')}, ${peopleToReuseCount} reused ${pluralize(peopleToReuseCount, 'person', 'people')}`}>
+        <p className="movie-import-modal__action-summary" aria-label={impactSummary.join(', ')}>
           {impactSummary.map((item) => <span key={item}>{item}</span>)}
         </p>
         {hasAmbiguousPeople ? <p role="alert" className="movie-import-modal__action-note">Resolve {ambiguousPeopleCount} {ambiguousPeopleCount === 1 ? 'person' : 'people'} before continuing.</p> : null}
@@ -235,11 +237,6 @@ function formatList(parts: Array<string | null>) {
 
   return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
 }
-
-function pluralize(count: number, singular: string, plural = `${singular}s`) {
-  return count === 1 ? singular : plural;
-}
-
 function isEmptyValue(value: unknown) {
   return value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
 }

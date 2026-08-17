@@ -29,6 +29,15 @@ const plan: ImportPlan = {
   ],
 };
 
+const planWithTrailer: ImportPlan = {
+  ...plan,
+  fieldChanges: [
+    { key: 'title', value: 'Example Movie' },
+    { key: 'runtime', value: 125 },
+    { key: 'trailer', value: { title: 'Official Trailer' } },
+  ],
+};
+
 const structuredDescription = {
   schema: 'dast',
   document: {
@@ -105,9 +114,20 @@ describe('modal presentation helpers', () => {
     expect(formatReviewValue('description', emptyStructuredDescription)).toBe('Empty');
   });
 
-  it('counts the items shown in the confirmation summary', () => {
+  it('counts scalar field changes without counting trailers as fields', () => {
+    expect(countConfirmSummary(planWithTrailer)).toEqual({
+      fieldChanges: 2,
+      trailers: 1,
+      peopleToCreate: 1,
+      peopleToReuse: 1,
+      imagesToUpload: 2,
+    });
+  });
+
+  it('returns zero trailers when none are selected for import', () => {
     expect(countConfirmSummary(plan)).toEqual({
       fieldChanges: 2,
+      trailers: 0,
       peopleToCreate: 1,
       peopleToReuse: 1,
       imagesToUpload: 2,

@@ -59,14 +59,38 @@ export function formatReviewValue(key: MovieFieldKey, value: unknown): string {
 
 export function countConfirmSummary(plan: ImportPlan): {
   fieldChanges: number;
+  trailers: number;
   peopleToCreate: number;
   peopleToReuse: number;
   imagesToUpload: number;
 } {
+  const trailers = plan.fieldChanges.some((change) => change.key === 'trailer') ? 1 : 0;
+
   return {
-    fieldChanges: plan.fieldChanges.length,
+    fieldChanges: plan.fieldChanges.filter((change) => change.key !== 'trailer').length,
+    trailers,
     peopleToCreate: plan.peopleToCreate.length,
     peopleToReuse: plan.peopleToReuse.length,
     imagesToUpload: plan.assetsToUpload.length,
   };
+}
+
+export function formatImpactSegments(summary: {
+  fieldChanges: number;
+  trailers: number;
+  peopleToCreate: number;
+  peopleToReuse: number;
+  imagesToUpload: number;
+}) {
+  return [
+    `${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')}`,
+    summary.trailers > 0 ? `${summary.trailers} ${pluralize(summary.trailers, 'trailer')}` : null,
+    `${summary.imagesToUpload} ${pluralize(summary.imagesToUpload, 'image')}`,
+    `${summary.peopleToCreate} new ${pluralize(summary.peopleToCreate, 'person', 'people')}`,
+    `${summary.peopleToReuse} reused ${pluralize(summary.peopleToReuse, 'person', 'people')}`,
+  ].filter((segment): segment is string => segment !== null);
+}
+
+export function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return count === 1 ? singular : plural;
 }

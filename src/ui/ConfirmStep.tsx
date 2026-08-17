@@ -2,7 +2,7 @@ import { Button, Section } from 'datocms-react-ui';
 import { useEffect, useRef } from 'react';
 import type { ImportPlan } from '../domain/importPlanning';
 import type { NormalizedMovie } from '../domain/movie';
-import { countConfirmSummary, movieFieldLabels } from './modalPresentation';
+import { countConfirmSummary, formatImpactSegments, movieFieldLabels, pluralize } from './modalPresentation';
 import { ModalStepIndicator } from './ModalStepIndicator';
 
 type ConfirmStepProps = {
@@ -15,14 +15,12 @@ type ConfirmStepProps = {
 export function ConfirmStep({ plan, movie, onConfirm, onBack }: ConfirmStepProps) {
   const summary = countConfirmSummary(plan);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const fieldLabels = plan.fieldChanges.map((change) => movieFieldLabels[change.key]);
+  const fieldLabels = plan.fieldChanges
+    .filter((change) => change.key !== 'trailer')
+    .map((change) => movieFieldLabels[change.key]);
+  const trailerChange = plan.fieldChanges.find((change) => change.key === 'trailer');
   const imageDestinations = formatImageDestinations(plan);
-  const impactSummary = [
-    `${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} selected`,
-    `${summary.imagesToUpload} ${pluralize(summary.imagesToUpload, 'image')} selected`,
-    `${summary.peopleToCreate} new ${pluralize(summary.peopleToCreate, 'person', 'people')}`,
-    `${summary.peopleToReuse} reused ${pluralize(summary.peopleToReuse, 'person', 'people')}`,
-  ];
+  const impactSummary = formatImpactSegments(summary);
 
   useEffect(() => {
     const moveToStart = () => {
@@ -68,6 +66,7 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack }: ConfirmStepProps
             </div>
             <dl className="movie-import-modal__confirm-summary">
               <ConfirmSummaryRow label={`${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} to update`} value={fieldLabels.length > 0 ? formatList(fieldLabels) : 'No field values selected'} />
+              {summary.trailers > 0 ? <ConfirmSummaryRow label={`${summary.trailers} ${pluralize(summary.trailers, 'trailer')} to update`} value={formatTrailerSelection(trailerChange?.value)} /> : null}
               <ConfirmSummaryRow label={`${summary.peopleToCreate} draft ${pluralize(summary.peopleToCreate, 'Person record')} to create`} value={plan.peopleToCreate.length > 0 ? formatPeopleNames(plan.peopleToCreate) : 'No draft Person records'} />
               <ConfirmSummaryRow label={`${summary.peopleToReuse} existing ${pluralize(summary.peopleToReuse, 'Person record')} to link`} value={plan.peopleToReuse.length > 0 ? formatPeopleNames(plan.peopleToReuse) : 'No existing Person records'} />
               <ConfirmSummaryRow label={`${summary.imagesToUpload} unique ${pluralize(summary.imagesToUpload, 'image')} to upload`} value={imageDestinations} />
@@ -79,14 +78,14 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack }: ConfirmStepProps
           <ol>
             <li>Create selected draft Person records in DatoCMS.</li>
             <li>Upload selected poster and backdrop images.</li>
-            <li>Apply selected TMDB values to the unsaved movie form.</li>
+            <li>Apply selected TMDB values and any selected trailer to the unsaved movie form.</li>
           </ol>
           <p>The movie record will remain unsaved until you save it in DatoCMS.</p>
           <p className="movie-import-modal__next-warning">If something fails after people or images are created, those drafts or uploads may remain in DatoCMS.</p>
         </div>
       </div>
       <div className="movie-import-modal__actions movie-import-modal__actions--sticky movie-import-modal__actions--confirm">
-        <p className="movie-import-modal__action-summary" aria-label={`${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} selected, ${summary.imagesToUpload} ${pluralize(summary.imagesToUpload, 'image')} selected, ${summary.peopleToCreate} new ${pluralize(summary.peopleToCreate, 'person', 'people')}, ${summary.peopleToReuse} reused ${pluralize(summary.peopleToReuse, 'person', 'people')}`}>
+        <p className="movie-import-modal__action-summary" aria-label={impactSummary.join(', ')}>
           {impactSummary.map((item) => <span key={item}>{item}</span>)}
         </p>
         <div className="movie-import-modal__action-buttons">
@@ -126,6 +125,14 @@ function formatPeopleNames(people: Array<{ name: string }>) {
   return formatList(people.map((person) => person.name));
 }
 
+function formatTrailerSelection(value: unknown) {
+  if (value && typeof value === 'object' && 'title' in value && typeof value.title === 'string' && value.title.length > 0) {
+    return value.title;
+  }
+
+  return 'Selected trailer';
+}
+
 function formatList(parts: Array<string | null>) {
   const values = parts.filter((part): part is string => Boolean(part));
 
@@ -138,8 +145,4 @@ function formatList(parts: Array<string | null>) {
   }
 
   return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
-}
-
-function pluralize(count: number, singular: string, plural = `${singular}s`) {
-  return count === 1 ? singular : plural;
 }
