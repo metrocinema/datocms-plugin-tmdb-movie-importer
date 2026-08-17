@@ -66,7 +66,7 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack }: ConfirmStepProps
             </div>
             <dl className="movie-import-modal__confirm-summary">
               <ConfirmSummaryRow label={`${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')} to update`} value={fieldLabels.length > 0 ? formatList(fieldLabels) : 'No field values selected'} />
-              {summary.trailers > 0 ? <ConfirmSummaryRow label={`${summary.trailers} ${pluralize(summary.trailers, 'trailer')} to update`} value={formatTrailerSelection(trailerChange?.value)} /> : null}
+              {summary.trailers > 0 ? <ConfirmSummaryRow label={`${summary.trailers} ${pluralize(summary.trailers, 'trailer')} for Trailer field`} value={formatTrailerSelection(trailerChange?.value)} /> : null}
               <ConfirmSummaryRow label={`${summary.peopleToCreate} draft ${pluralize(summary.peopleToCreate, 'Person record')} to create`} value={plan.peopleToCreate.length > 0 ? formatPeopleNames(plan.peopleToCreate) : 'No draft Person records'} />
               <ConfirmSummaryRow label={`${summary.peopleToReuse} existing ${pluralize(summary.peopleToReuse, 'Person record')} to link`} value={plan.peopleToReuse.length > 0 ? formatPeopleNames(plan.peopleToReuse) : 'No existing Person records'} />
               <ConfirmSummaryRow label={`${summary.imagesToUpload} unique ${pluralize(summary.imagesToUpload, 'image')} to upload`} value={imageDestinations} />

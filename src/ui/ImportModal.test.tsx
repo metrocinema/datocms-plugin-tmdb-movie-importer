@@ -1037,7 +1037,7 @@ describe('ImportModal data flow', () => {
     expect(screen.getByText('1 field to update')).toBeInTheDocument();
     expect(screen.getByText('Runtime')).toBeInTheDocument();
     expect(screen.queryByText(/^Trailer$/)).not.toBeInTheDocument();
-    expect(screen.getByText('1 trailer to update')).toBeInTheDocument();
+    expect(screen.getByText('1 trailer for Trailer field')).toBeInTheDocument();
     expect(screen.getByText('Official Trailer')).toBeInTheDocument();
     expect(screen.getByText('Apply selected TMDB values and any selected trailer to the unsaved movie form.')).toBeInTheDocument();
     expect(screen.queryByText('Apply selected TMDB values to the unsaved movie form.')).not.toBeInTheDocument();
