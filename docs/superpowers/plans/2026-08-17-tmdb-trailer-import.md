@@ -46,7 +46,7 @@
 **Files:**
 
 - Create: `src/domain/trailer.ts`
-- Modify: `src/domain/movie.ts`
+- Modify: `src/domain/movie.ts` (`NormalizedMovie.trailer` only)
 - Modify: `src/providers/tmdbTypes.ts`
 - Modify: `src/providers/tmdbClient.ts`
 - Modify: `src/providers/tmdbNormalizer.ts`
@@ -211,7 +211,7 @@ function externalVideoIdentity(value: unknown): { provider: string; providerUid:
 }
 ```
 
-Add `trailer: NormalizedTrailerCandidate | null` to `NormalizedMovie` and `'trailer'` to `MovieFieldKey` in `src/domain/movie.ts`.
+Add `trailer: NormalizedTrailerCandidate | null` to `NormalizedMovie`. Do not add `'trailer'` to `MovieFieldKey` until Task 2, where the exhaustive configuration and presentation label records are updated in the same typecheck-safe increment.
 
 Add the permissive TMDB input type in `src/providers/tmdbTypes.ts`:
 
@@ -311,6 +311,7 @@ Review the staged diff before committing so the broad `src` add contains only me
 **Files:**
 
 - Modify: `src/plugin/datoFieldMapping.ts`
+- Modify: `src/domain/movie.ts` (`MovieFieldKey`)
 - Modify: `src/ui/ConfigScreen.tsx`
 - Modify: `src/ui/modalPresentation.ts`
 - Modify: `src/domain/fieldComparison.ts`
@@ -410,6 +411,10 @@ Expected: FAIL because `trailer` is excluded from `SCALAR_KEYS` and has no value
 Make these exact changes:
 
 ```ts
+// src/domain/movie.ts
+// Add to the MovieFieldKey union:
+| 'trailer'
+
 // src/plugin/datoFieldMapping.ts
 trailer: ['video'],
 
