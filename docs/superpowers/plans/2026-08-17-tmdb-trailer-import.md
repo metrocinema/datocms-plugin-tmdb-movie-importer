@@ -6,6 +6,8 @@
 
 **Architecture:** Extend the existing appended TMDB movie package with optional video data, normalize one provider-neutral trailer candidate, and convert it through a pure domain adapter into DatoCMS's native External Video value. Carry the selected value through the existing field-comparison, import-plan, prepared-result, and form-application path. Render trailer review separately from scalar fields, but do not add a second request, upload, dependency, or progress phase.
 
+**Status:** Implemented; sandbox acceptance pending
+
 **Tech Stack:** React 19, TypeScript 7, Vite 8, Vitest 4, Testing Library, DatoCMS Plugin SDK 2.2.6, `datocms-react-ui` 2.2.6, DatoCMS CMA client 5.5.5, TMDB API v3.
 
 ## Global Constraints

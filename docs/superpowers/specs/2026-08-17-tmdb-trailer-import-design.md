@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-17
 
-**Status:** Approved for implementation planning
+**Status:** Implemented; sandbox acceptance pending
 
 **Scope:** Import one best official English YouTube trailer from TMDB into a mapped DatoCMS External Video field
 

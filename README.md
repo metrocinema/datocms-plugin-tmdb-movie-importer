@@ -1,12 +1,16 @@
 # TMDB Movie Importer
 
-TMDB Movie Importer is a Metro Cinema plugin for DatoCMS. It lets editors find a movie, review selected TMDB metadata, people, and images, then apply the approved values to the current unsaved movie form.
+TMDB Movie Importer is a Metro Cinema plugin for DatoCMS. It lets editors find a movie, review selected TMDB metadata, people, an optional trailer, and images, then apply the approved values to the current unsaved movie form.
 
 ## Current implementation
 
-The package is currently version `0.1.0-next.0`. The plugin provides configuration, a TMDB ID field add-on, a guided Find movie → Review changes → Confirm import modal, phase-specific preparation progress, draft Person creation or reuse, selected image uploads, and unsaved movie-form updates.
+The package is currently version `0.1.0-next.0`. The plugin provides configuration, a TMDB ID field add-on, a guided Find movie → Review changes → Confirm import modal, phase-specific preparation progress, draft Person creation or reuse, selected image uploads, optional native Trailer field updates, and unsaved movie-form updates.
 
 Artwork selection is opt-in. No poster or backdrop candidate starts selected. When Poster or Hero image is configured, the explicit **Do not import** card starts selected. Poster candidates are limited to English-language artwork. Posters are revealed ten at a time in TMDB rank order, while backdrops prioritize 3840x2160 candidates before falling back to TMDB rank order. A backdrop can be assigned to Hero image or Other images, but never both.
+
+Trailer import selects one deterministic official English YouTube trailer when TMDB provides one. The proposal starts selected only when the mapped DatoCMS Trailer field is empty. A different current trailer stays unselected until the editor opts in, and no fallback candidate appears when TMDB has no qualifying trailer. The plugin opens preview links on YouTube, and it never embeds or uploads video.
+
+Trailer behavior is implemented on this branch and covered by the automated release gate. Manual DatoCMS sandbox acceptance is still pending.
 
 The repository contains a manually triggered Cloudflare Pages deployment workflow, but source, build, push, deployment, DatoCMS installation, and sandbox acceptance are separate states. A checkout or passing test suite does not prove that a Pages deployment or DatoCMS installation is current.
 
@@ -28,7 +32,7 @@ The plugin declares the DatoCMS `currentUserAccessToken` permission and uses the
 
 Configure these stable DatoCMS API names in the plugin settings:
 
-1. A movie model and the desired movie fields. Version one supports title, release year, MPAA rating, runtime, TMDB ID, tagline, description, poster, Hero image, Other images, directors, and actors.
+1. A movie model and the desired movie fields. Version one supports title, release year, MPAA rating, runtime, TMDB ID, tagline, description, Trailer, poster, Hero image, Other images, directors, and actors. If you map Trailer, use a DatoCMS External Video (`video`) field.
 2. A shared Person model and its name field. A Person TMDB ID field is optional but gives safer matching when available.
 3. An actor limit, which defaults to 10.
 4. The TMDB ID field add-on on the movie model. It supports string, integer, and float fields so existing schemas need not change solely for the plugin.
@@ -49,7 +53,7 @@ This is a frontend-only plugin. Its TMDB read token is stored in the plugin sett
 
 1. Open the TMDB ID field add-on and choose **Find movie** or **Refresh from TMDB**.
 2. Search by title and optional year, or load a known TMDB ID.
-3. Review each proposed value and choose the fields, people, poster, Hero image, and Other images to prepare. No artwork is selected automatically.
+3. Review each proposed value and choose the fields, optional trailer, people, poster, Hero image, and Other images to prepare. No artwork is selected automatically.
 4. Confirm the import. The modal stays open while the plugin matches or creates selected people, uploads selected images, and prepares movie-field values. After successful preparation, it closes and applies the prepared values to the current DatoCMS movie form.
 5. Save or publish the movie yourself in DatoCMS.
 
@@ -73,6 +77,11 @@ Before any release, use a DatoCMS sandbox with configured mappings, a shared Per
 - [ ] Direct TMDB ID refresh works.
 - [ ] Empty metadata fields are selected by default and populated metadata fields are unselected by default.
 - [ ] Missing TMDB values cannot clear existing content.
+- [ ] An empty Trailer field starts with the official English YouTube proposal selected when TMDB provides one.
+- [ ] A different existing Trailer starts unselected, and the editor can opt in to replacement.
+- [ ] An already-current Trailer shows **Already current trailer** and cannot be selected.
+- [ ] No eligible TMDB trailer leaves the current Trailer value untouched.
+- [ ] Trailer preview opens on YouTube in a new tab, and no trailer embed or upload appears in the modal.
 - [ ] Ambiguous people require an editor choice.
 - [ ] Missing people are created as drafts.
 - [ ] No poster or backdrop starts selected, and **Do not import** starts selected for Poster and Hero image.

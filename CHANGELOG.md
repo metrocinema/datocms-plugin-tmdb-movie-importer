@@ -4,6 +4,10 @@ All notable changes to TMDB Movie Importer are documented here.
 
 ## Unreleased
 
+### Added
+
+- Added optional native Trailer import for one deterministic official English YouTube trailer, mapped to a DatoCMS External Video field without embedding or uploading video.
+
 ### Changed
 
 - Made artwork imports fully opt-in. Poster, Hero image, and Other images now start unselected; explicit Poster and Hero **Do not import** options start selected when those destinations are configured.

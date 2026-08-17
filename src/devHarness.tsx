@@ -4,11 +4,17 @@ import { App, type PluginScreen } from './App';
 import type { ImportProgressEvent, PreparedImport, PrepareImportResult } from './dato/importExecutor';
 import type { ImportPlan } from './domain/importPlanning';
 import type { NormalizedMovie } from './domain/movie';
+import { datoExternalVideoValue, type NormalizedTrailerCandidate } from './domain/trailer';
 import { renderIntoRoot } from './reactRoot';
 
 type HarnessMode = 'modal' | 'config' | 'field';
 type HarnessTheme = 'light' | 'dark' | 'dato-dark';
-type HarnessScenario = 'default' | 'odyssey-existing';
+type HarnessScenario =
+  | 'default'
+  | 'odyssey-existing'
+  | 'trailer-replacement'
+  | 'trailer-current'
+  | 'trailer-unavailable';
 export type HarnessProgress = 'search' | 'import' | 'failure' | null;
 
 export function isDevHarnessRequest(url = window.location.href, isEmbedded = window.parent !== window) {
@@ -64,7 +70,18 @@ export function harnessTheme(url = window.location.href): HarnessTheme {
 }
 
 export function harnessScenario(url = window.location.href): HarnessScenario {
-  return new URL(url).searchParams.get('scenario') === 'odyssey-existing' ? 'odyssey-existing' : 'default';
+  const requestedScenario = new URL(url).searchParams.get('scenario');
+
+  if (
+    requestedScenario === 'odyssey-existing'
+    || requestedScenario === 'trailer-replacement'
+    || requestedScenario === 'trailer-current'
+    || requestedScenario === 'trailer-unavailable'
+  ) {
+    return requestedScenario;
+  }
+
+  return 'default';
 }
 
 export function harnessProgress(url = window.location.href): HarnessProgress {
@@ -91,6 +108,7 @@ export function screenForHarnessMode(
           tmdbId: 'tmdb_id',
           tagline: 'tagline',
           description: 'description',
+          trailer: 'trailer',
           poster: 'poster_image',
           heroImage: 'hero_image',
           backdrops: 'other_images',
@@ -124,7 +142,7 @@ export function screenForHarnessMode(
     initialYear: modalScenario.initialYear,
     initialTmdbId: null,
     currentValues: modalScenario.currentValues,
-    mappedFields: ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'],
+    mappedFields: ['title', 'yearReleased', 'mpaaRating', 'runtime', 'tmdbId', 'tagline', 'description', 'trailer', 'poster', 'heroImage', 'backdrops', 'directors', 'actors'],
     searchMovies: progress === 'search'
       ? () => pendingHarnessPromise()
       : async () => modalScenario.searchResults,
@@ -239,6 +257,7 @@ function modalScenarioFor(scenario: HarnessScenario, progress: HarnessProgress) 
         poster: { upload_id: 'existing-poster' },
         heroImage: { upload_id: 'existing-hero' },
         backdrops: [{ upload_id: 'existing-backdrop' }],
+        trailer: null,
         directors: [{ id: 'existing-director-christopher-nolan' }],
         actors: [{ id: 'existing-actor-matt-damon' }],
       },
@@ -265,12 +284,13 @@ function modalScenarioFor(scenario: HarnessScenario, progress: HarnessProgress) 
       poster: null,
       heroImage: null,
       backdrops: [],
+      trailer: null,
       directors: [],
       actors: [],
     },
-    movie: fixtureMovie,
+    movie: fixtureMovieWithTrailer,
     searchResults: [
-      searchResultForMovie(fixtureMovie),
+      searchResultForMovie(fixtureMovieWithTrailer),
       {
         tmdbId: 194,
         id: 194,
@@ -286,6 +306,38 @@ function modalScenarioFor(scenario: HarnessScenario, progress: HarnessProgress) 
       { id: 'person-tony-leung', name: 'Tony Leung Chiu-wai', tmdbId: 1337 },
     ],
   };
+
+  if (scenario === 'trailer-replacement') {
+    return {
+      ...defaultScenario,
+      currentValues: {
+        ...defaultScenario.currentValues,
+        trailer: currentTrailerValue('existing-youtube-id', 'Editorial trailer'),
+      },
+    };
+  }
+
+  if (scenario === 'trailer-current') {
+    return {
+      ...defaultScenario,
+      currentValues: {
+        ...defaultScenario.currentValues,
+        trailer: datoExternalVideoValue(fixtureMovieWithTrailer.trailer!),
+      },
+    };
+  }
+
+  if (scenario === 'trailer-unavailable') {
+    return {
+      ...defaultScenario,
+      currentValues: {
+        ...defaultScenario.currentValues,
+        trailer: currentTrailerValue('existing-youtube-id', 'Editorial trailer'),
+      },
+      movie: fixtureMovieWithoutTrailer,
+      searchResults: [searchResultForMovie(fixtureMovieWithoutTrailer)],
+    };
+  }
 
   return progress === 'import'
     ? {
@@ -309,7 +361,7 @@ function searchResultForMovie(movie: NormalizedMovie) {
   };
 }
 
-const fixtureMovie: NormalizedMovie = {
+const fixtureMovieBase: Omit<NormalizedMovie, 'trailer'> = {
   tmdbId: 843,
   title: 'In the Mood for Love',
   primaryReleaseDate: '2000-09-29',
@@ -327,14 +379,23 @@ const fixtureMovie: NormalizedMovie = {
     ...posterCandidatesFor(843),
     ...backdropCandidatesFor(843),
   ],
+};
+
+const fixtureMovieWithTrailer: NormalizedMovie = {
+  ...fixtureMovieBase,
+  trailer: harnessTrailer(),
+};
+
+const fixtureMovieWithoutTrailer: NormalizedMovie = {
+  ...fixtureMovieBase,
   trailer: null,
 };
 
 const importProgressFixtureMovie: NormalizedMovie = {
-  ...fixtureMovie,
+  ...fixtureMovieWithTrailer,
   images: [
-    fixtureMovie.images[0],
-    ...backdropCandidatesFor(fixtureMovie.tmdbId).slice(0, 4),
+    fixtureMovieWithTrailer.images[0],
+    ...backdropCandidatesFor(fixtureMovieWithTrailer.tmdbId).slice(0, 4),
   ],
 };
 
@@ -359,6 +420,46 @@ const odysseyFixtureMovie: NormalizedMovie = {
   ],
   trailer: null,
 };
+
+function harnessTrailer(overrides: Partial<NormalizedTrailerCandidate> = {}): NormalizedTrailerCandidate {
+  const externalProviderId = overrides.externalProviderId ?? 'demo_trailer_123';
+
+  return {
+    providerKey: 'tmdb',
+    providerVideoId: overrides.providerVideoId ?? `tmdb-${externalProviderId}`,
+    movieIdentity: overrides.movieIdentity ?? { providerKey: 'tmdb', tmdbId: 843 },
+    externalProvider: 'youtube',
+    externalProviderId,
+    title: overrides.title ?? 'Official Trailer',
+    watchUrl: overrides.watchUrl ?? `https://www.youtube.com/watch?v=${externalProviderId}`,
+    thumbnailUrl: overrides.thumbnailUrl ?? harnessTrailerThumbnailUrl(externalProviderId),
+    width: overrides.width ?? 1920,
+    height: overrides.height ?? 1080,
+    language: 'en',
+    country: overrides.country ?? 'US',
+    resolution: overrides.resolution ?? 1080,
+    publishedAt: overrides.publishedAt ?? '2024-01-01T00:00:00.000Z',
+    official: true,
+    attribution: 'TMDB',
+  };
+}
+
+function harnessTrailerThumbnailUrl(externalProviderId: string) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#111827"/><rect x="440" y="240" width="400" height="240" rx="28" fill="#dc2626"/><polygon points="590,290 590,430 720,360" fill="#ffffff"/><text x="50%" y="620" fill="#f9fafb" font-family="sans-serif" font-size="44" text-anchor="middle">Trailer ${externalProviderId}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function currentTrailerValue(providerUid: string, title: string) {
+  return {
+    provider: 'youtube' as const,
+    provider_uid: providerUid,
+    title,
+    width: 1280,
+    height: 720,
+    thumbnail_url: `https://img.youtube.com/vi/${providerUid}/hqdefault.jpg`,
+    url: `https://www.youtube.com/watch?v=${providerUid}`,
+  };
+}
 
 function posterCandidatesFor(tmdbId: number) {
   return harnessCandidateRanks().map((rank) => {

@@ -1,8 +1,12 @@
+import React from 'react';
+import { fireEvent, render, screen as testingScreen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { harnessDesignTokens, harnessProgress, harnessScenario, harnessTheme, isDevHarnessRequest, screenForHarnessMode } from './devHarness';
+import { compareMovieFields } from './domain/fieldComparison';
 import type { ImportPlan } from './domain/importPlanning';
 import type { NormalizedImageCandidate } from './domain/movie';
 import { defaultImageSelection } from './providers/imageProvider';
+import { TrailerReview } from './ui/TrailerReview';
 
 const harnessPlan: ImportPlan = {
   fieldChanges: [{ key: 'title', value: 'Harness movie' }],
@@ -154,6 +158,128 @@ describe('devHarness', () => {
       runtime: 172,
       mpaaRating: 'R',
     });
+  });
+
+  it.each([
+    ['default', null, true, true, 'demo_trailer_123'],
+    ['trailer-replacement', 'existing-youtube-id', true, true, 'demo_trailer_123'],
+    ['trailer-current', 'demo_trailer_123', true, false, 'demo_trailer_123'],
+    ['trailer-unavailable', 'existing-youtube-id', false, true, null],
+  ] as const)(
+    'provides a sanitized %s trailer review scenario',
+    async (scenario, currentTrailerId, hasTrailer, shouldChange, proposedTrailerId) => {
+      const screen = screenForHarnessMode('modal', scenario);
+      expect(screen.type).toBe('modal');
+      if (screen.type !== 'modal') return;
+
+      const movie = await screen.loadMovie(843);
+      const trailerComparison = compareMovieFields(screen.currentValues, movie, screen.mappedFields)
+        .find((comparison) => comparison.key === 'trailer');
+
+      expect(screen.mappedFields).toContain('trailer');
+      expect(movie.trailer?.externalProviderId ?? null).toBe(proposedTrailerId);
+      expect(movie.trailer?.watchUrl ?? null).toBe(
+        proposedTrailerId ? `https://www.youtube.com/watch?v=${proposedTrailerId}` : null,
+      );
+      expect(movie.trailer?.thumbnailUrl ?? null).toSatisfy((value: unknown) => (
+        proposedTrailerId ? typeof value === 'string' && value.startsWith('data:image/svg+xml,') : value === null
+      ));
+      expect(movie.trailer?.providerVideoId ?? null).toBe(
+        proposedTrailerId ? `tmdb-${proposedTrailerId}` : null,
+      );
+      if (currentTrailerId) {
+        expect(screen.currentValues.trailer).toMatchObject({
+          provider: 'youtube',
+          provider_uid: currentTrailerId,
+        });
+      } else {
+        expect(screen.currentValues.trailer).toBeNull();
+      }
+      expect(trailerComparison).toMatchObject({
+        available: hasTrailer,
+        changed: shouldChange,
+        selected: hasTrailer && currentTrailerId === null,
+      });
+    },
+  );
+
+  it.each([
+    ['trailer-replacement', 'trailer-replacement'],
+    ['trailer-current', 'trailer-current'],
+    ['trailer-unavailable', 'trailer-unavailable'],
+    ['unknown', 'default'],
+    [null, 'default'],
+  ] as const)('routes scenario=%s to the stable trailer harness scenario', (scenario, expected) => {
+    const url = scenario
+      ? `http://127.0.0.1:5174/?impeccable=modal&scenario=${scenario}`
+      : 'http://127.0.0.1:5174/?impeccable=modal';
+
+    expect(harnessScenario(url)).toBe(expected);
+  });
+
+  it('renders a broken trailer thumbnail fallback without removing the offline decision controls', async () => {
+    const screen = screenForHarnessMode('modal', 'default');
+    expect(screen.type).toBe('modal');
+    if (screen.type !== 'modal') return;
+
+    const movie = await screen.loadMovie(843);
+    const comparison = compareMovieFields(screen.currentValues, movie, screen.mappedFields)
+      .find((candidate) => candidate.key === 'trailer');
+
+    expect(movie.trailer).not.toBeNull();
+    expect(comparison).toBeDefined();
+
+    render(React.createElement(TrailerReview, {
+      trailer: movie.trailer,
+      comparison: comparison!,
+      onToggle: vi.fn(),
+    }));
+
+    fireEvent.error(document.querySelector('.movie-import-modal__trailer-thumb') as HTMLImageElement);
+
+    expect(testingScreen.getByText('Preview unavailable')).toBeInTheDocument();
+    expect(testingScreen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute(
+      'href',
+      'https://www.youtube.com/watch?v=demo_trailer_123',
+    );
+    expect(testingScreen.getByRole('checkbox', { name: 'Import Official Trailer' })).toBeChecked();
+  });
+
+  it('keeps the trailer harness offline with no live TMDB or DatoCMS requests', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    fetchSpy.mockResolvedValue({ ok: true } as Response);
+
+    const screen = screenForHarnessMode('modal', 'trailer-replacement');
+    expect(screen.type).toBe('modal');
+    if (screen.type !== 'modal') {
+      fetchSpy.mockRestore();
+      return;
+    }
+
+    const progress = vi.fn();
+    const movie = await screen.loadMovie(843);
+    await screen.searchMovies({ title: 'Harness movie', year: 2000 });
+    if (screen.resolvePeople) {
+      await screen.resolvePeople(movie.directors);
+    }
+    const prepared = await screen.prepare(harnessPlan, progress);
+    await screen.resolve(prepared.status === 'success' ? prepared.prepared : null as never);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it('keeps light and captured Dato dark themes available for trailer review', () => {
+    expect(harnessTheme('http://127.0.0.1:5174/?impeccable=modal&theme=light')).toBe('light');
+    expect(harnessTheme('http://127.0.0.1:5174/?impeccable=modal&theme=dato-dark')).toBe('dato-dark');
+
+    const lightTokens = harnessDesignTokens('light');
+    const datoDarkTokens = harnessDesignTokens('dato-dark');
+
+    expect(lightTokens['--color--surface']).toBe('#ffffff');
+    expect(lightTokens['--color--selected--border']).toBe('#2f80ed');
+    expect(datoDarkTokens['--color--surface']).toBe('oklch(0.2028 0.012 288)');
+    expect(datoDarkTokens['--color--primary--surface']).toBe('oklch(0.3292 0.1714 288)');
   });
 
   it.each(['default', 'odyssey-existing'] as const)(

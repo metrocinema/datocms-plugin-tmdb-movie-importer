@@ -11,7 +11,8 @@ Use this index to distinguish current operating documentation from implementatio
 
 ## Planned work
 
-- [`TMDB Trailer Import Design`](superpowers/specs/2026-08-17-tmdb-trailer-import-design.md): approved design for importing one official English YouTube trailer into a native DatoCMS External Video field. It is not implemented.
+- [`TMDB Trailer Import Design`](superpowers/specs/2026-08-17-tmdb-trailer-import-design.md): implemented design record for importing one official English YouTube trailer into a native DatoCMS External Video field. Status: Implemented; sandbox acceptance pending.
+- [`TMDB Trailer Import Implementation Plan`](superpowers/plans/2026-08-17-tmdb-trailer-import.md): implementation record for trailer import verification and release evidence. Status: Implemented; sandbox acceptance pending.
 - [`TMDB Asset Source Implementation Plan`](superpowers/plans/2026-07-25-tmdb-asset-source.md): planned native DatoCMS Media Area source. It is not implemented and may require a separately approved server-side image path if direct TMDB URLs fail the DatoCMS CORS requirement.
 
 ## Historical implementation records
