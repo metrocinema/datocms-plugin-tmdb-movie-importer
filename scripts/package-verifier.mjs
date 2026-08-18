@@ -73,7 +73,7 @@ export function verifyMatchingPackedFiles(dryRunFiles, tarballFiles) {
 
 export function verifyMarketplaceMetadata(manifest) {
   invariant(
-    manifest.description === 'Import movie metadata, cast, crew, and images from TMDB into DatoCMS.',
+    manifest.description === 'Import movie metadata, cast, crew, images, and trailers from TMDB into DatoCMS.',
     'package description is incorrect',
   );
   invariant(manifest.homepage === 'https://github.com/metrocinema/mcs-datocms-plugin', 'package homepage is incorrect');

@@ -45,7 +45,7 @@ describe('release package manifest', () => {
     expect(manifest).toMatchObject({
       name: 'datocms-plugin-tmdb-movie-importer',
       version: '0.1.0-next.0',
-      description: 'Import movie metadata, cast, crew, and images from TMDB into DatoCMS.',
+      description: 'Import movie metadata, cast, crew, images, and trailers from TMDB into DatoCMS.',
       homepage: 'https://github.com/metrocinema/mcs-datocms-plugin',
       author: 'Metro Cinema',
       publisher: 'Metro Cinema',
