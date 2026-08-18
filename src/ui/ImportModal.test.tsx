@@ -926,6 +926,20 @@ describe('ImportModal data flow', () => {
     expect(within(actorResolutionControl.closest('.movie-import-modal__person-row')!).getByText('Choose whether to reuse a match or create a new draft before continuing.')).toBeInTheDocument();
   });
 
+  it('counts one automatic draft when the same TMDB person appears in multiple roles', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors', 'actors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithSamePersonInTwoRoles} resolvePeople={async () => []} {...pendingLifecycle} />);
+
+    await reachReview();
+
+    expect(screen.getByText('1 draft Person record will be prepared after confirmation.')).toBeInTheDocument();
+    expect(screen.getByText('1 new person')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByText('1 draft Person record to create')).toBeInTheDocument();
+    expect(screen.getByText('Multi-Hyphenate Person')).toBeInTheDocument();
+  });
+
   it('keeps mixed manual create and reuse decisions separate for the same TMDB person in different roles', async () => {
     const execute = vi.fn();
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '' }} mappedFields={['title', 'directors', 'actors']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithSamePersonInTwoRoles} resolvePeople={async () => [{ id: 'person-a', name: 'Multi-Hyphenate Person', tmdbId: null }, { id: 'person-b', name: 'Multi-Hyphenate Person', tmdbId: null }]} prepare={capturePreparedPlan(execute)} resolve={vi.fn()} />);

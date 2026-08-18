@@ -8,9 +8,9 @@ The package is currently version `0.1.0-next.0`. The plugin provides configurati
 
 Artwork selection is opt-in. No poster or backdrop candidate starts selected. When Poster or Hero image is configured, the explicit **Do not import** card starts selected. Poster candidates are limited to English-language artwork. Posters are revealed ten at a time in TMDB rank order, while backdrops prioritize 3840x2160 candidates before falling back to TMDB rank order. A backdrop can be assigned to Hero image or Other images, but never both.
 
-Trailer import selects one deterministic official English YouTube trailer when TMDB provides one. The proposal starts selected only when the mapped DatoCMS Trailer field is empty. A different current trailer stays unselected until the editor opts in, and no fallback candidate appears when TMDB has no qualifying trailer. The plugin opens preview links on YouTube, and it never embeds or uploads video.
+Trailer import presents every eligible official English YouTube trailer returned by TMDB in a single-choice card grid. The existing DatoCMS trailer, or an explicit empty-field option, starts selected so an import never changes the Trailer field without an editor choosing a TMDB candidate. A matching current trailer is deduplicated from the TMDB choices. The cards support arrow keys plus Home and End, open preview links on YouTube, and never embed or upload video.
 
-Trailer behavior is implemented on the current branch, covered by the automated release gate, and verified through a deployed DatoCMS sandbox trailer-replacement import. The broader Marketplace acceptance matrix remains pending.
+The trailer picker is covered by the automated release gate. Deployed commit `094dc0934e004b62fb80185a2d912bcf70dabcdb` has also passed 20 of 21 DatoCMS sandbox acceptance cases, including a complete import into an unsaved movie form. Restricted-role behavior remains unverified because the available sandbox session has administrator access. See the [release guide](docs/release-guide.md#current-readiness-snapshot) for the current evidence, side effects, and the separate local, pushed, deployed, and accepted states.
 
 The repository contains a manually triggered Cloudflare Pages deployment workflow, but source, build, push, deployment, DatoCMS installation, and sandbox acceptance are separate states. A checkout or passing test suite does not prove that a Pages deployment or DatoCMS installation is current.
 
@@ -77,9 +77,10 @@ Before any release, use a DatoCMS sandbox with configured mappings, a shared Per
 - [ ] Direct TMDB ID refresh works.
 - [ ] Empty metadata fields are selected by default and populated metadata fields are unselected by default.
 - [ ] Missing TMDB values cannot clear existing content.
-- [ ] An empty Trailer field starts with the official English YouTube proposal selected when TMDB provides one.
-- [ ] A different existing Trailer starts unselected, and the editor can opt in to replacement.
-- [ ] An already-current Trailer shows **Already current trailer** and cannot be selected.
+- [ ] An empty Trailer field starts with **Keep trailer empty** selected, and the editor can choose one eligible TMDB trailer.
+- [ ] An existing Trailer appears as the selected **Keep current trailer** card, and the editor can choose a different eligible TMDB trailer.
+- [ ] A TMDB trailer that matches the current Trailer is deduplicated; if it is the only match, the UI says no alternatives are available.
+- [ ] Arrow keys move through trailer choices, and Home and End move to the first and last choices.
 - [ ] No eligible TMDB trailer leaves the current Trailer value untouched.
 - [ ] Trailer preview opens on YouTube in a new tab, and no trailer embed or upload appears in the modal.
 - [ ] Ambiguous people require an editor choice.

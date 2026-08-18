@@ -6,7 +6,8 @@ All notable changes to Movie Importer are documented here.
 
 ### Added
 
-- Added optional native Trailer import for one deterministic official English YouTube trailer, mapped to a DatoCMS External Video field without embedding or uploading video.
+- Added optional native Trailer import for official English YouTube trailers, mapped to a DatoCMS External Video field without embedding or uploading video.
+- Added an editor-controlled trailer picker with full candidate cards, the current DatoCMS trailer as a choice, matching-trailer deduplication, and arrow-key, Home, and End navigation.
 
 ### Changed
 
@@ -16,9 +17,12 @@ All notable changes to Movie Importer are documented here.
 - Reduced Review changes image cost with smaller preview URLs, lazy asynchronous decoding, and offscreen card containment while retaining original-resolution uploads.
 - Prioritized 3840x2160 backdrops before other backdrop candidates while preserving TMDB rank order inside each group.
 - Simplified image preparation to preserve TMDB-ranked candidates without browser-side visual fingerprinting.
+- Standardized the public product name as Movie Importer while retaining the existing technical package, repository, and deployment identifiers.
+- Refreshed the Marketplace cover with a thumbnail-first Movie Importer logotype and updated the preview to show the current trailer picker and opt-in image state.
 
 ### Fixed
 
+- Corrected Review and Confirm draft Person counts and names when the same automatically matched TMDB person appears in multiple roles.
 - Kept the Poster and Hero **Do not import** options visible when TMDB returns no candidates for those destinations.
 - Hardened private release operations with a documented, least-privileged local Wrangler recovery path.
 
@@ -34,10 +38,6 @@ All notable changes to Movie Importer are documented here.
 - Release-ready Marketplace package metadata and portable build settings.
 - Public installation and release-operation documentation.
 - Required TMDB attribution and an approved TMDB logo in the configuration credits area.
-
-### Changed
-
-- Standardized the public product name as Movie Importer.
 
 ## License and third-party content
 

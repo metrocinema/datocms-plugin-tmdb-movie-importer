@@ -9,7 +9,7 @@ import type { NormalizedTrailerCandidate } from '../domain/trailer';
 import { FieldDiffTable } from './FieldDiffTable';
 import { ImagePicker } from './ImagePicker';
 import { isEnglishPoster } from '../providers/imageProvider';
-import { formatImpactSegments, formatRuntime, formatYear, pluralize } from './modalPresentation';
+import { formatImpactSegments, formatRuntime, formatYear, pluralize, uniquePeopleToCreate } from './modalPresentation';
 import { ModalStepIndicator } from './ModalStepIndicator';
 import { PersonResolutionList } from './PersonResolutionList';
 import { TrailerReview } from './TrailerReview';
@@ -57,7 +57,11 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
   const emptyFillCount = scalarComparisons.filter((comparison) => comparison.selected && comparison.available && comparison.changed && isEmptyValue(comparison.currentValue)).length;
   const selectedImageCount = countSelectedImages(imageSelection);
   const imageDestinationCounts = countSelectedImageDestinations(imageSelection);
-  const peopleToCreateCount = people.filter(({ decision }) => decision.type === 'create').length;
+  const peopleToCreateCount = uniquePeopleToCreate(people.flatMap(({ candidate, decision }) => (
+    decision.type === 'create'
+      ? [{ candidateTmdbId: candidate.tmdbId, source: decision.source }]
+      : []
+  ))).length;
   const peopleToReuseCount = people.filter(({ decision }) => decision.type === 'reuse').length;
   const selectedTrailerCount = trailerComparison?.selected && trailerComparison.available && trailerComparison.changed ? 1 : 0;
   const selectedMovieSummary = `${movie.title}${movie.yearReleased ? ` (${formatYear(movie.yearReleased)})` : ''}`;

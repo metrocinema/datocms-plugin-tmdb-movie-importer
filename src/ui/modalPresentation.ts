@@ -69,10 +69,22 @@ export function countConfirmSummary(plan: ImportPlan): {
   return {
     fieldChanges: plan.fieldChanges.filter((change) => change.key !== 'trailer').length,
     trailers,
-    peopleToCreate: plan.peopleToCreate.length,
+    peopleToCreate: uniquePeopleToCreate(plan.peopleToCreate).length,
     peopleToReuse: plan.peopleToReuse.length,
     imagesToUpload: plan.assetsToUpload.length,
   };
+}
+
+export function uniquePeopleToCreate<T extends { candidateTmdbId: number; source: 'auto' | 'manual' }>(people: T[]): T[] {
+  const automaticTmdbIds = new Set<number>();
+
+  return people.filter((person) => {
+    if (person.source === 'manual') return true;
+    if (automaticTmdbIds.has(person.candidateTmdbId)) return false;
+
+    automaticTmdbIds.add(person.candidateTmdbId);
+    return true;
+  });
 }
 
 export function formatImpactSegments(summary: {
