@@ -1079,12 +1079,12 @@ describe('ImportModal data flow', () => {
     expect(screen.getByLabelText('1 field, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
   });
 
-  it('disables trailer review when the current provider and id already match', async () => {
+  it('shows a non-actionable trailer status when the current provider and id already match', async () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: datoExternalVideoValue(movieWithTrailer.trailer!) }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
-    expect(screen.getByText('Already current trailer')).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Import Official Trailer' })).toBeDisabled();
+    expect(screen.getByText('Current trailer')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeInTheDocument();
   });
 
   it('shows the no-result trailer copy when TMDB has no candidate', async () => {

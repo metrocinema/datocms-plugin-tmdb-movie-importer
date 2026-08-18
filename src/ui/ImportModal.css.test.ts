@@ -97,22 +97,29 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(inputRule).toContain('accent-color: var(--movie-import-selected-control-border)');
   });
 
-  it('styles the trailer review card with Dato tokens instead of light-only colors', () => {
-    const trailerRule = ruleFor('.movie-import-modal__trailer-card');
+  it('keeps the static trailer card neutral while selectable trailers reuse image card states', () => {
+    const staticTrailerRule = ruleFor('.movie-import-modal__trailer-card--static');
     const previewRule = ruleFor('.movie-import-modal__trailer-preview');
-    const selectedRule = ruleFor('.movie-import-modal__trailer-card--selected');
-    const chipRule = ruleFor('.movie-import-modal__trailer-chip');
     const thumbRule = ruleFor('.movie-import-modal__trailer-thumb');
 
-    expect(trailerRule).toContain('background: var(--color--surface-raised)');
-    expect(trailerRule).toContain('border: 1px solid var(--color--border)');
+    expect(staticTrailerRule).toContain('background: var(--color--surface)');
+    expect(staticTrailerRule).toContain('border: 0');
+    expect(staticTrailerRule).toContain('box-shadow: 0 0 0 1px var(--color--border)');
     expect(previewRule).toContain('border: 1px solid var(--color--border)');
-    expect(selectedRule).toContain('background: var(--movie-import-selected-control-surface)');
-    expect(selectedRule).toContain('border-color: var(--movie-import-selected-control-border)');
-    expect(selectedRule).toContain('color: var(--movie-import-selected-control-ink)');
-    expect(chipRule).toContain('color: var(--color--ink-subtle)');
     expect(thumbRule).toContain('object-fit: contain');
-    expect(`${trailerRule}${previewRule}${selectedRule}${chipRule}`).not.toMatch(/#|rgb\(|hsl\(|white|black/i);
+    expect(`${staticTrailerRule}${previewRule}${thumbRule}`).not.toMatch(/#|rgb\(|hsl\(|white|black/i);
+  });
+
+  it('keeps the trailer preview inside its desktop grid column when the text column is taller', () => {
+    const mainRule = ruleFor('.movie-import-modal__trailer-card-main');
+    const bodyRule = ruleFor('.movie-import-modal__trailer-body');
+    const supportingRule = ruleFor('.movie-import-modal__trailer-current');
+    const metadataRule = ruleFor('.movie-import-modal__trailer-meta.movie-import-modal__image-meta');
+
+    expect(mainRule).toContain('align-items: start');
+    expect(bodyRule).toContain('align-content: start');
+    expect(supportingRule).toContain('font-size: var(--font-size-s)');
+    expect(metadataRule).toContain('text-align: left');
   });
 
   it('aligns current field text with proposed field controls', () => {
@@ -221,7 +228,7 @@ describe('ImportModal.css accessibility tokens', () => {
   });
 
   it('stacks the trailer card into one column at the existing narrow breakpoint', () => {
-    const trailerRule = ruleInMedia('(max-width: 540px)', '.movie-import-modal__trailer-card');
+    const trailerRule = ruleInMedia('(max-width: 540px)', '.movie-import-modal__trailer-card-main');
 
     expect(trailerRule).toContain('grid-template-columns: 1fr');
   });

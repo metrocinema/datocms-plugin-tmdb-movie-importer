@@ -16,13 +16,7 @@ type ExternalVideoSummary = {
 
 export function TrailerReview({ trailer, comparison, onToggle }: TrailerReviewProps) {
   const [previewFailed, setPreviewFailed] = useState(false);
-  const canSelect = comparison.available && comparison.changed && trailer !== null;
-  const isAlreadyCurrent = comparison.available && !comparison.changed && trailer !== null;
   const currentVideo = summarizeCurrentVideo(comparison.currentValue);
-  const publishedAtLabel = trailer ? formatPublishedAt(trailer.publishedAt) : null;
-  const cardClassName = comparison.selected && canSelect
-    ? 'movie-import-modal__trailer-card movie-import-modal__trailer-card--selected'
-    : 'movie-import-modal__trailer-card';
 
   if (!trailer || !comparison.available) {
     return (
@@ -37,68 +31,99 @@ export function TrailerReview({ trailer, comparison, onToggle }: TrailerReviewPr
     );
   }
 
+  const canSelect = comparison.changed;
+  const publishedAtLabel = formatPublishedAt(trailer.publishedAt);
+  const metadataLabel = `${trailer.attribution} · ${trailer.width} × ${trailer.height} · ${trailer.language.toUpperCase()}`;
+
+  const preview = (
+    <span className="movie-import-modal__trailer-preview">
+      {!previewFailed ? (
+        <img
+          alt=""
+          className="movie-import-modal__trailer-thumb"
+          decoding="async"
+          loading="lazy"
+          src={trailer.thumbnailUrl}
+          onError={() => setPreviewFailed(true)}
+        />
+      ) : (
+        <span className="movie-import-modal__trailer-preview-fallback">Preview unavailable</span>
+      )}
+    </span>
+  );
+
+  const trailerDetails = (
+    <>
+      <span className="movie-import-modal__trailer-heading">{trailer.title}</span>
+      <span className="movie-import-modal__image-meta movie-import-modal__trailer-meta">
+        {metadataLabel}
+      </span>
+    </>
+  );
+
+  const supportingDetails = (
+    <span className="movie-import-modal__trailer-supporting">
+      {publishedAtLabel ? (
+        <span className="movie-import-modal__trailer-current">Published {publishedAtLabel}</span>
+      ) : null}
+      {currentVideo ? (
+        <span className="movie-import-modal__trailer-current">
+          Current: {formatCurrentVideoSummary(currentVideo)}
+        </span>
+      ) : (
+        <span className="movie-import-modal__trailer-current">Current: Empty</span>
+      )}
+    </span>
+  );
+
   return (
-    <article className={cardClassName}>
-      <div className="movie-import-modal__trailer-preview">
-        {!previewFailed ? (
-          <img
-            alt=""
-            className="movie-import-modal__trailer-thumb"
-            decoding="async"
-            loading="lazy"
-            src={trailer.thumbnailUrl}
-            onError={() => setPreviewFailed(true)}
-          />
-        ) : (
-          <span className="movie-import-modal__trailer-preview-fallback">Preview unavailable</span>
-        )}
-      </div>
-      <div className="movie-import-modal__trailer-body">
+    <>
+      {canSelect ? (
         <label
-          className={canSelect || isAlreadyCurrent
-            ? 'movie-import-modal__trailer-choice'
-            : 'movie-import-modal__trailer-choice movie-import-modal__trailer-choice--static'}
+          className="movie-import-modal__image-option movie-import-modal__trailer-card"
           style={touchTargetStyle}
         >
-          <input
-            aria-label="Import Official Trailer"
-            type="checkbox"
-            checked={canSelect ? comparison.selected : false}
-            disabled={!canSelect}
-            onChange={onToggle}
-          />
-          <span className="movie-import-modal__trailer-choice-copy">
-            <span className="movie-import-modal__trailer-choice-title">Import Official Trailer</span>
-            <span className="movie-import-modal__trailer-heading">{trailer.title}</span>
-            <span className="movie-import-modal__trailer-meta">
-              <span className="movie-import-modal__trailer-chip">Official</span>
-              <span className="movie-import-modal__trailer-chip">English</span>
-              <span className="movie-import-modal__trailer-chip">{trailer.resolution}p</span>
+          <span className="movie-import-modal__trailer-card-main">
+            {preview}
+            <span className="movie-import-modal__trailer-body">
+              <span className="movie-import-modal__trailer-choice-copy">
+                {trailerDetails}
+              </span>
+              {supportingDetails}
             </span>
           </span>
+          <span className="movie-import-modal__image-footer movie-import-modal__trailer-footer">
+            <input
+              aria-label="Import Official Trailer"
+              type="checkbox"
+              checked={comparison.selected}
+              onChange={onToggle}
+            />
+            <span className="movie-import-modal__image-label">Import Official Trailer</span>
+          </span>
         </label>
-        <div className="movie-import-modal__trailer-supporting">
-          {isAlreadyCurrent ? (
-            <p className="movie-import-modal__trailer-status">Already current trailer</p>
-          ) : null}
-          {publishedAtLabel ? (
-            <p className="movie-import-modal__trailer-current">Published {publishedAtLabel}</p>
-          ) : null}
-          {currentVideo ? (
-            <p className="movie-import-modal__trailer-current">
-              Current: {formatCurrentVideoSummary(currentVideo)}
-            </p>
-          ) : (
-            <p className="movie-import-modal__trailer-current">Current: Empty</p>
-          )}
-          <p className="movie-import-modal__trailer-link-row">
-            <a href={trailer.watchUrl} target="_blank" rel="noopener noreferrer">
-              Preview on YouTube
-            </a>
-          </p>
-        </div>
-      </div>
-    </article>
+      ) : (
+        <article className="movie-import-modal__trailer-card movie-import-modal__trailer-card--static">
+          <div className="movie-import-modal__trailer-card-main">
+            {preview}
+            <div className="movie-import-modal__trailer-body">
+              <span className="movie-import-modal__trailer-choice-copy">
+                {trailerDetails}
+              </span>
+              {supportingDetails}
+            </div>
+          </div>
+          <div className="movie-import-modal__image-footer movie-import-modal__trailer-footer">
+            <span className="movie-import-modal__image-label">Current trailer</span>
+          </div>
+        </article>
+      )}
+      <p className="movie-import-modal__trailer-link-row">
+        <a href={trailer.watchUrl} target="_blank" rel="noopener noreferrer">
+          Preview on YouTube
+        </a>
+      </p>
+    </>
   );
 }
 
