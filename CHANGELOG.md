@@ -22,6 +22,7 @@ All notable changes to Movie Importer are documented here.
 
 ### Fixed
 
+- Corrected Review and Confirm draft Person counts and names when the same automatically matched TMDB person appears in multiple roles.
 - Kept the Poster and Hero **Do not import** options visible when TMDB returns no candidates for those destinations.
 - Hardened private release operations with a documented, least-privileged local Wrangler recovery path.
 
