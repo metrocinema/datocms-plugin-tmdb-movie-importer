@@ -5,7 +5,7 @@ describe('manualFieldExtensions', () => {
     expect(manualFieldExtensions()).toEqual([
       {
         id: 'tmdbMovieImport',
-        name: 'TMDB Movie Importer',
+        name: 'Movie Importer',
         type: 'addon',
         fieldTypes: ['string', 'integer', 'float'],
         initialHeight: 80,

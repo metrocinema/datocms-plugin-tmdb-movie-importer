@@ -90,7 +90,7 @@ export function verifyMarketplaceMetadata(manifest) {
     'package bug tracker is incorrect',
   );
   const plugin = manifest.datoCmsPlugin;
-  invariant(plugin?.title === 'TMDB Movie Importer', 'datoCmsPlugin.title is incorrect');
+  invariant(plugin?.title === 'Movie Importer', 'datoCmsPlugin.title is incorrect');
   invariant(plugin?.entryPoint === 'dist/index.html', 'datoCmsPlugin.entryPoint is incorrect');
   invariant(
     Array.isArray(plugin?.permissions) && plugin.permissions.length === 1 && plugin.permissions[0] === 'currentUserAccessToken',

@@ -1,6 +1,6 @@
-# TMDB Movie Importer
+# Movie Importer
 
-TMDB Movie Importer is a Metro Cinema plugin for DatoCMS. It lets editors find a movie, review selected TMDB metadata, people, an optional trailer, and images, then apply the approved values to the current unsaved movie form.
+Movie Importer is a Metro Cinema plugin for DatoCMS. It lets editors find a movie, review selected TMDB metadata, people, an optional trailer, and images, then apply the approved values to the current unsaved movie form.
 
 ## Current implementation
 
@@ -10,7 +10,7 @@ Artwork selection is opt-in. No poster or backdrop candidate starts selected. Wh
 
 Trailer import selects one deterministic official English YouTube trailer when TMDB provides one. The proposal starts selected only when the mapped DatoCMS Trailer field is empty. A different current trailer stays unselected until the editor opts in, and no fallback candidate appears when TMDB has no qualifying trailer. The plugin opens preview links on YouTube, and it never embeds or uploads video.
 
-Trailer behavior is implemented on this branch and covered by the automated release gate. Manual DatoCMS sandbox acceptance is still pending.
+Trailer behavior is implemented on the current branch, covered by the automated release gate, and verified through a deployed DatoCMS sandbox trailer-replacement import. The broader Marketplace acceptance matrix remains pending.
 
 The repository contains a manually triggered Cloudflare Pages deployment workflow, but source, build, push, deployment, DatoCMS installation, and sandbox acceptance are separate states. A checkout or passing test suite does not prove that a Pages deployment or DatoCMS installation is current.
 

@@ -1,4 +1,4 @@
-# TMDB Movie Importer release guide
+# Movie Importer release guide
 
 This guide prepares a release. It does not authorize any deployment, publication, GitHub visibility change, or DatoCMS installation change.
 

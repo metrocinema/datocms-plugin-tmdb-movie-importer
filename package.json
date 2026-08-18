@@ -29,7 +29,7 @@
     "docs/marketplace/preview.webp"
   ],
   "datoCmsPlugin": {
-    "title": "TMDB Movie Importer",
+    "title": "Movie Importer",
     "entryPoint": "dist/index.html",
     "permissions": [
       "currentUserAccessToken"

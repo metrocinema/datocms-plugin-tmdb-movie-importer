@@ -53,7 +53,7 @@ export function ConfirmStep({ plan, movie, onConfirm, onBack }: ConfirmStepProps
       </div>
       <div className="movie-import-modal__scroll-body">
         <header className="movie-import-modal__header">
-          <p className="movie-import-modal__eyebrow">TMDB Movie Importer</p>
+          <p className="movie-import-modal__eyebrow">Movie Importer</p>
           <h2 ref={headingRef} tabIndex={-1} className="movie-import-modal__title movie-import-modal__title--focus-target">Confirm import</h2>
           <p className="movie-import-modal__intro">Start the reviewed TMDB import for this movie form. DatoCMS will run the selected creates, uploads, and form updates after this modal closes.</p>
         </header>

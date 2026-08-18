@@ -705,7 +705,7 @@ In `src/ui/ImportModal.test.tsx`, add `prepareImages` as an injected async funct
 2. the screen shows `Checking artwork…` while preparation is pending;
 3. after artwork resolves, `Matching directors and actors…` remains when Person matching is still pending;
 4. Review Changes receives the processed candidate list;
-5. rejected preparation logs `MCS Movie Importer artwork preparation failed`, keeps raw ranked images, and still reaches Review Changes;
+5. rejected preparation logs `Movie Importer artwork preparation failed`, keeps raw ranked images, and still reaches Review Changes;
 6. a Person-matching rejection remains blocking and returns to Find Movie.
 
 Assert the fallback diagnostic object does not contain image URLs or tokens.
@@ -776,7 +776,7 @@ const peoplePromise = (props.resolvePeople?.(peopleCandidates) ?? Promise.resolv
 setSearchActivity('checking_artwork');
 const preparedImages = await prepareImages(loaded.images).catch((reason) => {
   console.error(
-    'MCS Movie Importer artwork preparation failed',
+    'Movie Importer artwork preparation failed',
     tokenSafeErrorDetails(reason),
   );
   return loaded.images;
@@ -786,7 +786,7 @@ setSearchActivity('matching_people');
 const peopleResult = await peoplePromise;
 if (peopleResult.status === 'rejected') {
   console.error(
-    'MCS Movie Importer person matching failed',
+    'Movie Importer person matching failed',
     tokenSafeErrorDetails(peopleResult.reason),
   );
   setError(
