@@ -13,7 +13,7 @@ Use this index to distinguish current operating documentation from implementatio
 ## Implemented design records
 
 - [`TMDB Trailer Import Design`](superpowers/specs/2026-08-17-tmdb-trailer-import-design.md): original design record for importing an official English YouTube trailer into a native DatoCMS External Video field. The current implementation extends it with an editor-controlled multi-candidate picker.
-- [`TMDB Trailer Import Implementation Plan`](superpowers/plans/2026-08-17-tmdb-trailer-import.md): implementation record for trailer import verification and release evidence. One deployed replacement flow passed sandbox acceptance; the README lists the remaining cases.
+- [`TMDB Trailer Import Implementation Plan`](superpowers/plans/2026-08-17-tmdb-trailer-import.md): implementation record for trailer import verification and release evidence. The current sandbox result and remaining restricted-role case are maintained in the release guide.
 
 ## Planned work
 
