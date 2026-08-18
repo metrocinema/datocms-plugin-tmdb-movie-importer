@@ -84,7 +84,9 @@ export function formatImpactSegments(summary: {
 }) {
   return [
     `${summary.fieldChanges} ${pluralize(summary.fieldChanges, 'field')}`,
-    summary.trailers > 0 ? `${summary.trailers} ${pluralize(summary.trailers, 'trailer')}` : null,
+    summary.trailers > 0
+      ? `${summary.trailers} ${pluralize(summary.trailers, 'trailer replacement')}`
+      : null,
     `${summary.imagesToUpload} ${pluralize(summary.imagesToUpload, 'image')}`,
     `${summary.peopleToCreate} new ${pluralize(summary.peopleToCreate, 'person', 'people')}`,
     `${summary.peopleToReuse} reused ${pluralize(summary.peopleToReuse, 'person', 'people')}`,

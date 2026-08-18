@@ -37,7 +37,7 @@ const movie: NormalizedMovie = {
   directors: [{ tmdbId: 10, name: 'Director Name', order: 0, role: 'director' }],
   actors: [],
   images: [],
-  trailer: null,
+  trailers: [],
 };
 
 describe('import flow integration', () => {

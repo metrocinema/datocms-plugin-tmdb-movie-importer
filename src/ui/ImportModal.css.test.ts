@@ -97,17 +97,23 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(inputRule).toContain('accent-color: var(--movie-import-selected-control-border)');
   });
 
-  it('keeps the static trailer card neutral while selectable trailers reuse image card states', () => {
-    const staticTrailerRule = ruleFor('.movie-import-modal__trailer-card--static');
+  it('keeps every trailer choice on the shared selectable image card states', () => {
+    const imageOptionRule = rulesFor('.movie-import-modal__image-option').join('\n');
+    const selectedRule = ruleFor('.movie-import-modal__image-option:has(input:checked)');
     const previewRule = ruleFor('.movie-import-modal__trailer-preview');
     const thumbRule = ruleFor('.movie-import-modal__trailer-thumb');
 
-    expect(staticTrailerRule).toContain('background: var(--color--surface)');
-    expect(staticTrailerRule).toContain('border: 0');
-    expect(staticTrailerRule).toContain('box-shadow: 0 0 0 1px var(--color--border)');
+    expect(imageOptionRule).toContain('background: var(--color--surface)');
+    expect(imageOptionRule).toContain('box-shadow: 0 0 0 1px var(--color--border)');
+    expect(selectedRule).toContain('box-shadow: 0 0 0 3px var(--movie-import-selected-control-border)');
     expect(previewRule).toContain('border: 1px solid var(--color--border)');
     expect(thumbRule).toContain('object-fit: contain');
-    expect(`${staticTrailerRule}${previewRule}${thumbRule}`).not.toMatch(/#|rgb\(|hsl\(|white|black/i);
+    expect(`${imageOptionRule}${selectedRule}${previewRule}${thumbRule}`).not.toMatch(/#|rgb\(|hsl\(|white|black/i);
+  });
+
+  it('anchors trailer choice footers to the bottom of cards with different metadata heights', () => {
+    expect(ruleFor('.movie-import-modal__trailer-card .movie-import-modal__trailer-footer'))
+      .toContain('margin-top: auto');
   });
 
   it('keeps the trailer preview inside its desktop grid column when the text column is taller', () => {
@@ -118,8 +124,53 @@ describe('ImportModal.css accessibility tokens', () => {
 
     expect(mainRule).toContain('align-items: start');
     expect(bodyRule).toContain('align-content: start');
-    expect(supportingRule).toContain('font-size: var(--font-size-s)');
+    expect(bodyRule).toContain('gap: var(--spacing-xxs, 4px)');
+    expect(supportingRule).toContain('font-size: var(--font-size-xs)');
     expect(metadataRule).toContain('text-align: left');
+  });
+
+  it('uses a compact, consistent type hierarchy inside trailer cards', () => {
+    const headingRule = ruleFor('.movie-import-modal__trailer-heading');
+    const supportingRule = ruleFor('.movie-import-modal__trailer-current');
+    const metadataRule = ruleFor('.movie-import-modal__trailer-meta.movie-import-modal__image-meta');
+    const linkRule = ruleFor('.movie-import-modal__trailer-link-row a');
+
+    expect(headingRule).toContain('line-height: 1.25');
+    expect(supportingRule).toContain('line-height: 1.4');
+    expect(metadataRule).toContain('font-variant-numeric: tabular-nums');
+    expect(linkRule).toContain('font-size: var(--font-size-xs)');
+    expect(linkRule).toContain('line-height: 1.4');
+    expect(linkRule).toContain('text-underline-offset: 0.16em');
+  });
+
+  it('wraps extreme trailer metadata without overflowing its card', () => {
+    const headingRule = ruleFor('.movie-import-modal__trailer-heading');
+    const currentRule = ruleFor('.movie-import-modal__trailer-current');
+    const linkRule = ruleFor('.movie-import-modal__trailer-link-row a');
+
+    expect(headingRule).toContain('overflow-wrap: anywhere');
+    expect(currentRule).toContain('overflow-wrap: anywhere');
+    expect(linkRule).toContain('overflow-wrap: anywhere');
+  });
+
+  it('lays trailer choices out as a responsive media-card grid', () => {
+    const reviewRule = ruleFor('.movie-import-modal__trailer-review');
+    const gridRule = ruleFor('.movie-import-modal__trailer-grid');
+    const optionRule = ruleFor('.movie-import-modal__trailer-option');
+    const nonePreviewRule = ruleFor('.movie-import-modal__trailer-none-preview');
+    const stretchedNonePreviewRule = ruleFor('.movie-import-modal__trailer-card--none .movie-import-modal__trailer-none-preview');
+
+    expect(reviewRule).toContain('display: grid');
+    expect(reviewRule).toContain('gap: var(--spacing-m)');
+    expect(gridRule).toContain('grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))');
+    expect(gridRule).toContain('align-items: stretch');
+    expect(optionRule).toContain('grid-template-rows: 1fr auto');
+    expect(optionRule).toContain('height: 100%');
+    expect(optionRule).toContain('min-width: 0');
+    expect(nonePreviewRule).toContain('aspect-ratio: 16 / 9');
+    expect(nonePreviewRule).toContain('justify-content: center');
+    expect(stretchedNonePreviewRule).toContain('aspect-ratio: auto');
+    expect(stretchedNonePreviewRule).toContain('flex: 1 1 auto');
   });
 
   it('aligns current field text with proposed field controls', () => {
@@ -142,6 +193,13 @@ describe('ImportModal.css accessibility tokens', () => {
     expect(footerRule).toContain('background: var(--movie-import-selected-control-surface)');
     expect(footerRule).toContain('border-color: var(--movie-import-selected-control-border)');
     expect(footerRule).toContain('color: var(--movie-import-selected-control-ink)');
+  });
+
+  it('keeps a visible focus ring around a selected media card', () => {
+    const rule = ruleFor('.movie-import-modal__image-option:has(input:checked):focus-within');
+
+    expect(rule).toContain('0 0 0 3px var(--movie-import-selected-control-border)');
+    expect(rule).toContain('0 0 0 6px var(--color--focus--outline)');
   });
 
   it('uses neutral surface and border tokens for unselected image cards', () => {

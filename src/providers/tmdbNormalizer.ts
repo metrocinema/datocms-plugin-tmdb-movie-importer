@@ -106,6 +106,13 @@ function trailerPublishedAtRank(video: TmdbVideo): number | null {
 }
 
 function compareEligibleTrailers(left: EligibleTmdbTrailer, right: EligibleTmdbTrailer): number {
+  const leftIsUs = left.iso_3166_1 === 'US';
+  const rightIsUs = right.iso_3166_1 === 'US';
+
+  if (leftIsUs !== rightIsUs) {
+    return leftIsUs ? -1 : 1;
+  }
+
   if (left.size !== right.size) {
     return right.size - left.size;
   }
@@ -128,39 +135,34 @@ function compareEligibleTrailers(left: EligibleTmdbTrailer, right: EligibleTmdbT
   return left.id.localeCompare(right.id);
 }
 
-function normalizeTrailer(input: TmdbMoviePackage): NormalizedTrailerCandidate | null {
+function normalizeTrailers(input: TmdbMoviePackage): NormalizedTrailerCandidate[] {
   if (!Array.isArray(input.videos?.results)) {
-    return null;
+    return [];
   }
 
-  const [winner] = input.videos.results.filter(eligibleTrailer).sort(compareEligibleTrailers);
-
-  if (!winner) {
-    return null;
-  }
-
-  return {
+  return input.videos.results.filter(eligibleTrailer).sort(compareEligibleTrailers).map((video) => ({
     providerKey: 'tmdb',
-    providerVideoId: winner.id,
+    providerVideoId: video.id,
     movieIdentity: { providerKey: 'tmdb', tmdbId: input.id },
     externalProvider: 'youtube',
-    externalProviderId: winner.key,
-    title: winner.name,
-    watchUrl: `https://www.youtube.com/watch?v=${winner.key}`,
-    thumbnailUrl: `https://i.ytimg.com/vi/${winner.key}/hqdefault.jpg`,
-    width: Math.round(winner.size * 16 / 9),
-    height: winner.size,
+    externalProviderId: video.key,
+    title: video.name,
+    watchUrl: `https://www.youtube.com/watch?v=${video.key}`,
+    thumbnailUrl: `https://i.ytimg.com/vi/${video.key}/hqdefault.jpg`,
+    width: Math.round(video.size * 16 / 9),
+    height: video.size,
     language: 'en',
-    country: typeof winner.iso_3166_1 === 'string' && winner.iso_3166_1.trim().length > 0 ? winner.iso_3166_1 : null,
-    resolution: winner.size,
-    publishedAt: trailerPublishedAt(winner),
+    country: typeof video.iso_3166_1 === 'string' && video.iso_3166_1.trim().length > 0 ? video.iso_3166_1 : null,
+    resolution: video.size,
+    publishedAt: trailerPublishedAt(video),
     official: true,
     attribution: 'TMDB',
-  };
+  }));
 }
 
 export function normalizeTmdbMovie(input: TmdbMoviePackage, actorLimit: number): NormalizedMovie {
   const people = normalizePeople(input, actorLimit);
+  const trailers = normalizeTrailers(input);
 
   return {
     tmdbId: input.id,
@@ -174,6 +176,6 @@ export function normalizeTmdbMovie(input: TmdbMoviePackage, actorLimit: number):
     directors: people.directors,
     actors: people.actors,
     images: normalizeImages(input),
-    trailer: normalizeTrailer(input),
+    trailers,
   };
 }

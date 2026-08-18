@@ -5,6 +5,7 @@ import type { NormalizedImageCandidate, NormalizedMovie, PersonCandidate } from 
 import type { MovieFieldKey } from '../domain/movie';
 import type { PersonMatchDecision } from '../domain/personMatching';
 import type { ImageSelection } from '../providers/imageProvider';
+import type { NormalizedTrailerCandidate } from '../domain/trailer';
 import { FieldDiffTable } from './FieldDiffTable';
 import { ImagePicker } from './ImagePicker';
 import { isEnglishPoster } from '../providers/imageProvider';
@@ -24,6 +25,8 @@ type ReviewStepProps = {
   onBack: () => void;
   people: Array<{ candidate: PersonCandidate; decision: PersonMatchDecision }>;
   onResolvePerson: (candidate: PersonCandidate, value: 'create' | `reuse:${string}`) => void;
+  selectedTrailer: NormalizedTrailerCandidate | null;
+  onSelectTrailer: (trailer: NormalizedTrailerCandidate | null) => void;
   images: NormalizedImageCandidate[];
   imageSelection: ImageSelection;
   onTogglePoster: (image: NormalizedImageCandidate | null) => void;
@@ -31,7 +34,7 @@ type ReviewStepProps = {
   onToggleBackdrop: (image: NormalizedImageCandidate) => void;
 };
 
-export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelectAll, onClearAll, onContinue, onBack, people, onResolvePerson, images, imageSelection, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ReviewStepProps) {
+export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelectAll, onClearAll, onContinue, onBack, people, onResolvePerson, selectedTrailer, onSelectTrailer, images, imageSelection, onTogglePoster, onSelectHeroImage, onToggleBackdrop }: ReviewStepProps) {
   const [selectedMovieOpen, setSelectedMovieOpen] = useState(true);
   const mappedFieldSet = new Set(mappedFields);
   const trailerComparison = comparisons.find((comparison) => comparison.key === 'trailer');
@@ -126,8 +129,8 @@ export function ReviewStep({ movie, comparisons, mappedFields, onToggle, onSelec
           {hasTrailerDestination && trailerComparison ? (
             <div id="trailer">
               <Section title="Trailer">
-                <p className="movie-import-modal__section-help">Choose whether to prepare the TMDB trailer as the DatoCMS External Video value.</p>
-                <TrailerReview trailer={movie.trailer} comparison={trailerComparison} onToggle={() => onToggle('trailer')} />
+                <p className="movie-import-modal__section-help">Keep the current Trailer field value or replace it with one official English YouTube trailer from TMDB.</p>
+                <TrailerReview trailers={movie.trailers} selectedTrailer={selectedTrailer} comparison={trailerComparison} onSelect={onSelectTrailer} />
               </Section>
             </div>
           ) : null}

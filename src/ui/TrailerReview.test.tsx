@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { useState } from 'react';
 import type { FieldComparison } from '../domain/fieldComparison';
-import type { NormalizedTrailerCandidate } from '../domain/trailer';
-import { datoExternalVideoValue } from '../domain/trailer';
+import { datoExternalVideoValue, type NormalizedTrailerCandidate } from '../domain/trailer';
 import { TrailerReview } from './TrailerReview';
 
 const trailer: NormalizedTrailerCandidate = {
@@ -23,213 +23,281 @@ const trailer: NormalizedTrailerCandidate = {
   attribution: 'TMDB',
 };
 
-function buildComparison(overrides: Partial<FieldComparison>): FieldComparison {
+const ukTrailer: NormalizedTrailerCandidate = {
+  ...trailer,
+  providerVideoId: 'tmdb-video-2',
+  externalProviderId: 'youtube-video-2',
+  title: 'Official New UK Trailer',
+  watchUrl: 'https://www.youtube.com/watch?v=youtube-video-2',
+  thumbnailUrl: 'https://img.youtube.com/vi/youtube-video-2/maxresdefault.jpg',
+  country: 'GB',
+};
+
+function buildComparison(overrides: Partial<FieldComparison> = {}): FieldComparison {
   return {
     key: 'trailer',
     currentValue: null,
-    proposedValue: datoExternalVideoValue(trailer),
+    proposedValue: null,
     selected: false,
     available: true,
-    changed: true,
+    changed: false,
     ...overrides,
   };
 }
 
+function renderReview(overrides: {
+  trailers?: NormalizedTrailerCandidate[];
+  selectedTrailer?: NormalizedTrailerCandidate | null;
+  comparison?: FieldComparison;
+  onSelect?: (trailer: NormalizedTrailerCandidate | null) => void;
+} = {}) {
+  return render(
+    <TrailerReview
+      trailers={overrides.trailers ?? [trailer, ukTrailer]}
+      selectedTrailer={overrides.selectedTrailer ?? null}
+      comparison={overrides.comparison ?? buildComparison()}
+      onSelect={overrides.onSelect ?? vi.fn()}
+    />,
+  );
+}
+
 describe('TrailerReview', () => {
-  it('renders a selected empty-field proposal with a safe YouTube preview link', () => {
-    const onToggle = vi.fn();
+  it('shows every eligible trailer with the empty Trailer field selected by default', () => {
+    renderReview();
 
-    render(
-      <TrailerReview
-        trailer={trailer}
-        comparison={buildComparison({ selected: true })}
-        onToggle={onToggle}
-      />,
-    );
-
-    expect(screen.getByRole('checkbox', { name: 'Import Official Trailer' })).toBeChecked();
-    expect(screen.getByText('TMDB · 1920 × 1080 · EN')).toBeInTheDocument();
-    expect(screen.getByText('Published Jan 1, 2024')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute('href', trailer.watchUrl);
-    expect(screen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute('target', '_blank');
-    expect(screen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(screen.getByRole('radio', { name: 'Keep trailer empty' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Replace with Official Trailer' })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Replace with Official New UK Trailer' })).not.toBeChecked();
   });
 
-  it('toggles a proposal when its thumbnail is selected without making the preview link toggle it', () => {
-    const onToggle = vi.fn();
-    const { container } = render(
-      <TrailerReview
-        trailer={trailer}
-        comparison={buildComparison({ selected: false })}
-        onToggle={onToggle}
-      />,
-    );
+  it('selects one trailer from the whole card', () => {
+    const onSelect = vi.fn();
+    const { container } = renderReview({ onSelect });
+    const cards = container.querySelectorAll('label.movie-import-modal__trailer-card');
 
-    const thumbnail = container.querySelector('.movie-import-modal__trailer-preview');
-    expect(thumbnail).not.toBeNull();
+    fireEvent.click(cards[1]);
 
-    fireEvent.click(thumbnail as HTMLElement);
-    expect(onToggle).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole('link', { name: 'Preview on YouTube' }));
-    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(trailer);
   });
 
-  it('renders the YouTube preview action outside the selectable trailer card', () => {
-    const { container } = render(
-      <TrailerReview
-        trailer={trailer}
-        comparison={buildComparison({ selected: false })}
-        onToggle={vi.fn()}
-      />,
-    );
+  it('shows the selected trailer as the only checked video choice', () => {
+    renderReview({ selectedTrailer: ukTrailer });
 
-    const card = container.querySelector('.movie-import-modal__trailer-card');
-    const previewAction = screen.getByRole('link', { name: 'Preview on YouTube' });
-
-    expect(card).not.toContainElement(previewAction);
-    expect(card?.nextElementSibling).toContainElement(previewAction);
+    expect(screen.getByRole('radio', { name: 'Keep trailer empty' })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Replace with Official Trailer' })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Replace with Official New UK Trailer' })).toBeChecked();
   });
 
-  it('toggles only once when the selectable trailer body is clicked', () => {
-    const onToggle = vi.fn();
-    const { container } = render(
-      <TrailerReview
-        trailer={trailer}
-        comparison={buildComparison({ selected: false })}
-        onToggle={onToggle}
-      />,
-    );
+  it('moves through trailer choices with radio-group arrow keys', () => {
+    const onSelect = vi.fn();
+    function ControlledReview() {
+      const [selectedTrailer, setSelectedTrailer] = useState<NormalizedTrailerCandidate | null>(null);
 
-    const cardBody = container.querySelector('.movie-import-modal__trailer-card-main');
-    expect(cardBody).not.toBeNull();
+      return (
+        <TrailerReview
+          trailers={[trailer, ukTrailer]}
+          selectedTrailer={selectedTrailer}
+          comparison={buildComparison()}
+          onSelect={(nextTrailer) => {
+            onSelect(nextTrailer);
+            setSelectedTrailer(nextTrailer);
+          }}
+        />
+      );
+    }
 
-    fireEvent.click(cardBody as HTMLElement);
-    expect(onToggle).toHaveBeenCalledTimes(1);
+    render(<ControlledReview />);
+    const keepEmpty = screen.getByRole('radio', { name: 'Keep trailer empty' });
+    const firstTrailer = screen.getByRole('radio', { name: 'Replace with Official Trailer' });
+
+    fireEvent.keyDown(keepEmpty, { key: 'ArrowRight' });
+
+    expect(onSelect).toHaveBeenLastCalledWith(trailer);
+    expect(firstTrailer).toHaveFocus();
+
+    fireEvent.keyDown(firstTrailer, { key: 'ArrowLeft' });
+
+    expect(onSelect).toHaveBeenLastCalledWith(null);
+    expect(keepEmpty).toHaveFocus();
   });
 
-  it('uses the same single selectable root and footer pattern as image cards', () => {
-    render(
-      <TrailerReview
-        trailer={trailer}
-        comparison={buildComparison({ selected: false })}
-        onToggle={vi.fn()}
-      />,
-    );
+  it('moves to the first and last trailer choices with Home and End', () => {
+    const onSelect = vi.fn();
+    function ControlledReview() {
+      const [selectedTrailer, setSelectedTrailer] = useState<NormalizedTrailerCandidate | null>(trailer);
 
-    const checkbox = screen.getByRole('checkbox', { name: 'Import Official Trailer' });
-    const selectableCard = checkbox.closest('label.movie-import-modal__image-option');
+      return (
+        <TrailerReview
+          trailers={[trailer, ukTrailer]}
+          selectedTrailer={selectedTrailer}
+          comparison={buildComparison()}
+          onSelect={(nextTrailer) => {
+            onSelect(nextTrailer);
+            setSelectedTrailer(nextTrailer);
+          }}
+        />
+      );
+    }
 
-    expect(selectableCard).toHaveClass('movie-import-modal__trailer-card');
-    expect(checkbox.closest('.movie-import-modal__image-footer')).toBeInTheDocument();
+    render(<ControlledReview />);
+    const keepEmpty = screen.getByRole('radio', { name: 'Keep trailer empty' });
+    const firstTrailer = screen.getByRole('radio', { name: 'Replace with Official Trailer' });
+    const lastTrailer = screen.getByRole('radio', { name: 'Replace with Official New UK Trailer' });
+
+    firstTrailer.focus();
+    fireEvent.keyDown(firstTrailer, { key: 'Home' });
+
+    expect(onSelect).toHaveBeenLastCalledWith(null);
+    expect(keepEmpty).toHaveFocus();
+
+    fireEvent.keyDown(keepEmpty, { key: 'End' });
+
+    expect(onSelect).toHaveBeenLastCalledWith(ukTrailer);
+    expect(lastTrailer).toHaveFocus();
   });
 
-  it('shows a replacement unselected with current title and provider context', () => {
-    render(
-      <TrailerReview
-        trailer={trailer}
-        comparison={buildComparison({
-          currentValue: {
-            provider: 'youtube',
-            provider_uid: 'existing-youtube-id',
-            title: 'Editorial trailer',
-            width: 1280,
-            height: 720,
-            thumbnail_url: 'https://img.youtube.com/vi/existing/hqdefault.jpg',
-            url: 'https://www.youtube.com/watch?v=existing-youtube-id',
-          },
-        })}
-        onToggle={vi.fn()}
-      />,
-    );
+  it('renders country, resolution, publication date, and safe preview links', () => {
+    renderReview();
 
-    expect(screen.getByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeChecked();
-    expect(screen.getByText(/Current: Editorial trailer · YouTube/i)).toBeInTheDocument();
+    expect(screen.getByText('TMDB · 1920 × 1080 · US · EN')).toBeInTheDocument();
+    expect(screen.getByText('TMDB · 1920 × 1080 · GB · EN')).toBeInTheDocument();
+    expect(screen.getByRole('radio', {
+      name: 'Replace with Official Trailer',
+      description: 'TMDB · 1920 × 1080 · US · EN Published Jan 1, 2024',
+    })).toBeInTheDocument();
+    expect(screen.getByRole('radio', {
+      name: 'Replace with Official New UK Trailer',
+      description: 'TMDB · 1920 × 1080 · GB · EN Published Jan 1, 2024',
+    })).toBeInTheDocument();
+    expect(screen.getAllByText('Published Jan 1, 2024')).toHaveLength(2);
+    for (const link of [
+      screen.getByRole('link', { name: 'Preview Official Trailer on YouTube' }),
+      screen.getByRole('link', { name: 'Preview Official New UK Trailer on YouTube' }),
+    ]) {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+      expect(link.closest('.movie-import-modal__trailer-card')).toBeNull();
+    }
   });
 
-  it('presents an already-current trailer as a non-actionable status', () => {
-    render(
-      <TrailerReview
-        trailer={trailer}
-        comparison={buildComparison({
-          currentValue: {
-            ...datoExternalVideoValue(trailer),
-            title: 'Editorial trailer',
-          },
-          changed: false,
-          selected: false,
-        })}
-        onToggle={vi.fn()}
-      />,
-    );
+  it('does not change selection when a YouTube preview link is clicked', () => {
+    const onSelect = vi.fn();
+    renderReview({ onSelect });
 
-    expect(screen.getByText('Current trailer')).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Preview Official Trailer on YouTube' }));
+
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('shows no-result copy without clearing the current value', () => {
-    render(
-      <TrailerReview
-        trailer={null}
-        comparison={buildComparison({
-          currentValue: {
-            provider: 'youtube',
-            provider_uid: 'existing-youtube-id',
-            title: 'Editorial trailer',
-            width: 1280,
-            height: 720,
-            thumbnail_url: 'https://img.youtube.com/vi/existing/hqdefault.jpg',
-            url: 'https://www.youtube.com/watch?v=existing-youtube-id',
-          },
-          proposedValue: null,
-          available: false,
-        })}
-        onToggle={vi.fn()}
-      />,
-    );
+  it('renders the current DatoCMS trailer as the selected full card', () => {
+    renderReview({
+      comparison: buildComparison({
+        currentValue: { ...datoExternalVideoValue(trailer), title: 'Editorial title' },
+      }),
+    });
 
-    expect(screen.getByText('No official English YouTube trailer found.')).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeInTheDocument();
+    const keepCurrent = screen.getByRole('radio', {
+      name: 'Keep current trailer',
+      description: 'DatoCMS · 1920 × 1080 · YouTube',
+    });
+    const currentCard = keepCurrent.closest('label');
+
+    expect(keepCurrent).toBeChecked();
+    expect(currentCard).toHaveTextContent('Editorial title');
+    expect(currentCard).toHaveTextContent('Current DatoCMS trailer');
+    expect(currentCard?.querySelector('img')).toHaveAttribute('src', trailer.thumbnailUrl);
+    expect(screen.getByRole('link', { name: 'Preview Editorial title on YouTube' })).toHaveAttribute('href', trailer.watchUrl);
+    expect(screen.queryByRole('radio', { name: 'Replace with Official Trailer' })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Replace with Official New UK Trailer' })).toBeInTheDocument();
   });
 
-  it('omits publication metadata when publishedAt is null or invalid', () => {
-    const { rerender } = render(
-      <TrailerReview
-        trailer={{ ...trailer, publishedAt: null }}
-        comparison={buildComparison({ selected: true })}
-        onToggle={vi.fn()}
-      />,
-    );
+  it('explains when the current trailer is the only eligible TMDB result', () => {
+    renderReview({
+      trailers: [trailer],
+      comparison: buildComparison({
+        currentValue: { ...datoExternalVideoValue(trailer), title: 'Editorial title' },
+      }),
+    });
+
+    expect(screen.getByRole('radio', { name: 'Keep current trailer' })).toBeChecked();
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+    expect(screen.getByText(
+      'The current trailer already matches TMDB. No alternative trailers are available.',
+    )).toBeInTheDocument();
+  });
+
+  it('keeps the current trailer card inside the trailer choice radiogroup', () => {
+    renderReview({
+      comparison: buildComparison({
+        currentValue: { ...datoExternalVideoValue(trailer), title: 'Editorial title' },
+      }),
+    });
+
+    const choices = screen.getByRole('radiogroup', { name: 'Trailer import choice' });
+
+    expect(within(choices).getByRole('radio', { name: 'Keep current trailer' })).toBeChecked();
+    expect(within(choices).getAllByRole('radio')).toHaveLength(2);
+  });
+
+  it('uses the same option wrapper for the None choice and trailer choices', () => {
+    const { container } = renderReview();
+    const choices = screen.getByRole('radiogroup', { name: 'Trailer import choice' });
+    const optionWrappers = choices.querySelectorAll('.movie-import-modal__trailer-option');
+
+    expect(optionWrappers).toHaveLength(3);
+    expect(optionWrappers[0]).toContainElement(screen.getByRole('radio', { name: 'Keep trailer empty' }));
+    expect(container.querySelector('.movie-import-modal__trailer-link-row--placeholder')).toBeInTheDocument();
+  });
+
+  it('keeps Do not import visible when TMDB has no eligible trailer', () => {
+    renderReview({
+      trailers: [],
+      comparison: buildComparison({
+        currentValue: {
+          provider: 'youtube',
+          provider_uid: 'existing-youtube-id',
+          title: 'Editorial trailer',
+        },
+        available: false,
+      }),
+    });
+
+    expect(screen.getByRole('radio', { name: 'Keep current trailer' })).toBeChecked();
+    expect(screen.getByText('No official English YouTube trailers found.')).toBeInTheDocument();
+    expect(screen.getByText('Editorial trailer')).toBeInTheDocument();
+  });
+
+  it('normalizes whitespace-only current video metadata before displaying it', () => {
+    renderReview({
+      trailers: [],
+      comparison: buildComparison({
+        currentValue: {
+          provider: ' youtube ',
+          provider_uid: 'existing-youtube-id',
+          title: '   ',
+        },
+      }),
+    });
+
+    expect(screen.getByRole('radio', { name: 'Keep current trailer' })).toBeChecked();
+    expect(screen.getByText('Untitled video')).toBeInTheDocument();
+  });
+
+  it('omits invalid publication metadata', () => {
+    renderReview({ trailers: [{ ...trailer, publishedAt: 'not-a-date' }] });
 
     expect(screen.queryByText(/Published /i)).not.toBeInTheDocument();
-
-    rerender(
-      <TrailerReview
-        trailer={{ ...trailer, publishedAt: 'not-a-date' }}
-        comparison={buildComparison({ selected: true })}
-        onToggle={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByText(/Published /i)).not.toBeInTheDocument();
   });
 
-  it('shows a preview fallback without removing the link or decision control', () => {
-    render(
-      <TrailerReview
-        trailer={trailer}
-        comparison={buildComparison({ selected: true })}
-        onToggle={vi.fn()}
-      />,
-    );
-
+  it('shows a preview fallback without removing its choice or link', () => {
+    renderReview({ trailers: [trailer] });
     const preview = document.querySelector('.movie-import-modal__trailer-thumb');
-    expect(preview).toBeInstanceOf(HTMLImageElement);
 
     fireEvent.error(preview as HTMLImageElement);
 
     expect(screen.getByText('Preview unavailable')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute('href', trailer.watchUrl);
-    expect(screen.getByRole('checkbox', { name: 'Import Official Trailer' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Replace with Official Trailer' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Preview Official Trailer on YouTube' })).toHaveAttribute('href', trailer.watchUrl);
   });
 });

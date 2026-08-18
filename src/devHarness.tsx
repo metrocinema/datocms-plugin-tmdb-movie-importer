@@ -322,7 +322,7 @@ function modalScenarioFor(scenario: HarnessScenario, progress: HarnessProgress) 
       ...defaultScenario,
       currentValues: {
         ...defaultScenario.currentValues,
-        trailer: datoExternalVideoValue(fixtureMovieWithTrailer.trailer!),
+        trailer: datoExternalVideoValue(fixtureMovieWithTrailer.trailers[0]),
       },
     };
   }
@@ -361,7 +361,7 @@ function searchResultForMovie(movie: NormalizedMovie) {
   };
 }
 
-const fixtureMovieBase: Omit<NormalizedMovie, 'trailer'> = {
+const fixtureMovieBase: Omit<NormalizedMovie, 'trailers'> = {
   tmdbId: 843,
   title: 'In the Mood for Love',
   primaryReleaseDate: '2000-09-29',
@@ -383,12 +383,21 @@ const fixtureMovieBase: Omit<NormalizedMovie, 'trailer'> = {
 
 const fixtureMovieWithTrailer: NormalizedMovie = {
   ...fixtureMovieBase,
-  trailer: harnessTrailer(),
+  trailers: [
+    harnessTrailer(),
+    harnessTrailer({
+      providerVideoId: 'tmdb-demo_trailer_uk',
+      externalProviderId: 'demo_trailer_uk',
+      title: 'Official New UK Trailer',
+      country: 'GB',
+      publishedAt: '2024-02-01T00:00:00.000Z',
+    }),
+  ],
 };
 
 const fixtureMovieWithoutTrailer: NormalizedMovie = {
   ...fixtureMovieBase,
-  trailer: null,
+  trailers: [],
 };
 
 const importProgressFixtureMovie: NormalizedMovie = {
@@ -418,7 +427,7 @@ const odysseyFixtureMovie: NormalizedMovie = {
     ...posterCandidatesFor(1368337),
     ...backdropCandidatesFor(1368337),
   ],
-  trailer: null,
+  trailers: [],
 };
 
 function harnessTrailer(overrides: Partial<NormalizedTrailerCandidate> = {}): NormalizedTrailerCandidate {

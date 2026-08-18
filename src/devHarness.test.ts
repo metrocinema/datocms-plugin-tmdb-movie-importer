@@ -161,13 +161,13 @@ describe('devHarness', () => {
   });
 
   it.each([
-    ['default', null, true, true, 'demo_trailer_123'],
-    ['trailer-replacement', 'existing-youtube-id', true, true, 'demo_trailer_123'],
-    ['trailer-current', 'demo_trailer_123', true, false, 'demo_trailer_123'],
-    ['trailer-unavailable', 'existing-youtube-id', false, true, null],
+    ['default', null, true, 'demo_trailer_123'],
+    ['trailer-replacement', 'existing-youtube-id', true, 'demo_trailer_123'],
+    ['trailer-current', 'demo_trailer_123', true, 'demo_trailer_123'],
+    ['trailer-unavailable', 'existing-youtube-id', false, null],
   ] as const)(
     'provides a sanitized %s trailer review scenario',
-    async (scenario, currentTrailerId, hasTrailer, shouldChange, proposedTrailerId) => {
+    async (scenario, currentTrailerId, hasTrailer, firstTrailerId) => {
       const screen = screenForHarnessMode('modal', scenario);
       expect(screen.type).toBe('modal');
       if (screen.type !== 'modal') return;
@@ -177,15 +177,15 @@ describe('devHarness', () => {
         .find((comparison) => comparison.key === 'trailer');
 
       expect(screen.mappedFields).toContain('trailer');
-      expect(movie.trailer?.externalProviderId ?? null).toBe(proposedTrailerId);
-      expect(movie.trailer?.watchUrl ?? null).toBe(
-        proposedTrailerId ? `https://www.youtube.com/watch?v=${proposedTrailerId}` : null,
+      expect(movie.trailers[0]?.externalProviderId ?? null).toBe(firstTrailerId);
+      expect(movie.trailers[0]?.watchUrl ?? null).toBe(
+        firstTrailerId ? `https://www.youtube.com/watch?v=${firstTrailerId}` : null,
       );
-      expect(movie.trailer?.thumbnailUrl ?? null).toSatisfy((value: unknown) => (
-        proposedTrailerId ? typeof value === 'string' && value.startsWith('data:image/svg+xml,') : value === null
+      expect(movie.trailers[0]?.thumbnailUrl ?? null).toSatisfy((value: unknown) => (
+        firstTrailerId ? typeof value === 'string' && value.startsWith('data:image/svg+xml,') : value === null
       ));
-      expect(movie.trailer?.providerVideoId ?? null).toBe(
-        proposedTrailerId ? `tmdb-${proposedTrailerId}` : null,
+      expect(movie.trailers[0]?.providerVideoId ?? null).toBe(
+        firstTrailerId ? `tmdb-${firstTrailerId}` : null,
       );
       if (currentTrailerId) {
         expect(screen.currentValues.trailer).toMatchObject({
@@ -197,8 +197,8 @@ describe('devHarness', () => {
       }
       expect(trailerComparison).toMatchObject({
         available: hasTrailer,
-        changed: shouldChange,
-        selected: hasTrailer && currentTrailerId === null,
+        changed: false,
+        selected: false,
       });
     },
   );
@@ -226,23 +226,24 @@ describe('devHarness', () => {
     const comparison = compareMovieFields(screen.currentValues, movie, screen.mappedFields)
       .find((candidate) => candidate.key === 'trailer');
 
-    expect(movie.trailer).not.toBeNull();
+    expect(movie.trailers).not.toHaveLength(0);
     expect(comparison).toBeDefined();
 
     render(React.createElement(TrailerReview, {
-      trailer: movie.trailer,
+      trailers: movie.trailers,
+      selectedTrailer: null,
       comparison: comparison!,
-      onToggle: vi.fn(),
+      onSelect: vi.fn(),
     }));
 
     fireEvent.error(document.querySelector('.movie-import-modal__trailer-thumb') as HTMLImageElement);
 
     expect(testingScreen.getByText('Preview unavailable')).toBeInTheDocument();
-    expect(testingScreen.getByRole('link', { name: 'Preview on YouTube' })).toHaveAttribute(
+    expect(testingScreen.getByRole('link', { name: 'Preview Official Trailer on YouTube' })).toHaveAttribute(
       'href',
       'https://www.youtube.com/watch?v=demo_trailer_123',
     );
-    expect(testingScreen.getByRole('checkbox', { name: 'Import Official Trailer' })).toBeChecked();
+    expect(testingScreen.getByRole('radio', { name: 'Keep trailer empty' })).toBeChecked();
   });
 
   it('keeps the trailer harness offline with no live TMDB or DatoCMS requests', async () => {

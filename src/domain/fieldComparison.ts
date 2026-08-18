@@ -1,6 +1,6 @@
 import type { MovieFieldKey, NormalizedMovie } from './movie';
 import { isEmptyStructuredText, isStructuredTextValue, structuredTextPlainText } from './structuredText';
-import { datoExternalVideoValue, sameExternalVideo } from './trailer';
+import { datoExternalVideoValue, sameExternalVideo, type NormalizedTrailerCandidate } from './trailer';
 
 export type CurrentMovieValues = Partial<Record<MovieFieldKey, unknown>>;
 
@@ -18,10 +18,6 @@ const SCALAR_KEYS: MovieFieldKey[] = ['title', 'yearReleased', 'mpaaRating', 'ru
 function proposedValue(movie: NormalizedMovie, key: MovieFieldKey): unknown {
   if (key === 'tmdbId') {
     return movie.tmdbId;
-  }
-
-  if (key === 'trailer') {
-    return movie.trailer ? datoExternalVideoValue(movie.trailer) : null;
   }
 
   return movie[key as keyof NormalizedMovie];
@@ -51,11 +47,31 @@ function valuesMatch(key: MovieFieldKey, currentValue: unknown, nextValue: unkno
   return JSON.stringify(currentValue ?? null) === JSON.stringify(nextValue ?? null);
 }
 
-export function compareMovieFields(current: CurrentMovieValues, movie: NormalizedMovie, mappedFields: MovieFieldKey[]): FieldComparison[] {
+export function compareMovieFields(
+  current: CurrentMovieValues,
+  movie: NormalizedMovie,
+  mappedFields: MovieFieldKey[],
+  selectedTrailer: NormalizedTrailerCandidate | null = null,
+): FieldComparison[] {
   return mappedFields
     .filter((key) => SCALAR_KEYS.includes(key))
     .map((key) => {
       const currentValue = current[key];
+
+      if (key === 'trailer') {
+        const selectedValue = selectedTrailer ? datoExternalVideoValue(selectedTrailer) : null;
+        const changed = selectedValue !== null && !valuesMatch(key, currentValue, selectedValue);
+
+        return {
+          key,
+          currentValue,
+          proposedValue: selectedValue,
+          selected: changed,
+          available: movie.trailers.length > 0,
+          changed,
+        };
+      }
+
       const nextValue = proposedValue(movie, key);
       const available = !isEmpty(key, nextValue);
       const changed = !valuesMatch(key, currentValue, nextValue);

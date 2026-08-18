@@ -48,7 +48,7 @@ export type NormalizedMovie = {
   directors: PersonCandidate[];
   actors: PersonCandidate[];
   images: NormalizedImageCandidate[];
-  trailer: NormalizedTrailerCandidate | null;
+  trailers: NormalizedTrailerCandidate[];
 };
 
 export type ValidationIssue = {

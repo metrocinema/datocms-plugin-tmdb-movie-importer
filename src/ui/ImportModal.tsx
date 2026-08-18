@@ -3,6 +3,7 @@ import type { ImportProgressEvent, ImportProgressPhase, PreparedImport, PrepareI
 import { compareMovieFields, type CurrentMovieValues, type FieldComparison } from '../domain/fieldComparison';
 import { buildImportPlan, type ImportPlan, type PersonResolution } from '../domain/importPlanning';
 import type { MovieFieldKey, NormalizedImageCandidate, NormalizedMovie, PersonCandidate } from '../domain/movie';
+import type { NormalizedTrailerCandidate } from '../domain/trailer';
 import { matchPerson, type ExistingPersonRecord, type PersonMatchDecision } from '../domain/personMatching';
 import type { TmdbSearchQuery, TmdbSearchResult } from '../providers/tmdbTypes';
 import { TmdbError } from '../providers/tmdbClient';
@@ -46,6 +47,7 @@ export function ImportModal(props: ImportModalProps) {
   const [tmdbId, setTmdbId] = useState('');
   const [results, setResults] = useState<TmdbSearchResult[]>([]);
   const [movie, setMovie] = useState<NormalizedMovie | null>(null);
+  const [selectedTrailer, setSelectedTrailer] = useState<NormalizedTrailerCandidate | null>(null);
   const [comparisons, setComparisons] = useState<FieldComparison[]>([]);
   const [people, setPeople] = useState<Array<{ candidate: PersonCandidate; decision: PersonMatchDecision }>>([]);
   const [imageSelection, setImageSelection] = useState<ImageSelection>({ poster: null, heroImage: null, backdrops: [] });
@@ -98,6 +100,7 @@ export function ImportModal(props: ImportModalProps) {
 
       const preparedMovie = { ...loaded, images: preparedImages };
       setMovie(preparedMovie);
+      setSelectedTrailer(null);
       setComparisons(compareMovieFields(props.currentValues, preparedMovie, props.mappedFields));
       setPeople(peopleCandidates.map((candidate) => ({ candidate, decision: matchPerson(candidate, peopleResult.value, props.tmdbIdFieldConfigured ?? true) })));
       setImageSelection(defaultImageSelection(
@@ -220,6 +223,17 @@ export function ImportModal(props: ImportModalProps) {
     setComparisons((items) => items.map((item) => item.key === 'trailer' ? item : { ...item, selected: false }));
   };
 
+  const selectTrailer = (trailer: NormalizedTrailerCandidate | null) => {
+    setSelectedTrailer(trailer);
+    const nextTrailerComparison = compareMovieFields(
+      props.currentValues,
+      movie!,
+      ['trailer'],
+      trailer,
+    )[0];
+    setComparisons((items) => items.map((item) => item.key === 'trailer' ? nextTrailerComparison : item));
+  };
+
   if (step === 'search') {
     return (
       <div className="movie-import-modal">
@@ -245,7 +259,7 @@ export function ImportModal(props: ImportModalProps) {
           if (!samePersonCandidate(item.candidate, candidate)) return item;
           if (value === 'create') return { ...item, decision: { type: 'create', name: candidate.name, source: 'manual', warning: 'You chose to create a new draft Person after confirmation.' } };
           return { ...item, decision: { type: 'reuse', recordId: value.slice('reuse:'.length), source: 'manual', warning: 'You chose to reuse an existing Person record.' } };
-        }))} images={movie?.images ?? []} imageSelection={imageSelection} onTogglePoster={(image) => setImageSelection((selection) => {
+        }))} selectedTrailer={selectedTrailer} onSelectTrailer={selectTrailer} images={movie?.images ?? []} imageSelection={imageSelection} onTogglePoster={(image) => setImageSelection((selection) => {
           return { ...selection, poster: image };
         })} onSelectHeroImage={(image) => setImageSelection((selection) => {
           return selectHeroImage(selection, image);

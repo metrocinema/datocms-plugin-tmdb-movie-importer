@@ -65,19 +65,19 @@ describe('normalizeTmdbMovie', () => {
     expect(movie.images.map((image) => image.rank)).toEqual([...movie.images.map((image) => image.rank)].sort((a, b) => a - b));
   });
 
-  it('selects the highest-resolution official English YouTube trailer', () => {
+  it('orders higher-resolution trailers first within the same region', () => {
     const movie = normalizeTmdbMovie({
       ...completeMovie,
       videos: {
         results: [
           { id: 'older-1080', iso_639_1: 'en', iso_3166_1: 'US', key: 'older_1080', name: 'Official Trailer', official: true, published_at: '2025-01-01T00:00:00.000Z', site: 'YouTube', size: 1080, type: 'Trailer' },
-          { id: 'newer-1080', iso_639_1: 'en', iso_3166_1: 'GB', key: 'newer-1080', name: 'Official Trailer 2', official: true, published_at: '2025-02-01T00:00:00.000Z', site: 'YouTube', size: 1080, type: 'Trailer' },
-          { id: 'larger-2160', iso_639_1: 'en', iso_3166_1: 'CA', key: 'larger2160', name: '4K Official Trailer', official: true, published_at: '2024-01-01T00:00:00.000Z', site: 'YouTube', size: 2160, type: 'Trailer' },
+          { id: 'newer-1080', iso_639_1: 'en', iso_3166_1: 'US', key: 'newer-1080', name: 'Official Trailer 2', official: true, published_at: '2025-02-01T00:00:00.000Z', site: 'YouTube', size: 1080, type: 'Trailer' },
+          { id: 'larger-2160', iso_639_1: 'en', iso_3166_1: 'US', key: 'larger2160', name: '4K Official Trailer', official: true, published_at: '2024-01-01T00:00:00.000Z', site: 'YouTube', size: 2160, type: 'Trailer' },
         ],
       },
     }, 10);
 
-    expect(movie.trailer).toMatchObject({
+    expect(movie.trailers[0]).toMatchObject({
       providerKey: 'tmdb',
       providerVideoId: 'larger-2160',
       externalProvider: 'youtube',
@@ -86,6 +86,26 @@ describe('normalizeTmdbMovie', () => {
       resolution: 2160,
       official: true,
     });
+  });
+
+  it('preserves every eligible trailer and orders US choices before other English regions', () => {
+    const movie = normalizeTmdbMovie({
+      ...completeMovie,
+      videos: {
+        results: [
+          { id: 'uk-new', iso_639_1: 'en', iso_3166_1: 'GB', key: 'uk_new', name: 'Official New UK Trailer', official: true, published_at: '2025-02-01T00:00:00.000Z', site: 'YouTube', size: 2160, type: 'Trailer' },
+          { id: 'us-main', iso_639_1: 'en', iso_3166_1: 'US', key: 'us_main', name: 'Official Trailer', official: true, published_at: '2025-01-01T00:00:00.000Z', site: 'YouTube', size: 1080, type: 'Trailer' },
+          { id: 'ca-main', iso_639_1: 'en', iso_3166_1: 'CA', key: 'ca_main', name: 'Official Canadian Trailer', official: true, published_at: '2025-03-01T00:00:00.000Z', site: 'YouTube', size: 1080, type: 'Trailer' },
+          { ...validVideo, id: 'unofficial', key: 'unofficial', official: false },
+        ],
+      },
+    }, 10);
+
+    expect(movie.trailers.map((trailer) => trailer.providerVideoId)).toEqual([
+      'us-main',
+      'uk-new',
+      'ca-main',
+    ]);
   });
 
   it('breaks equal-resolution ties by newest valid publish date, then lexical TMDB video id', () => {
@@ -101,7 +121,7 @@ describe('normalizeTmdbMovie', () => {
       },
     }, 10);
 
-    expect(movie.trailer).toMatchObject({
+    expect(movie.trailers[0]).toMatchObject({
       providerVideoId: 'video-a',
       externalProviderId: 'video_a',
       publishedAt: '2025-02-01T00:00:00.000Z',
@@ -121,13 +141,13 @@ describe('normalizeTmdbMovie', () => {
       videos: { results: [{ ...validVideo, ...override }] },
     }, 10);
 
-    expect(movie.trailer).toBeNull();
+    expect(movie.trailers).toEqual([]);
   });
 
   it('treats a missing videos property as no trailer', () => {
     const { videos: _videos, ...movieWithoutVideos } = completeMovie as TmdbMoviePackage;
 
-    expect(normalizeTmdbMovie(movieWithoutVideos, 10).trailer).toBeNull();
+    expect(normalizeTmdbMovie(movieWithoutVideos, 10).trailers).toEqual([]);
   });
 
   it.each([
@@ -135,6 +155,6 @@ describe('normalizeTmdbMovie', () => {
     { videos: {} },
     { videos: { results: 'invalid' } },
   ])('treats a malformed videos response as no trailer', (override) => {
-    expect(normalizeTmdbMovie({ ...completeMovie, ...override } as TmdbMoviePackage, 10).trailer).toBeNull();
+    expect(normalizeTmdbMovie({ ...completeMovie, ...override } as TmdbMoviePackage, 10).trailers).toEqual([]);
   });
 });

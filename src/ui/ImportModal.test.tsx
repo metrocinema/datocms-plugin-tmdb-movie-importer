@@ -7,6 +7,7 @@ import type { ImportPlan } from '../domain/importPlanning';
 import { TmdbError } from '../providers/tmdbClient';
 import { ImportConfigurationError } from '../plugin/runtimeValidation';
 import { datoExternalVideoValue } from '../domain/trailer';
+import type { NormalizedTrailerCandidate } from '../domain/trailer';
 
 vi.mock('../providers/imagePreparation', () => ({
   prepareSelectableImages: async (images: NormalizedMovie['images']) => images,
@@ -36,7 +37,7 @@ const movie: NormalizedMovie = {
   directors: [{ tmdbId: 10, name: 'Director Name', order: 0, role: 'director' }],
   actors: [{ tmdbId: 20, name: 'Actor Name', order: 0, role: 'actor' }],
   images: [{ providerKey: 'tmdb', providerImageId: '/poster.jpg', movieIdentity: { providerKey: 'tmdb', tmdbId: 123 }, type: 'poster', originalUrl: 'https://image.tmdb.org/t/p/original/poster.jpg', width: 100, height: 150, language: 'en', rank: 1, attribution: 'TMDB' }],
-  trailer: null,
+  trailers: [],
 };
 
 const movieWithBackdrops: NormalizedMovie = {
@@ -48,9 +49,7 @@ const movieWithBackdrops: NormalizedMovie = {
   ],
 };
 
-const movieWithTrailer: NormalizedMovie = {
-  ...movie,
-  trailer: {
+const trailerCandidate: NormalizedTrailerCandidate = {
     providerKey: 'tmdb',
     providerVideoId: 'tmdb-video-1',
     movieIdentity: { providerKey: 'tmdb', tmdbId: 123 },
@@ -67,7 +66,21 @@ const movieWithTrailer: NormalizedMovie = {
     publishedAt: '2024-01-01T00:00:00.000Z',
     official: true,
     attribution: 'TMDB',
-  },
+};
+
+const ukTrailerCandidate: NormalizedTrailerCandidate = {
+  ...trailerCandidate,
+  providerVideoId: 'tmdb-video-2',
+  externalProviderId: 'youtube-video-2',
+  title: 'Official New UK Trailer',
+  watchUrl: 'https://www.youtube.com/watch?v=youtube-video-2',
+  thumbnailUrl: 'https://img.youtube.com/vi/youtube-video-2/maxresdefault.jpg',
+  country: 'GB',
+};
+
+const movieWithTrailer: NormalizedMovie = {
+  ...movie,
+  trailers: [trailerCandidate, ukTrailerCandidate],
 };
 
 const movieWithNonEnglishPosters: NormalizedMovie = {
@@ -988,16 +1001,44 @@ describe('ImportModal data flow', () => {
     expect(document.getElementById('trailer')).toBeNull();
   });
 
-  it('starts trailer selected for an empty current field and keeps scalar bulk actions independent', async () => {
+  it('defaults to no trailer and imports the one trailer the editor selects', async () => {
+    const prepare = vi.fn(capturePreparedPlan(() => undefined));
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ trailer: null }} mappedFields={['trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} prepare={prepare} resolve={async () => undefined} />);
+
+    await reachReview();
+
+    expect(screen.getByRole('radio', { name: 'Keep trailer empty' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Replace with Official Trailer' })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Replace with Official New UK Trailer' })).not.toBeChecked();
+    expect(screen.getByLabelText('0 fields, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Replace with Official New UK Trailer' }));
+
+    expect(screen.getByRole('radio', { name: 'Replace with Official New UK Trailer' })).toBeChecked();
+    expect(screen.getByLabelText('0 fields, 1 trailer replacement, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByText('Official New UK Trailer')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start import' }));
+    expect(prepare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fieldChanges: [{ key: 'trailer', value: datoExternalVideoValue(ukTrailerCandidate) }],
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it('starts with no trailer selected and keeps scalar bulk actions independent', async () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: 'Existing title', runtime: null, trailer: null }} mappedFields={['title', 'runtime', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
 
-    const trailerToggle = screen.getByRole('checkbox', { name: 'Import Official Trailer' });
+    const noTrailerOption = screen.getByRole('radio', { name: 'Keep trailer empty' });
     const reviewActions = document.querySelector('.movie-import-modal__actions--sticky');
 
-    expect(trailerToggle).toBeChecked();
-    expect(screen.getByText('Published Jan 1, 2024')).toBeInTheDocument();
+    expect(noTrailerOption).toBeChecked();
+    expect(screen.getAllByText('Published Jan 1, 2024')).toHaveLength(2);
     expect(screen.getByRole('checkbox', { name: 'Use proposed Title' })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).toBeChecked();
     expect(within(reviewActions as HTMLElement).getByText('1 field')).toBeInTheDocument();
@@ -1005,18 +1046,18 @@ describe('ImportModal data flow', () => {
     expect(within(reviewActions as HTMLElement).getByText('0 new people')).toBeInTheDocument();
     expect(within(reviewActions as HTMLElement).getByText('0 reused people')).toBeInTheDocument();
     expect(reviewActions).toHaveTextContent('1 field');
-    expect(reviewActions).toHaveTextContent('1 trailer');
+    expect(reviewActions).not.toHaveTextContent('1 trailer');
     expect(reviewActions).not.toHaveTextContent('Trailer unchanged');
-    expect(screen.getByLabelText('1 field, 1 trailer, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 field, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).not.toBeChecked();
-    expect(trailerToggle).toBeChecked();
+    expect(noTrailerOption).toBeChecked();
 
     await userEvent.click(screen.getByRole('button', { name: 'Select all' }));
     expect(screen.getByRole('checkbox', { name: 'Use proposed Title' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Use proposed Runtime' })).toBeChecked();
-    expect(trailerToggle).toBeChecked();
+    expect(noTrailerOption).toBeChecked();
   });
 
   it('shows trailer impact separately in review and confirm when a trailer is selected', async () => {
@@ -1024,13 +1065,15 @@ describe('ImportModal data flow', () => {
 
     await reachReview();
 
+    await userEvent.click(screen.getByRole('radio', { name: 'Replace with Official Trailer' }));
+
     const reviewActions = document.querySelector('.movie-import-modal__actions--sticky') as HTMLElement;
     expect(within(reviewActions).getByText('1 field')).toBeInTheDocument();
-    expect(within(reviewActions).getByText('1 trailer')).toBeInTheDocument();
+    expect(within(reviewActions).getByText('1 trailer replacement')).toBeInTheDocument();
     expect(within(reviewActions).getByText('0 images')).toBeInTheDocument();
     expect(within(reviewActions).getByText('0 new people')).toBeInTheDocument();
     expect(within(reviewActions).getByText('0 reused people')).toBeInTheDocument();
-    expect(screen.getByLabelText('1 field, 1 trailer, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 field, 1 trailer replacement, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
@@ -1045,18 +1088,18 @@ describe('ImportModal data flow', () => {
 
     const confirmActions = document.querySelector('.movie-import-modal__actions--confirm') as HTMLElement;
     expect(within(confirmActions).getByText('1 field')).toBeInTheDocument();
-    expect(within(confirmActions).getByText('1 trailer')).toBeInTheDocument();
+    expect(within(confirmActions).getByText('1 trailer replacement')).toBeInTheDocument();
     expect(within(confirmActions).getByText('0 images')).toBeInTheDocument();
     expect(within(confirmActions).getByText('0 new people')).toBeInTheDocument();
     expect(within(confirmActions).getByText('0 reused people')).toBeInTheDocument();
-    expect(screen.getByLabelText('1 field, 1 trailer, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 field, 1 trailer replacement, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
   });
 
   it('starts trailer unselected for a replacement current value', async () => {
     render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: { provider: 'youtube', provider_uid: 'existing-youtube-id', title: 'Editorial trailer', width: 1280, height: 720, thumbnail_url: 'https://img.youtube.com/vi/existing/hqdefault.jpg', url: 'https://www.youtube.com/watch?v=existing-youtube-id' } }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
-    expect(screen.getByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Keep current trailer' })).toBeChecked();
   });
 
   it('omits trailer impact segments when no trailer is selected', async () => {
@@ -1079,12 +1122,12 @@ describe('ImportModal data flow', () => {
     expect(screen.getByLabelText('1 field, 0 images, 0 new people, 0 reused people')).toBeInTheDocument();
   });
 
-  it('shows a non-actionable trailer status when the current provider and id already match', async () => {
-    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: datoExternalVideoValue(movieWithTrailer.trailer!) }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
+  it('shows the matching current trailer as the selected keep option', async () => {
+    render(<ImportModal initialTitle="Example" initialYear={2024} currentValues={{ title: '', trailer: datoExternalVideoValue(trailerCandidate) }} mappedFields={['title', 'trailer']} searchMovies={async () => [{ id: 123, title: 'Example Movie', releaseDate: '2024-03-01', overview: null, posterPath: null, posterUrl: null }]} loadMovie={async () => movieWithTrailer} resolvePeople={async () => []} {...pendingLifecycle} />);
 
     await reachReview();
-    expect(screen.getByText('Current trailer')).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Keep current trailer' })).toBeChecked();
+    expect(screen.queryByRole('radio', { name: 'Replace with Official Trailer' })).not.toBeInTheDocument();
   });
 
   it('shows the no-result trailer copy when TMDB has no candidate', async () => {
@@ -1092,8 +1135,8 @@ describe('ImportModal data flow', () => {
 
     await reachReview();
 
-    expect(screen.getByText('No official English YouTube trailer found.')).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'Import Official Trailer' })).not.toBeInTheDocument();
+    expect(screen.getByText('No official English YouTube trailers found.')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Keep current trailer' })).toBeChecked();
   });
 
   it('renders a structured-text current description as readable text', async () => {
