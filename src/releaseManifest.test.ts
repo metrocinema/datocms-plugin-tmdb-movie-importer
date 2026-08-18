@@ -46,16 +46,16 @@ describe('release package manifest', () => {
       name: 'datocms-plugin-tmdb-movie-importer',
       version: '0.1.0-next.0',
       description: 'Import movie metadata, cast, crew, images, and trailers from TMDB into DatoCMS.',
-      homepage: 'https://github.com/metrocinema/mcs-datocms-plugin',
+      homepage: 'https://github.com/metrocinema/datocms-plugin-tmdb-movie-importer',
       author: 'Metro Cinema',
       publisher: 'Metro Cinema',
       license: 'MIT',
       repository: {
         type: 'git',
-        url: 'git+https://github.com/metrocinema/mcs-datocms-plugin.git',
+        url: 'git+https://github.com/metrocinema/datocms-plugin-tmdb-movie-importer.git',
       },
       bugs: {
-        url: 'https://github.com/metrocinema/mcs-datocms-plugin/issues',
+        url: 'https://github.com/metrocinema/datocms-plugin-tmdb-movie-importer/issues',
       },
       datoCmsPlugin: {
         title: 'TMDB Movie Importer',

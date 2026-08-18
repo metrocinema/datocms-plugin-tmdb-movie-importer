@@ -319,7 +319,7 @@ Run:
 ```bash
 gh api --method PUT \
   -H 'X-GitHub-Api-Version: 2026-03-10' \
-  repos/metrocinema/mcs-datocms-plugin/environments/production \
+  repos/metrocinema/datocms-plugin-tmdb-movie-importer/environments/production \
   --input - <<'JSON'
 {"wait_timer":0,"prevent_self_review":false,"reviewers":[],"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}
 JSON
@@ -334,7 +334,7 @@ Run:
 ```bash
 gh api --method POST \
   -H 'X-GitHub-Api-Version: 2026-03-10' \
-  repos/metrocinema/mcs-datocms-plugin/environments/production/deployment-branch-policies \
+  repos/metrocinema/datocms-plugin-tmdb-movie-importer/environments/production/deployment-branch-policies \
   -f name=main \
   -f type=branch
 ```
@@ -347,10 +347,10 @@ Run:
 
 ```bash
 printf '%s' 'e71ac3e44e8561e43f5fc9e402b80d71' | \
-  gh secret set CLOUDFLARE_ACCOUNT_ID --env production --repo metrocinema/mcs-datocms-plugin
+  gh secret set CLOUDFLARE_ACCOUNT_ID --env production --repo metrocinema/datocms-plugin-tmdb-movie-importer
 
 printf '%s' "$TMDB_CLOUDFLARE_PAGES_TOKEN" | \
-  gh secret set CLOUDFLARE_API_TOKEN --env production --repo metrocinema/mcs-datocms-plugin
+  gh secret set CLOUDFLARE_API_TOKEN --env production --repo metrocinema/datocms-plugin-tmdb-movie-importer
 ```
 
 Expected: both commands succeed without printing secret values.
@@ -360,10 +360,10 @@ Expected: both commands succeed without printing secret values.
 Run:
 
 ```bash
-gh secret list --env production --repo metrocinema/mcs-datocms-plugin
+gh secret list --env production --repo metrocinema/datocms-plugin-tmdb-movie-importer
 gh api \
   -H 'X-GitHub-Api-Version: 2026-03-10' \
-  repos/metrocinema/mcs-datocms-plugin/environments/production/deployment-branch-policies \
+  repos/metrocinema/datocms-plugin-tmdb-movie-importer/environments/production/deployment-branch-policies \
   --jq '.branch_policies[] | {name, type}'
 ```
 
@@ -374,13 +374,13 @@ Expected: secret names `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are li
 Run only after separate deployment approval:
 
 ```bash
-gh workflow run deploy-pages.yml --ref main --repo metrocinema/mcs-datocms-plugin
+gh workflow run deploy-pages.yml --ref main --repo metrocinema/datocms-plugin-tmdb-movie-importer
 ```
 
 Watch the resulting run and verify it completes:
 
 ```bash
-gh run watch --repo metrocinema/mcs-datocms-plugin --exit-status
+gh run watch --repo metrocinema/datocms-plugin-tmdb-movie-importer --exit-status
 ```
 
 Then verify the stable deployment:

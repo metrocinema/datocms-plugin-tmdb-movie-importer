@@ -76,17 +76,17 @@ export function verifyMarketplaceMetadata(manifest) {
     manifest.description === 'Import movie metadata, cast, crew, images, and trailers from TMDB into DatoCMS.',
     'package description is incorrect',
   );
-  invariant(manifest.homepage === 'https://github.com/metrocinema/mcs-datocms-plugin', 'package homepage is incorrect');
+  invariant(manifest.homepage === 'https://github.com/metrocinema/datocms-plugin-tmdb-movie-importer', 'package homepage is incorrect');
   invariant(manifest.author === 'Metro Cinema', 'package author is incorrect');
   invariant(manifest.publisher === 'Metro Cinema', 'package publisher is incorrect');
   invariant(manifest.license === 'MIT', 'package license is incorrect');
   invariant(Array.isArray(manifest.keywords) && manifest.keywords.includes('datocms-plugin'), 'package keywords omit datocms-plugin');
   invariant(
-    manifest.repository?.type === 'git' && manifest.repository.url === 'git+https://github.com/metrocinema/mcs-datocms-plugin.git',
+    manifest.repository?.type === 'git' && manifest.repository.url === 'git+https://github.com/metrocinema/datocms-plugin-tmdb-movie-importer.git',
     'package repository is incorrect',
   );
   invariant(
-    manifest.bugs?.url === 'https://github.com/metrocinema/mcs-datocms-plugin/issues',
+    manifest.bugs?.url === 'https://github.com/metrocinema/datocms-plugin-tmdb-movie-importer/issues',
     'package bug tracker is incorrect',
   );
   const plugin = manifest.datoCmsPlugin;
