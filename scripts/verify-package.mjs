@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { createPackageTarball } from './npm-pack.mjs';
 import {
   verifyManifest,
   verifyMarketplaceMetadata,
@@ -23,17 +24,6 @@ async function packageDryRun(destination) {
   const [manifest] = JSON.parse(stdout);
   if (!manifest) throw new Error('npm pack --dry-run did not return package metadata');
   return manifest;
-}
-
-async function createTarball(destination) {
-  const { stdout } = await execFileAsync(
-    'npm',
-    ['pack', '--json', '--ignore-scripts', '--pack-destination', destination],
-    { cwd: repositoryRoot },
-  );
-  const [manifest] = JSON.parse(stdout);
-  if (!manifest?.filename) throw new Error('npm pack did not return a tarball filename');
-  return { manifest, tarballPath: join(destination, manifest.filename) };
 }
 
 function contentType(filePath) {
@@ -104,7 +94,11 @@ async function main() {
     verifyManifest(dryRunManifest);
     verifyPackedFiles(dryRunManifest.files);
 
-    const { manifest: tarballManifest, tarballPath } = await createTarball(temporaryDirectory);
+    const { manifest: tarballManifest, tarballPath } = await createPackageTarball({
+      destination: temporaryDirectory,
+      environment: process.env,
+      repositoryRoot,
+    });
     verifyManifest(tarballManifest);
     verifyPackedFiles(tarballManifest.files);
     verifyMatchingPackedFiles(dryRunManifest.files, tarballManifest.files);
