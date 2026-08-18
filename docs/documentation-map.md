@@ -7,12 +7,16 @@ Use this index to distinguish current operating documentation from implementatio
 - [`README.md`](../README.md): current product behavior, schema setup, local development, known limits, and the manual DatoCMS sandbox checklist.
 - [`CHANGELOG.md`](../CHANGELOG.md): user-facing and operational changes by release state.
 - [`release-guide.md`](release-guide.md): active private-deployment, Marketplace, rollback, and support runbook. It prepares release work but does not authorize it.
-- [`marketplace/cover.webp`](marketplace/cover.webp) and [`marketplace/preview.webp`](marketplace/preview.webp): sanitized package-listing artwork.
+- [`marketplace/cover.webp`](marketplace/cover.webp) and [`marketplace/preview.webp`](marketplace/preview.webp): sanitized package-listing artwork. The cover uses a thumbnail-first Movie Importer logotype. The preview shows the current trailer picker with no image destinations selected.
+- [`marketplace/cover-source.svg`](marketplace/cover-source.svg): editable source for the rasterized Marketplace cover. DatoCMS does not accept SVG cover files, so the packaged cover remains WebP.
+
+## Implemented design records
+
+- [`TMDB Trailer Import Design`](superpowers/specs/2026-08-17-tmdb-trailer-import-design.md): original design record for importing an official English YouTube trailer into a native DatoCMS External Video field. The current implementation extends it with an editor-controlled multi-candidate picker.
+- [`TMDB Trailer Import Implementation Plan`](superpowers/plans/2026-08-17-tmdb-trailer-import.md): implementation record for trailer import verification and release evidence. One deployed replacement flow passed sandbox acceptance; the README lists the remaining cases.
 
 ## Planned work
 
-- [`TMDB Trailer Import Design`](superpowers/specs/2026-08-17-tmdb-trailer-import-design.md): implemented design record for importing one official English YouTube trailer into a native DatoCMS External Video field. Status: Implemented; sandbox acceptance pending.
-- [`TMDB Trailer Import Implementation Plan`](superpowers/plans/2026-08-17-tmdb-trailer-import.md): implementation record for trailer import verification and release evidence. Status: Implemented; sandbox acceptance pending.
 - [`TMDB Asset Source Implementation Plan`](superpowers/plans/2026-07-25-tmdb-asset-source.md): planned native DatoCMS Media Area source. It is not implemented and may require a separately approved server-side image path if direct TMDB URLs fail the DatoCMS CORS requirement.
 
 ## Historical implementation records

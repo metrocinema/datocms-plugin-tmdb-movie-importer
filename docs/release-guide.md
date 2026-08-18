@@ -6,6 +6,18 @@ This guide prepares a release. It does not authorize any deployment, publication
 
 The repository proves that the manual deployment workflow and release checks exist. A push to `main` does not deploy this plugin because the Pages workflow requires an explicit GitHub Actions dispatch. GitHub production-environment restrictions, repository secrets, Cloudflare project state, deployment success, and DatoCMS sandbox acceptance live outside the repository and must be checked and recorded for each release.
 
+## Current readiness snapshot
+
+As of August 18, 2026:
+
+- `origin/main` and the stable Cloudflare Pages deployment are at `094dc0934e004b62fb80185a2d912bcf70dabcdb`.
+- Local `main` includes the **Movie Importer** rename through merge commit `0661969d0804d8e17e7d4225edf535e2d7b66782`. The rename and this documentation reconciliation have not been pushed, deployed, or accepted in DatoCMS.
+- One trailer-replacement import against the deployed commit selected **Official Countdown Trailer**, runtime `173`, and tagline **Defy the gods.** The values appeared in the unsaved movie form. The flow selected no images, created no people, did not save or publish, and produced no console warnings or errors during the import.
+- That result is partial acceptance, not a complete release sign-off. The current-only/no-alternatives trailer state, matching-trailer deduplication, restricted-role behavior, image imports, and the remaining README checklist still need sandbox evidence.
+- The Marketplace cover and preview have been refreshed locally. The cover uses a thumbnail-first Movie Importer logotype; the preview shows the current trailer picker and zero selected image destinations. They remain unpublished and still require release-owner approval with the rest of the package.
+
+Update this snapshot when any commit, push, deployment, npm publication, or DatoCMS acceptance state changes. Do not infer one state from another.
+
 ## Release surfaces
 
 The same package supports two delivery paths:
@@ -21,7 +33,9 @@ Keep the private installation in place until the Marketplace installation has be
 2. Run `npm run verify:release` and inspect the package with `npm pack --dry-run --json`.
 3. Confirm the package contains only intended public files and no tokens, environment files, source maps, private identifiers, planning documents, or production content.
 4. Check the DatoCMS sandbox schema, roles, and permissions described in the README.
-5. Confirm the exact version, npm tag, Cloudflare Pages target, and rollback commit with the release owner.
+5. Confirm the `homepage` and `bugs` URLs are publicly reachable and suitable for Marketplace users.
+6. Inspect and explicitly approve the Marketplace cover and preview at both full size and Marketplace-card size.
+7. Confirm the exact version, npm tag, Cloudflare Pages target, and rollback commit with the release owner.
 
 ## Private deployment
 
@@ -75,11 +89,14 @@ CLOUDFLARE_API_TOKEN="$TMDB_CLOUDFLARE_PAGES_TOKEN" \
 
 ## Canary publication
 
-1. Publish only the approved prerelease package version, such as `0.1.0-next.0`, under npm's `next` tag.
-2. Install the package in a DatoCMS sandbox through Developer Zone. Do not alter the live private installation during this test.
-3. Re-enter configuration, verify field mappings and the manually attached TMDB ID add-on, then complete the acceptance checklist.
-4. Check the configuration credits area for the TMDB logo and required notice.
-5. Record the package version, npm integrity, DatoCMS sandbox result, and any support notes.
+DatoCMS discovers compliant packages from npm. A canary published under a non-`latest` dist-tag remains available for owner testing through Developer Zone; publishing under `latest` makes a compliant package eligible for automatic Marketplace discovery. See DatoCMS's guides to [releasing canary versions](https://www.datocms.com/docs/plugin-sdk/releasing-new-plugin-versions) and [publishing to Marketplace](https://www.datocms.com/docs/plugin-sdk/publishing-to-marketplace).
+
+1. Confirm npm authentication, package-name ownership, and the approved prerelease version without printing credentials.
+2. Publish only the approved prerelease package version, such as `0.1.0-next.0`, under npm's `next` tag.
+3. Install the package in a DatoCMS sandbox through Developer Zone. Do not alter the live private installation during this test.
+4. Re-enter configuration, verify field mappings and the manually attached TMDB ID add-on, then complete the acceptance checklist.
+5. Check the configuration credits area for the TMDB logo and required notice.
+6. Record the package version, npm integrity, DatoCMS sandbox result, and any support notes.
 
 ## Promotion
 
@@ -87,7 +104,7 @@ Promote only after the private deployment and Marketplace canary both pass sandb
 
 1. Confirm the public source and package contain no private material.
 2. Publish the identical approved source as `0.1.0` under npm's `latest` tag and create the matching Git tag.
-3. Verify the Marketplace listing title, publisher, screenshots, package entry point, permissions, and TMDB attribution.
+3. Confirm the package appears in Marketplace, then verify its title, publisher, screenshots, package entry point, permissions, homepage, support link, and TMDB attribution. DatoCMS says compliant packages normally appear automatically within one hour; investigate the package metadata and contact DatoCMS support if it is still absent after three hours.
 4. Test a fresh Marketplace installation in the sandbox before scheduling any private-to-Marketplace migration.
 5. Plan the migration as a separate change: export or record settings, reinstall from Marketplace, reattach the field add-on if needed, verify mappings, and test an import before removing the private installation.
 
