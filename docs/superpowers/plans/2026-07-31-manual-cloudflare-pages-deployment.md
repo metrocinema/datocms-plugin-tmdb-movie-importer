@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a manually triggered, `main`-only GitHub Actions workflow that verifies and deploys the private TMDB Movie Importer build to the existing Cloudflare Pages project.
+**Goal:** Add a manually triggered, `main`-only GitHub Actions workflow that verifies and deploys the private Movie Importer build to the existing Cloudflare Pages project.
 
 **Architecture:** GitHub Actions becomes the repeatable release runner for the existing Direct Upload Pages project. A guard job rejects non-`main` dispatches before the deployment job can access environment-scoped credentials; the deployment job runs the full release gate, serializes production uploads, and uses Wrangler to publish `dist` with commit metadata.
 

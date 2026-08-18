@@ -1,4 +1,4 @@
-# TMDB Movie Importer Release Packaging
+# Movie Importer Release Packaging
 
 ## Goal
 
@@ -7,7 +7,7 @@ Prepare the existing plugin for both a stable Cloudflare Pages private installat
 ## Global Constraints
 
 - Work on branch `codex/release-packaging` from the approved `main` baseline.
-- Public product title: `TMDB Movie Importer`.
+- Public product title: `Movie Importer`.
 - npm package name: `datocms-plugin-tmdb-movie-importer`.
 - Prepare version: `0.1.0-next.0`; the accepted public release will later become `0.1.0`.
 - Public code license: MIT.
@@ -33,7 +33,7 @@ Prepare the existing plugin for both a stable Cloudflare Pages private installat
 
 ## Task 2: Public Identity, License, and Documentation
 
-- Standardize user-facing product references on `TMDB Movie Importer`, retaining Metro Cinema as publisher.
+- Standardize user-facing product references on `Movie Importer`, retaining Metro Cinema as publisher.
 - Add `LICENSE`, `CHANGELOG.md`, and a release guide covering private deployment, canary publication, promotion, rollback, and support.
 - Expand the README with Marketplace and private installation, permissions and schema setup, frontend TMDB token visibility, the unsaved-form contract, and the private-to-Marketplace reinstall warning.
 - Add TMDB's approved attribution/logo and required notice to the plugin configuration or credits area and documentation without implying endorsement.

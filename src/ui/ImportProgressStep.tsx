@@ -73,7 +73,7 @@ export function ImportProgressStep({ plan, progressEvents, preparationFailure, p
       </div>
       <div className="movie-import-modal__scroll-body">
         <header className="movie-import-modal__header">
-          <p className="movie-import-modal__eyebrow">TMDB Movie Importer</p>
+          <p className="movie-import-modal__eyebrow">Movie Importer</p>
           <h2 ref={headingRef} tabIndex={-1} className="movie-import-modal__title movie-import-modal__title--focus-target">Importing movie</h2>
           <p className="movie-import-modal__intro">Preparing the selected people, images, and movie values before they are applied to this form.</p>
         </header>

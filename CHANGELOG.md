@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to TMDB Movie Importer are documented here.
+All notable changes to Movie Importer are documented here.
 
 ## Unreleased
 
@@ -37,7 +37,7 @@ All notable changes to TMDB Movie Importer are documented here.
 
 ### Changed
 
-- Standardized the public product name as TMDB Movie Importer.
+- Standardized the public product name as Movie Importer.
 
 ## License and third-party content
 

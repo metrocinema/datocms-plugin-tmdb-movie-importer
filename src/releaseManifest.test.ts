@@ -58,7 +58,7 @@ describe('release package manifest', () => {
         url: 'https://github.com/metrocinema/datocms-plugin-tmdb-movie-importer/issues',
       },
       datoCmsPlugin: {
-        title: 'TMDB Movie Importer',
+        title: 'Movie Importer',
         entryPoint: 'dist/index.html',
         permissions: ['currentUserAccessToken'],
         coverImage: 'docs/marketplace/cover.webp',
@@ -121,7 +121,7 @@ describe('release package manifest', () => {
     const license = await readLicense();
 
     expect(license).toContain('Permission is hereby granted, free of charge');
-    expect(license).toContain('The MIT license above applies only to original TMDB Movie Importer plugin code and documentation created by Metro Cinema.');
+    expect(license).toContain('The MIT license above applies only to original Movie Importer plugin code and documentation created by Metro Cinema.');
     expect(license).toContain('The bundled TMDB logo, TMDB trademarks, TMDB data, TMDB images, and other TMDB content are excluded from this MIT license.');
     expect(license).toContain('They remain governed by their respective owners and the TMDB API Terms of Use.');
   });

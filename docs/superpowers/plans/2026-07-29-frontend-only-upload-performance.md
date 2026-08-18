@@ -240,7 +240,7 @@ Expected: report the exact verified performance files and the remaining unrelate
 - No source files.
 
 **Interfaces:**
-- Consumes: browser console events named `MCS Movie Importer upload performance`.
+- Consumes: browser console events named `Movie Importer upload performance`.
 - Produces: live sandbox evidence that five images upload successfully in one wave.
 
 - [ ] **Step 1: Start the local plugin**

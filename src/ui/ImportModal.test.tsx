@@ -353,7 +353,7 @@ describe('ImportModal', () => {
 
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(consoleError).not.toHaveBeenCalledWith(
-        'TMDB Movie Importer person matching failed',
+        'Movie Importer person matching failed',
         expect.anything(),
       );
       expect(unhandledRejection).not.toHaveBeenCalled();
@@ -469,7 +469,7 @@ describe('ImportModal', () => {
     await userEvent.click(screen.getByRole('button', { name: /Example Movie/i }));
 
     expect(screen.getByRole('heading', { name: 'Review changes' })).toBeInTheDocument();
-    expect(screen.getByText('TMDB Movie Importer')).toBeInTheDocument();
+    expect(screen.getByText('Movie Importer')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Review changes' }).closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Choose which TMDB values to prepare. Nothing is saved or published until you save the DatoCMS movie.').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
     expect(screen.getByText('Field changes').closest('.movie-import-modal__scroll-body')).toBeInTheDocument();
@@ -1403,7 +1403,7 @@ describe('ImportModal data flow', () => {
       expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })).toHaveLength(1);
       expect(screen.getAllByRole('img', { name: 'Backdrop option 2' })[0]).toHaveAttribute('src', movieWithBackdrops.images[2]!.originalUrl);
       await waitFor(() => expect(consoleError).toHaveBeenCalledWith(
-        'TMDB Movie Importer artwork preparation failed',
+        'Movie Importer artwork preparation failed',
         { message: '[object Object]' },
       ));
       expect(JSON.stringify(consoleError.mock.calls)).not.toContain('secret-image.jpg');
@@ -1434,7 +1434,7 @@ describe('ImportModal data flow', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Load movie by ID' }));
 
       await waitFor(() => expect(consoleError).toHaveBeenCalledWith(
-        'TMDB Movie Importer person matching failed',
+        'Movie Importer person matching failed',
         { message: '[object Object]' },
       ));
       expect(JSON.stringify(consoleError.mock.calls)).not.toContain('secret-current-user-token');

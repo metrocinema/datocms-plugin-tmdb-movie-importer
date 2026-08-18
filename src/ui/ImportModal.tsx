@@ -81,7 +81,7 @@ export function ImportModal(props: ImportModalProps) {
       setSearchActivity('checking_artwork');
       const preparedImages = await prepareImages(loaded.images).catch((reason) => {
         console.error(
-          'TMDB Movie Importer artwork preparation failed',
+          'Movie Importer artwork preparation failed',
           tokenSafeErrorDetails(reason),
         );
         return loaded.images;
@@ -92,7 +92,7 @@ export function ImportModal(props: ImportModalProps) {
       }
       const peopleResult = await peoplePromise;
       if (peopleResult.status === 'rejected') {
-        console.error('TMDB Movie Importer person matching failed', tokenSafeErrorDetails(peopleResult.reason));
+        console.error('Movie Importer person matching failed', tokenSafeErrorDetails(peopleResult.reason));
         setError('The TMDB movie loaded, but Person matching failed. Check that this editor can list Person records, then try again.');
         setStep('search');
         return;
@@ -110,7 +110,7 @@ export function ImportModal(props: ImportModalProps) {
       ));
       setStep('review');
     } catch (error) {
-      console.error('TMDB Movie Importer TMDB movie load failed', tokenSafeErrorDetails(error));
+      console.error('Movie Importer TMDB movie load failed', tokenSafeErrorDetails(error));
       setError(messageForTmdbMovieLoadError(error));
       setStep('search');
     } finally {
@@ -141,7 +141,7 @@ export function ImportModal(props: ImportModalProps) {
       setResults(await props.searchMovies({ title: trimmedTitle, year }));
       setHasSearched(true);
     } catch (error) {
-      console.error('TMDB Movie Importer TMDB search failed', tokenSafeErrorDetails(error));
+      console.error('Movie Importer TMDB search failed', tokenSafeErrorDetails(error));
       setError(messageForTmdbSearchError(error));
     } finally {
       setSearchActivity(null);

@@ -28,14 +28,14 @@ class PluginErrorBoundary extends React.Component<{ children: React.ReactNode },
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('TMDB Movie Importer render failed', error, info);
+    console.error('Movie Importer render failed', error, info);
   }
 
   render() {
     if (this.state.error) {
       return (
         <div role="alert" style={{ color: 'var(--color--danger-soft--ink, var(--color--ink))', fontFamily: 'sans-serif', padding: 16 }}>
-          <h2>TMDB Movie Importer failed to render</h2>
+          <h2>Movie Importer failed to render</h2>
           <p>{this.state.error.message}</p>
           <p>Open the browser console for the full stack trace.</p>
         </div>
@@ -143,12 +143,12 @@ connect({
               environment: ctx.environment,
             },
             preparationLocale,
-            (timing) => console.info('TMDB Movie Importer upload performance', timing),
+            (timing) => console.info('Movie Importer upload performance', timing),
           ),
           {
             personModelId: latestSchema?.models[latestParams.personModelApiKey]?.id,
             onProgress,
-            onPhaseTiming: (timing) => console.info('TMDB Movie Importer performance', timing),
+            onPhaseTiming: (timing) => console.info('Movie Importer performance', timing),
           },
         );
       },

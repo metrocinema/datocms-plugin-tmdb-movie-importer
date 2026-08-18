@@ -6,7 +6,7 @@ export function manualFieldExtensions(): ManualFieldExtension[] {
   return [
     {
       id: TMDB_MOVIE_IMPORT_FIELD_EXTENSION_ID,
-      name: 'TMDB Movie Importer',
+      name: 'Movie Importer',
       type: 'addon',
       fieldTypes: ['string', 'integer', 'float'],
       initialHeight: 80,
