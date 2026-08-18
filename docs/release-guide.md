@@ -10,12 +10,12 @@ The repository proves that the manual deployment workflow and release checks exi
 
 As of August 18, 2026:
 
-- `origin/main` and the stable Cloudflare Pages deployment are at `094dc0934e004b62fb80185a2d912bcf70dabcdb`.
-- Local `main` includes the **Movie Importer** rename through merge commit `0661969d0804d8e17e7d4225edf535e2d7b66782`. The rename and this documentation reconciliation have not been pushed, deployed, or accepted in DatoCMS.
+- The stable Cloudflare Pages deployment last accepted in DatoCMS is at `094dc0934e004b62fb80185a2d912bcf70dabcdb`.
+- `main` includes the **Movie Importer** rename, refreshed Marketplace media and documentation, and the automatic Person summary fix. These source changes have not been deployed or accepted in DatoCMS.
 - Deployed commit `094dc0934e004b62fb80185a2d912bcf70dabcdb` passed 20 of 21 DatoCMS sandbox acceptance cases. The tested matrix covered trailer replacement, current-only/no-alternatives behavior, matching-trailer deduplication, keyboard navigation, image selection, Person resolution, and a complete import into a new unsaved movie form. No console warnings or errors appeared during the tested flows.
 - The complete import persisted seven selected metadata values, the selected trailer, three uploaded images, and Person links in the unsaved form. The test created three sandbox image uploads and two draft Person records, **Stan Brakhage** and **Jane Wodening**. It did not save or publish the movie record.
 - Restricted-role behavior remains unverified because the available sandbox session has administrator access. This prevents a complete release sign-off.
-- Acceptance exposed a Review and Confirm summary defect when the same automatically matched TMDB person appeared in multiple roles. This branch contains a verified fix that deduplicates automatic Person counts and names while preserving separate manual choices. That fix is committed locally but has not been merged into local `main`, pushed, deployed, or accepted in DatoCMS.
+- Acceptance exposed a Review and Confirm summary defect when the same automatically matched TMDB person appeared in multiple roles. The fix is included in `main` and deduplicates automatic Person counts and names while preserving separate manual choices. It has not been deployed or accepted in DatoCMS.
 - The Marketplace cover and preview have been refreshed locally. The cover uses a thumbnail-first Movie Importer logotype; the preview shows the current trailer picker and zero selected image destinations. They remain unpublished and still require release-owner approval with the rest of the package.
 
 Update this snapshot when any commit, push, deployment, npm publication, or DatoCMS acceptance state changes. Do not infer one state from another.
